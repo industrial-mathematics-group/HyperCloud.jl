@@ -24,7 +24,8 @@ makedocs(;
         prettyurls=get(ENV, "CI", "false") == "true",
         canonical="https://blhackslash.github.io/HyperCloud.jl",
         edit_link="main",
-        assets=String[],
+        assets = String["src/assets/logo.svg","src/assets/logo-dark.svg"],
+        sidebar_sitename = false,
     ),
     pages=[
         "Home" => "index.md",
