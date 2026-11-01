@@ -1,7 +1,7 @@
 <div align="center">
 
-<img alt="HyperCloudCore.jl" src="logos/svg/logo.svg#gh-light-mode-only" width="480">
-<img alt="HyperCloudCore.jl" src="logos/svg/logo-dark.svg#gh-dark-mode-only" width="480">
+<img alt="HyperCloud.jl" src="logos/svg/logo.svg#gh-light-mode-only" width="480">
+<img alt="HyperCloud.jl" src="logos/svg/logo-dark.svg#gh-dark-mode-only" width="480">
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23266176.svg)](https://doi.org/10.5281/zenodo.23266176)
 [![Build Status](https://github.com/blhackslash/HyperCloud.jl/actions/workflows/CI.yml/badge.svg)](https://github.com/blhackslash/HyperCloud.jl/actions/workflows/CI.yml)
