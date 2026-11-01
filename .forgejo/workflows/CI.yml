@@ -28,4 +28,5 @@ jobs:
 
       - uses: https://github.com/julia-actions/julia-runtest@v1
         with:
+          prefix: xvfb-run
           coverage: false
