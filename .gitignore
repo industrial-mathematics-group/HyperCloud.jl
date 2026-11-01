@@ -94,3 +94,7 @@ JuliaLocalPreferences.toml
 *.3dm
 *.max
 
+
+# Logos and documentation assets are tracked despite the image rules above
+!logos/**
+!docs/src/assets/**

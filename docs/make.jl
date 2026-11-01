@@ -24,7 +24,9 @@ makedocs(;
         prettyurls=get(ENV, "CI", "false") == "true",
         canonical="https://blhackslash.github.io/HyperCloud.jl",
         edit_link="main",
-        assets = String["src/assets/logo.svg","src/assets/logo-dark.svg"],
+        # The sidebar logo needs no entry here: Documenter shows docs/src/assets/logo.svg (and logo-dark.svg for the
+        # dark themes) automatically. `assets` only takes CSS/JS files and favicons.
+        assets = [asset("assets/favicon.png", class = :ico, islocal = true)],
         sidebar_sitename = false,
     ),
     pages=[
