@@ -18,6 +18,11 @@ julia -t auto --project=test/gpu test/gpu/runtests.jl                # device ch
 julia -t auto --project=test/gpu benchmark/runners.jl                # CPU vs GPU runner benchmark
 ```
 
+`test/runtests.jl` runs its test groups (`units`, `sims-bgk`, `sweep-a`, `sweep-b`, `sims`, `examples`, files
+in `test/`) in parallel child processes with the same julia flags and environment;
+`HYPERCLOUD_TEST_GROUP=<group>` runs one group in the current process, `HYPERCLOUD_TEST_JOBS=1` all of them one
+after the other. The suite is dominated by compilation (each method is a new type combination of the stepper).
+
 `HYPERCLOUD_BACKEND` accepts `polyester` (default), `threads`, `ka_cpu`. Run the suite
 with `ka_cpu` too when a change touches anything that ends up in a kernel.
 
