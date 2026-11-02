@@ -55,7 +55,6 @@ jobs:
         with:
           file: lcov.info
           token: ${{ secrets.CODECOV_TOKEN }}
-          slug: blhackslash/HyperCloud.jl
           fail_ci_if_error: false 
 
   docs:
