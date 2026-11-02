@@ -4,10 +4,10 @@
 <img alt="HyperCloud.jl" src="logos/svg/logo-dark.svg#gh-dark-mode-only" width="480">
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23266176.svg)](https://doi.org/10.5281/zenodo.23266176)
-[![Build Status](https://github.com/blhackslash/HyperCloud.jl/actions/workflows/CI.yml/badge.svg)](https://github.com/blhackslash/HyperCloud.jl/actions/workflows/CI.yml)
-[![Coverage](https://codecov.io/gh/blhackslash/HyperCloud.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/blhackslash/HyperCloud.jl)
-[![Dev Docs](https://img.shields.io/badge/docs-dev-blue.svg)](https://blhackslash.github.io/HyperCloud.jl/dev/)
-[![Stable Docs](https://img.shields.io/badge/docs-stable-blue.svg)](https://blhackslash.github.io/HyperCloud.jl/stable/)
+[![Build Status](https://github.com/industrial-mathematics-group/HyperCloud.jl/actions/workflows/CI.yml/badge.svg)](https://github.com/industrial-mathematics-group/HyperCloud.jl/actions/workflows/CI.yml)
+[![Coverage](https://codecov.io/gh/industrial-mathematics-group/HyperCloud.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/industrial-mathematics-group/HyperCloud.jl)
+[![Dev Docs](https://img.shields.io/badge/docs-dev-blue.svg)](https://industrial-mathematics-group.github.io/HyperCloud.jl/dev/)
+[![Stable Docs](https://img.shields.io/badge/docs-stable-blue.svg)](https://industrial-mathematics-group.github.io/HyperCloud.jl/stable/)
 
 </div>
 
