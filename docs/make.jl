@@ -7,22 +7,22 @@ using HyperCloud
 # to check references to names that are not deployed yet.
 links = InterLinks(
     "HyperCloudCore" => (
-        "https://blhackslash.github.io/HyperCloudCore.jl/dev/",
-        get(ENV, "HYPERCLOUDCORE_INVENTORY", "https://blhackslash.github.io/HyperCloudCore.jl/dev/objects.inv"),
+        "https://industrial-mathematics-group.github.io/HyperCloudCore.jl/dev/",
+        get(ENV, "HYPERCLOUDCORE_INVENTORY", "https://industrial-mathematics-group.github.io/HyperCloudCore.jl/dev/objects.inv"),
     ),
 )
 
 makedocs(;
     modules=[HyperCloud],
     # Explicit, so the build does not depend on the `origin` remote (Forgejo checkouts).
-    repo=Remotes.GitHub("blhackslash", "HyperCloud.jl"),
+    repo=Remotes.GitHub("industrial-mathematics-group", "HyperCloud.jl"),
     plugins=[links],
     authors="Pascal Jung",
     sitename="HyperCloud.jl",
     checkdocs = :exports,
     format=Documenter.HTML(;
         prettyurls=get(ENV, "CI", "false") == "true",
-        canonical="https://blhackslash.github.io/HyperCloud.jl",
+        canonical="https://industrial-mathematics-group.github.io/HyperCloud.jl",
         edit_link="main",
         # The sidebar logo needs no entry here: Documenter shows docs/src/assets/logo.svg (and logo-dark.svg for the
         # dark themes) automatically. `assets` only takes CSS/JS files and favicons.
@@ -53,7 +53,7 @@ makedocs(;
 )
 
 deploydocs(;
-    repo="github.com/blhackslash/HyperCloud.jl",
+    repo="github.com/industrial-mathematics-group/HyperCloud.jl",
     devbranch="main",
     push_preview = true,
 )
