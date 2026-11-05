@@ -73,6 +73,18 @@
         simn = @test_logs (:warn, r"time step is not finite") match_mode = :any run_direct_simulation(pn)
         @test simn !== nothing && simn.t == [0.0, 0.0]
 
+        # Blow-ups the step doesn't see (constant wave speeds): unstable linear advection at CFL 5 first grows
+        # (warned once), then overflows; the run stops at the first non-finite snapshot
+        pb = merge(linear_1d_gauss(50; tmax = 100.0), UPWIND1, Dict{Symbol, Any}(:Time_CFL => 5.0, :snapshots => 10))
+        simb = @test_logs (:warn, r"times larger than at t = 0") (:warn, r"the state is not finite") match_mode = :any run_direct_simulation(pb)
+        @test simb !== nothing && all(isfinite, simb.t) && simb.t[end] < 100.0
+
+        # No wave moves (zero velocity: infinite CFL step): the run reaches tmax without a warning
+        pz = merge(linear_1d_gauss(50), UPWIND1, Dict{Symbol, Any}(:PDE_velocities => ((0.0,),)))
+        logs, simz = Test.collect_test_logs(() -> run_direct_simulation(pz))
+        @test simz !== nothing && simz.t[end] ≈ 0.1
+        @test !any(l -> l.level >= Base.CoreLogging.Warn, logs)
+
         p0 = merge(linear_1d_gauss(50), UPWIND1)
         p0[:snapshots] = 0
         logs, sim0 = Test.collect_test_logs(() -> run_direct_simulation(p0))

@@ -12,6 +12,16 @@ HyperCloudCore._extract_order(::NoFallbackGrad) = 1
 HyperCloudCore._divergence_degree(::NoFallbackGrad) = 1
 HyperCloudCore.update_size!(::NoFallbackGrad, ::Int) = nothing
 
+# Largest absolute component of a stored state (NaN or Inf if any component is not finite).
+function _max_abs(states::AbstractVector)
+    m = zero(eltype(eltype(states)))
+    for u in states, c in u
+        isfinite(c) || return oftype(m, Inf)
+        m = max(m, abs(c))
+    end
+    return m
+end
+
 """
     saveData!(xs_storage, us_storage, ts_storage, snap_idx, pg, current_t, remove_ghosts)
 
@@ -81,9 +91,12 @@ The primary simulation orchestrator governing the main time-stepping loop.
 # Returns
 - A tuple containing: `(position_history, state_history, time_history, total_steps, elapsed_wall_time)`.
 
-If the time step collapses (below `1e-12`) or is not finite (a blown-up state) before `tmax`, the loop
-stops with a warning that gives the time reached; the last stored state is the one at that time, and the
-snapshots that were not reached are left unassigned.
+The loop stops early with a warning that gives the time reached if the time step collapses (below `1e-12`)
+or is NaN, or if a stored snapshot is not finite (a blown-up state; this also covers fixed time steps and
+equations with constant wave speeds, whose step never collapses). The last stored state is the one at that
+time, and the snapshots that were not reached are left unassigned. A snapshot that grew by more than a
+factor `1e8` over the initial state gives a warning (once) but does not stop the run. An infinite step (no
+wave moves) advances straight to `tmax`.
 """
 function solve_equation(
     timestepper::TimeStepper, 
@@ -115,6 +128,8 @@ function solve_equation(
 
     saveData!(xs, us, ts, snap_counter, pg, t, remove_ghosts)
     snap_counter += 1 
+    u0_scale = _max_abs(us[1])
+    growth_warned = false
     
     @info "Using $(nameof(typeof(get_backend()))) for parallel runs!"
 
@@ -126,11 +141,11 @@ function solve_equation(
 
     elapsed_time = @elapsed while t < tmax_val
         dt_step = is_cfl ? dt_inp * get_time_step(pg, eq, div_interp) : dt_inp
-        # A collapsed or non-finite step (NaN states, unbounded wave speeds) ends the run early; `!(dt > ε)`
-        # also catches NaN, so no NaN time is ever recorded.
-        if !(isfinite(dt_step) && dt_step > T(1e-12))
+        # A collapsed or NaN step (NaN states, unbounded wave speeds) ends the run early; `!(dt > ε)` also
+        # catches NaN, so no NaN time is ever recorded. An infinite step (no wave moves) goes straight to tmax.
+        if !(dt_step > T(1e-12))
             @warn "solve_equation stopped at t = $t before tmax = $tmax_val after $k_step steps: the time step " *
-                  "is $(isfinite(dt_step) ? "collapsed" : "not finite") (dt = $dt_step); the state has probably " *
+                  "is $(isnan(dt_step) ? "not finite" : "collapsed") (dt = $dt_step); the state has probably " *
                   "blown up. The data end at t = $t."
             break
         end
@@ -143,10 +158,25 @@ function solve_equation(
         t += dt_val
         k_step += 1
         
+        blown_up = false
         while snap_counter <= snapshots && t >= t_snap[snap_counter]
             saveData!(xs, us, ts, snap_counter, pg, t, remove_ghosts)
+            # The step does not see every blow-up (fixed steps, constant wave speeds, CFL estimates that
+            # skip NaN particles), so check the stored state as well.
+            scale = _max_abs(us[snap_counter])
+            if !isfinite(scale)
+                @warn "solve_equation stopped at t = $t before tmax = $tmax_val after $k_step steps: the state " *
+                      "is not finite (blown up). The data end at t = $t."
+                blown_up = true
+            elseif !growth_warned && u0_scale > 0 && scale > T(1e8) * u0_scale
+                @warn "solve_equation: at t = $t the state is $(scale / u0_scale) times larger than at t = 0; " *
+                      "the run is probably unstable."
+                growth_warned = true
+            end
             snap_counter += 1
+            blown_up && break
         end
+        blown_up && break
 
         if show_progress
             current_progress = ceil(Int, (t / tmax_val) * 10000)
