@@ -55,8 +55,9 @@ The equation representation is read from the same namespace by `parse_representa
 | `:mover` | `:none` | Grid motion: `:none`, `:lagrangian`, `:scaled_lagrangian` (factor `:mover_alpha`) or `:sinusoidal` (amplitude `:mover_amplitude`); see [Moving Grids](@extref HyperCloudCore Moving-Grids-(ALE)). Lagrangian movers need `fluid_velocity` for the equation; all built-in equations define it. |
 | `:volumes` | `:shepard` | Particle volume estimator: `:shepard` (`:volumes_sweeps`) or `:mls` (`:volumes_degree`, `:volumes_samples_per_dx`); see [Particle Volumes](@extref HyperCloudCore Particle-Volumes-and-Adaptivity). Used for the initial volumes and, on a moving grid, for the re-estimation after every step and every adaptation call (HyperCloudCore ≥ 0.7.5; before, only the initial volumes). On a moving grid Shepard volumes give a resolution-independent bias in the discrete mass; `:mls` converges but costs about 3 (1-D) to 20 (2-D) time steps per re-estimation. |
 
-!!! warning "The key is `:Grid_bc`"
-    Boundary conditions are read from `:Grid_bc`. A key such as `:Grid_bc_map` is silently ignored.
+!!! note "`:Grid_bc` and `:Grid_bc_map`"
+    Boundary conditions are read from `:Grid_bc`; `:Grid_bc_map` is accepted as an alias when `:Grid_bc`
+    is absent (HyperCloudCore's `build_domain`). Other spellings are silently ignored.
 
 ## `Weight_` — MLS weight function
 

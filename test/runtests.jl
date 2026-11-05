@@ -147,7 +147,7 @@ function linear_2d_base(periodic::Bool)
         :Time_CFL => 0.2,
     )
     if !periodic
-        # NOTE: parse_bc reads the `:bc` key, i.e. `:Grid_bc` here (not `:Grid_bc_map`).
+        # NOTE: boundary conditions are read from `:Grid_bc` (`:Grid_bc_map` is an alias).
         d[:Grid_bc] = Dict{Int, AbstractBoundaryCondition}(i => OutflowBC() for i in 1:4)
     end
     return d

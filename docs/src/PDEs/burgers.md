@@ -22,6 +22,10 @@ In a configuration: `:PDE_name => :burgers, :PDE_D => D`.
 
 ## Exact solutions
 
+The closures solve the problem on the whole line: on a periodic domain they ignore the wrap-around (a
+second interface at the boundary, characteristics leaving on one side and entering on the other), so
+they are exact there only while the solution near the boundary is still the initial state.
+
 ### Riemann and smoothed Riemann (any dimension)
 
 Along the normal coordinate ``\xi = (x - p_0)\cdot n`` the equation reduces to a 1D law with
