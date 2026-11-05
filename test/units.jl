@@ -709,6 +709,35 @@ end
             @test ex3(SVector(0.5, 0.5, 0.5))[1] ≈ 1.0   # peak travels along (1, 1)
         end
 
+        @testset "Gauss: breaking time, warn once, Float32 tolerance" begin
+            # u₀ = exp(-x²) breaks at t_b = e^{1/2} / √2 ≈ 1.166 (the pulse of `burgers_kinetic`)
+            ic = Gauss(State{1, Float64}(1.0), Space{1, Float64}(0.0), 1.0)
+            ex = analytic_closure(eq, ic, geom)
+            xs = range(-3.0, 4.0; length = 141)
+            @test_logs min_level = Base.CoreLogging.Warn foreach(x -> ex(SVector(x, 1.1)), xs)
+            logs, _ = Test.collect_test_logs() do
+                foreach(t -> foreach(x -> ex(SVector(x, t)), xs), (1.5, 2.0))
+            end
+            @test count(l -> occursin("breaking time", string(l.message)), logs) == 1
+            @test count(l -> occursin("did not converge", string(l.message)), logs) <= 1
+            @test all(l -> l.level == Base.CoreLogging.Warn, logs) && length(logs) <= 2
+
+            # The reference of `burgers_kinetic` stops before breaking and conserves mass there
+            p = copy(burgers_kinetic().shared)
+            @test p[:tmax] < exp(0.5) / sqrt(2.0)
+            exk = analytical_solution(p)
+            m0 = integrate(x -> exk(SVector(x, 0.0))[1], -5.0, 5.0; n = 4000)
+            @test integrate(x -> exk(SVector(x, p[:tmax]))[1], -5.0, 5.0; n = 4000) ≈ m0 rtol = 1e-6
+
+            # Float32: the Newton tolerance is relative, so it converges without warnings before breaking
+            ic32 = Gauss(State{1, Float32}(1.0f0), Space{1, Float32}(0.0f0), 1.0f0)
+            ex32 = analytic_closure(BurgersEquation{1, Float32}(), ic32, geom)
+            xs32 = range(-2.0f0, 2.0f0; length = 41)
+            @test_logs min_level = Base.CoreLogging.Warn foreach(x -> ex32(SVector(x, 0.5f0)), xs32)
+            @test all(x -> eltype(ex32(SVector(x, 0.5f0))) == Float32, xs32)
+            @test maximum(x -> abs(ex32(SVector(x, 0.5f0))[1] - ex(SVector(Float64(x), 0.5))[1]), xs32) < 1e-6
+        end
+
         @testset "2D Riemann" begin
             n_diag = normalize(Space{2, Float64}(1.0, 1.0))
             shock = analytic_closure(eq2, Riemann(State{1}(2.0), State{1}(0.0), Space{2}(0.0, 0.0), n_diag), geom2)

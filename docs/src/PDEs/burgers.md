@@ -38,13 +38,17 @@ the sharp Riemann solution, a good reference once the waves are wider than `widt
 ### Gauss (any dimension)
 
 The solution is given implicitly by ``u = u_0(x - u\,t\,\mathbf{1})``, which is solved with
-Newton's method. This is only valid before the pulse breaks, at
+Newton's method, safeguarded by bisection on ``[\min(0, a), \max(0, a)]`` and stopped at a relative
+tolerance of ``4\varepsilon`` of the precision (so Float32 references converge too). This is only
+valid before the pulse breaks, at
 
 ```math
 t^* = \frac{\mathrm{width}}{|a|}\sqrt{\frac{e}{2D}} .
 ```
 
-Past ``t^*`` Newton may not converge; the closure then warns and returns its last iterate.
+Past ``t^*`` the relation has several roots and none of them is the entropy (shock) solution: the
+closure warns once (per closure, not per point) when it is evaluated after ``t^*``, and once if
+the iteration does not converge, and returns its last iterate.
 
 ### Box (1D)
 

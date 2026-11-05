@@ -15,7 +15,7 @@ function burgers_kinetic()
             # Global
             :snapshots => 25, 
             :remove_ghosts => false,
-            :tmax => 2.0, # Shorter tmax for Burgers before the shock gets too steep
+            :tmax => 1.0, # the pulse breaks at t_b = e^{1/2} / √2 ≈ 1.17; the exact reference only exists before that
             
             # Time Namespace
             :Time_CFL => 0.2, 
