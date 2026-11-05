@@ -113,6 +113,14 @@ end
 
         @test_throws ErrorException build_equation(Dict{Symbol, Any}(:D => 1), ctxT)
         @test_throws ErrorException build_equation(Dict{Symbol, Any}(:name => :navier_stokes), ctxT)
+
+        # Only the conservative representation exists; the others raise a clear error (no UndefVarError)
+        eu_conf = Dict{Symbol, Any}(:name => :euler, :D => 1, :gamma => 1.4)
+        @test build_equation(merge(eu_conf, Dict(:representation => :conservative)), ctxT).rep isa Conservative
+        for rep in (:primitive, :lagrangian, :bogus)
+            @test_throws r"not supported; only :conservative" build_equation(merge(eu_conf, Dict(:representation => rep)), ctxT)
+            @test_throws ArgumentError build_equation(merge(eu_conf, Dict(:representation => rep)), ctxT)
+        end
     end
 
     @testset "build_ic" begin

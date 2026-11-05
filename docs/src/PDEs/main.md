@@ -36,10 +36,12 @@ end
 
 ## Representations
 
-Some equations exist in several formulations. They carry a representation tag, a subtype of
-`EquationRepresentation`. `Conservative` is the conservative form; `NCRepresentation` covers
-non-conservative (e.g. primitive) forms, whose integration paths are configured through
-`parse_representation`. Methods such as `flux` and `max_eigenvalue` dispatch on the tag.
+Equations carry a representation tag, a subtype of `EquationRepresentation`, and methods such as
+`flux` and `max_eigenvalue` dispatch on it. `Conservative` is the conservative form and the only
+one implemented. `NCRepresentation` is the abstract type reserved for non-conservative (e.g.
+primitive) forms; no concrete subtype exists yet, so `parse_representation` accepts only
+`:representation => :conservative` and raises an `ArgumentError` for `:primitive`, `:lagrangian`
+or any other name.
 
 ## Exact solutions
 

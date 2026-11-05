@@ -37,9 +37,9 @@ parameters, so any key below may appear in either place.
 | `:tau` | `:bgk` | Constant relaxation time; `Inf` is collisionless. |
 | `:viscosity`, `:omega` | `:bgk` | Instead of `:tau`: `τ = μ / p` with `μ = viscosity * θ^omega` (`omega` default `0.5`). |
 
-The Euler representation is read from the same namespace by `parse_representation`:
-`:representation` is `:conservative` (default), `:primitive` or `:lagrangian`, the latter two with
-an integration `:path` (default `:mapped`).
+The equation representation is read from the same namespace by `parse_representation`:
+`:representation` may only be `:conservative` (the default). Non-conservative forms (`:primitive`,
+`:lagrangian`) are not implemented; any other value raises an `ArgumentError`.
 
 ## `Grid_` — domain and particles
 
