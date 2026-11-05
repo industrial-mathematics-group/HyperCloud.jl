@@ -98,3 +98,6 @@ JuliaLocalPreferences.toml
 # Logos and documentation assets are tracked despite the image rules above
 !logos/**
 !docs/src/assets/**
+
+# Local Claude Code state (agent worktrees, settings)
+/.claude/
