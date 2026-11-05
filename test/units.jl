@@ -653,6 +653,24 @@ end
             end
         end
 
+        @testset "Commutation check is relative ($T, entries O($s))" for (T, s) in ((Float64, 100.0), (Float32, 1.0))
+            # A₂ = p(A₁) commutes with A₁, but the round-off of the products (2e-11 resp. 7e-7) exceeded the old
+            # absolute tolerance 1e-12
+            A1 = SMatrix{3, 3, T}(1.1, 0.7, 0.3, 0.7, 2.2, 0.5, 0.3, 0.5, 0.9) .* T(s)
+            A2 = A1 * A1 ./ T(37) .+ T(0.3) .* A1
+            eq = LinearAdvection(SVector{2, SMatrix{3, 3, T, 9}}((A1, A2)), T)
+            geom = build_domain(Dict{Symbol, Any}(:domain => :rectangular, :mins => (-3.0, -3.0), :maxs => (3.0, 3.0),
+                                                  :periodic => true), Dict{Symbol, Any}(:T => T, :D => 2))
+            ic = Gauss(State{3, T}(1, 0, 0), Space{2, T}(0, 0), T(0.3))
+            exact = analytic_closure(eq, ic, geom)
+            @test exact(SVector{3, T}(0.1, -0.2, 0)) ≈ ic(Space{2, T}(0.1, -0.2))
+            @test eltype(exact(SVector{3, T}(0.1, -0.2, 0.01))) == T
+            # Non-commuting matrices are still rejected
+            B = SMatrix{3, 3, T}(0, 1, 0, 1, 0, 0, 0, 0, 1) .* T(s)
+            eq_nc = LinearAdvection(SVector{2, SMatrix{3, 3, T, 9}}((A1, B)), T)
+            @test_throws r"do not commute" analytic_closure(eq_nc, ic, geom)
+        end
+
         @testset "Precision is preserved" begin
             eq = LinearAdvection(((1.0,),), Float32)
             ic = Gauss(State{1, Float32}(1.0f0), Space{1, Float32}(0.0f0), 0.5)

@@ -61,11 +61,14 @@ end
 # ---------------------------------------------------------
 
 function analytic_closure(eq::LinearAdvection{D, M, T}, ic::InitialCondition, geom::GeometricDomain) where {D, M, T}
-    # 1. Safety Check: Ensure multi-dimensional system matrices commute
+    # 1. Safety Check: Ensure multi-dimensional system matrices commute. The tolerance is relative to the
+    # matrix norms (round-off of the products scales with them) and to the precision T.
+    tol = sqrt(eps(T))
     if D > 1
         for i in 1:D
             for j in (i+1):D
-                if !isapprox(eq.vel[i] * eq.vel[j], eq.vel[j] * eq.vel[i]; atol=1e-12)
+                Ai, Aj = eq.vel[i], eq.vel[j]
+                if norm(Ai * Aj - Aj * Ai) > tol * norm(Ai) * norm(Aj)
                     error("Velocity matrices for dimensions $i and $j do not commute. Analytic ray-tracing closure is not mathematically valid for this system.")
                 end
             end
@@ -89,7 +92,7 @@ function analytic_closure(eq::LinearAdvection{D, M, T}, ic::InitialCondition, ge
     for d in 1:D
         Λ = L * eq.vel[d] * R
         off = maximum(abs(Λ[i, j]) for i in 1:M, j in 1:M if i != j; init = zero(T))
-        off <= T(1e-10) * max(one(T), maximum(abs, Λ)) || error(
+        off <= tol * max(one(T), maximum(abs, Λ)) || error(
             "Velocity matrix of dimension $d is not diagonalised by the eigenvectors of the summed system " *
             "(repeated eigenvalues); the analytic ray-tracing closure cannot be built for this system.")
     end
