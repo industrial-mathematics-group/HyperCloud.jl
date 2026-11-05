@@ -211,6 +211,24 @@
         )
         conf = SimulationConfig(linear_1d_gauss(50), methods, [:analytical_solution, :Upwind];
                                 reference = :analytical_solution)
-        run_all_simulations(conf; force_overwrite = true, calculate_stats = true)
+        old_path = get_save_path()
+        set_save_path!(mktempdir())          # never reuse or write results in the working directory
+        try
+            run_all_simulations(conf; force_overwrite = true, calculate_stats = true)
+            tasks = generate_tasks(conf)
+            @test length(tasks) == 1                                   # the reference method is not run
+            p = only(tasks)
+            @test does_sim_data_exist(p)
+            if does_sim_data_exist(p)
+                sim = load_sim_data(p, Val(:lagrangian))
+                @test sim.t[end] ≈ 0.1
+                exact = analytical_solution(p)
+                xs, us = sim.x[end], sim.u[end]
+                err = sum(i -> abs(exact(spacetime(xs[i], sim.t[end]))[1] - us[i][1]), eachindex(xs)) / length(xs)
+                @test err < 0.15                                      # Upwind1 at N = 50: 0.079
+            end
+        finally
+            set_save_path!(old_path)
+        end
     end
 end
