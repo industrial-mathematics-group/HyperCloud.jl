@@ -13,8 +13,9 @@ The BGK collision term `S(f) = (M[f] - f) / τ` with the conservative discrete M
 
 The implicit stage equation `f = f* + Δt a_ii S(f)` is solved in closed form: the collision conserves
 the moments, so `M[f] = M[f*]` and `τ(f) = τ(f*)`, and `f = (f* + λ M[f*]) / (1 + λ)` with
-`λ = Δt a_ii / τ`. This is exact for any stiffness (`τ → 0` projects onto the equilibrium), which makes
-the IMEX scheme asymptotic preserving towards the Euler equations. A non-physical particle state
+`λ = Δt a_ii / τ`. This is exact for any stiffness (`τ → 0` projects onto the equilibrium, and `τ = 0`,
+i.e. `λ = Inf`, returns `M[f*]`), which makes the IMEX scheme asymptotic preserving towards the Euler
+equations. The explicit form divides by `τ`, so `bgk_sources` rejects `τ = 0` for explicit tableaus. A non-physical particle state
 (`ρ ≤ 0` or `θ ≤ 0`) is left untouched (zero source).
 """
 struct BGKRelaxation{E <: BGKEquation} <: AbstractImplicitSourceTerm
@@ -40,6 +41,7 @@ end
     f_eq, ok = equilibrium(st.eq, U)
     ok || return f
     λ = T(dt_coeff) / relaxation_time(st.eq, U)
+    isinf(λ) && return f_eq                 # τ = 0: projection onto the equilibrium (Inf / Inf otherwise)
     return (f + λ * f_eq) / (one(T) + λ)
 end
 
@@ -47,11 +49,17 @@ end
     bgk_sources(eq::BGKEquation, tableau::IMEXButcherTableau) -> (explicit, implicit)
 
 The source tuples of a BGK run: the collision term implicit for an IMEX tableau, explicit for a purely
-explicit one, and none in the collisionless limit (`ConstantRelaxationTime(Inf)`).
+explicit one, and none in the collisionless limit (`ConstantRelaxationTime(Inf)`). A zero relaxation time
+(`τ = 0`, or a zero viscosity) needs an IMEX tableau: the explicit collision term `(M[f] - f) / τ` is then
+undefined, so it throws an `ArgumentError`.
 """
 function bgk_sources(eq::BGKEquation, tableau::IMEXButcherTableau)
     _is_collisionless(eq.relaxation) && return (), ()
-    return all(iszero, tableau.a) ? ((ExplicitBGKRelaxation(eq),), ()) : ((), (BGKRelaxation(eq),))
+    all(iszero, tableau.a) || return (), (BGKRelaxation(eq),)
+    _is_zero_relaxation(eq.relaxation) && throw(ArgumentError(
+        "BGK: the relaxation time is zero, which the explicit collision term (M[f] - f) / τ cannot handle; " *
+        "use an IMEX time stepper (e.g. :ARS222) for τ = 0"))
+    return (ExplicitBGKRelaxation(eq),), ()
 end
 
 # =========================================================================

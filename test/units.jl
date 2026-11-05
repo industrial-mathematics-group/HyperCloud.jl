@@ -552,6 +552,25 @@ end
         @test HC.bgk_sources(eq, RK2_SSP_Tableau(Float64)) == ((ExplicitBGKRelaxation(eq),), ())
         eq_free = BGKEquation(Val(1), nodes, w, 1.4, ConstantRelaxationTime(Inf))
         @test HC.bgk_sources(eq_free, IMEX_ARS222_Tableau(Float64)) == ((), ())
+
+        # τ = 0: the implicit collision is the projection onto the equilibrium (it was Inf / Inf = NaN);
+        # the explicit form cannot divide by τ = 0, and τ < 0 is rejected at construction.
+        for T in (Float64, Float32)
+            nodesT, wT = velocity_grid(:uniform, 16, 6.0, T)
+            eq0 = BGKEquation(Val(1), nodesT, wT, 1.4, ConstantRelaxationTime(0.0))
+            pgT, _ = test_grid((0.0,), (1.0,), (4,); M = M)
+            fT = State{M, T}(f)
+            MfT, _ = equilibrium(eq0, moments(eq0, fT))
+            f0 = HC.implicit_solve(BGKRelaxation(eq0), fT, T(0.05), 1, pgT, zero(T))
+            @test all(isfinite, f0) && f0 ≈ MfT
+            @test HC.bgk_sources(eq0, IMEX_ARS222_Tableau(T)) == ((), (BGKRelaxation(eq0),))
+            @test_throws ArgumentError HC.bgk_sources(eq0, RK2_SSP_Tableau(T))
+            eqμ0 = BGKEquation(Val(1), nodesT, wT, 1.4, ViscosityRelaxationTime(0.0, 0.5))
+            @test_throws ArgumentError HC.bgk_sources(eqμ0, RK2_SSP_Tableau(T))
+        end
+        @test_throws ArgumentError BGKEquation(Val(1), nodes, w, 1.4, ConstantRelaxationTime(-1e-3))
+        @test_throws ArgumentError BGKEquation(Val(1), nodes, w, 1.4, ConstantRelaxationTime(NaN))
+        @test_throws ArgumentError BGKEquation(Val(1), nodes, w, 1.4, ViscosityRelaxationTime(-1e-3, 0.5))
     end
 
     @testset "Numerical flux is the exact upwind flux per velocity" begin
