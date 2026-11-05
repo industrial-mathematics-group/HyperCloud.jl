@@ -33,9 +33,10 @@ const _BGKCollision = Union{BGKRelaxation, ExplicitBGKRelaxation}
     U = moments(st.eq, f)
     f_eq, ok = equilibrium(st.eq, U)
     ok || return zero(f)
-    # τ = 0 gives ±Inf/NaN here. The IMEX steppers only evaluate it at stages whose implicit coefficients are
-    # zero (all shipped tableaus have a zero first column and b[1] = 0), so it never enters the update; a
-    # tableau that used it would turn the run into NaN (loudly) rather than silently drop the collision.
+    # τ = 0 gives ±Inf/NaN here. The IMEX steppers only evaluate it at stages with a_ii = 0, and in the shipped
+    # tableaus it never enters the update there: IMEXEuler and ARS233 have a zero first column and b[1] = 0,
+    # ARS222, PRSSP3 and SSP2332 have no such stage. A tableau that used it would turn the run into NaN
+    # (loudly) rather than silently drop the collision.
     return (f_eq - f) / relaxation_time(st.eq, U)
 end
 

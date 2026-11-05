@@ -22,6 +22,22 @@ function _max_abs(states::AbstractVector)
     return m
 end
 
+# The step does not see every blow-up (fixed steps, constant wave speeds, CFL estimates that skip NaN
+# particles), so every stored state is checked as well. Returns `(blown_up, growth_warned)`.
+function _check_snapshot(state, t, tmax, k_step, u0_scale, growth_warned::Bool; final::Bool = false)
+    scale = _max_abs(state)
+    if !isfinite(scale)
+        @warn "solve_equation: the state at t = $t is not finite (blown up)" *
+              (final ? "." : "; the run stopped before tmax = $tmax after $k_step steps. The data end at t = $t.")
+        return true, growth_warned
+    elseif !growth_warned && u0_scale > 0 && scale > 1e8 * u0_scale
+        @warn "solve_equation: at t = $t the state is $(scale / u0_scale) times larger than at t = 0; " *
+              "the run is probably unstable."
+        return false, true
+    end
+    return false, growth_warned
+end
+
 """
     saveData!(xs_storage, us_storage, ts_storage, snap_idx, pg, current_t, remove_ghosts)
 
@@ -92,11 +108,12 @@ The primary simulation orchestrator governing the main time-stepping loop.
 - A tuple containing: `(position_history, state_history, time_history, total_steps, elapsed_wall_time)`.
 
 The loop stops early with a warning that gives the time reached if the time step collapses (below `1e-12`)
-or is NaN, or if a stored snapshot is not finite (a blown-up state; this also covers fixed time steps and
-equations with constant wave speeds, whose step never collapses). The last stored state is the one at that
-time, and the snapshots that were not reached are left unassigned. A snapshot that grew by more than a
-factor `1e8` over the initial state gives a warning (once) but does not stop the run. An infinite step (no
-wave moves) advances straight to `tmax`.
+or is not finite, or if a stored snapshot is not finite (a blown-up state; this also covers fixed time steps
+and equations with constant wave speeds, whose step never collapses). Every stored snapshot is checked,
+the final one included. The last stored state is the one at that time, and the snapshots that were not
+reached are left unassigned. A snapshot that grew by more than a factor `1e8` over the initial state gives a
+warning (once) but does not stop the run. An infinite CFL step with a finite state (no wave moves) advances
+straight to `tmax`.
 """
 function solve_equation(
     timestepper::TimeStepper, 
@@ -141,11 +158,18 @@ function solve_equation(
 
     elapsed_time = @elapsed while t < tmax_val
         dt_step = is_cfl ? dt_inp * get_time_step(pg, eq, div_interp) : dt_inp
-        # A collapsed or NaN step (NaN states, unbounded wave speeds) ends the run early; `!(dt > ε)` also
-        # catches NaN, so no NaN time is ever recorded. An infinite step (no wave moves) goes straight to tmax.
-        if !(dt_step > T(1e-12))
+        # A collapsed or non-finite step (NaN states, unbounded wave speeds) ends the run early, so no NaN
+        # time is ever recorded. An infinite CFL step means that no wave moves, and the run goes straight to
+        # tmax, unless the state is not finite (the CFL estimate skips particles with NaN wave speeds).
+        if is_cfl && dt_step == T(Inf)
+            if !isfinite(_max_abs(host_view(pg.rhos, pg.meta.N)))
+                @warn "solve_equation stopped at t = $t before tmax = $tmax_val after $k_step steps: the state " *
+                      "is not finite (blown up). The data end at t = $t."
+                break
+            end
+        elseif !(isfinite(dt_step) && dt_step > T(1e-12))
             @warn "solve_equation stopped at t = $t before tmax = $tmax_val after $k_step steps: the time step " *
-                  "is $(isnan(dt_step) ? "not finite" : "collapsed") (dt = $dt_step); the state has probably " *
+                  "is $(isfinite(dt_step) ? "collapsed" : "not finite") (dt = $dt_step); the state has probably " *
                   "blown up. The data end at t = $t."
             break
         end
@@ -161,18 +185,7 @@ function solve_equation(
         blown_up = false
         while snap_counter <= snapshots && t >= t_snap[snap_counter]
             saveData!(xs, us, ts, snap_counter, pg, t, remove_ghosts)
-            # The step does not see every blow-up (fixed steps, constant wave speeds, CFL estimates that
-            # skip NaN particles), so check the stored state as well.
-            scale = _max_abs(us[snap_counter])
-            if !isfinite(scale)
-                @warn "solve_equation stopped at t = $t before tmax = $tmax_val after $k_step steps: the state " *
-                      "is not finite (blown up). The data end at t = $t."
-                blown_up = true
-            elseif !growth_warned && u0_scale > 0 && scale > T(1e8) * u0_scale
-                @warn "solve_equation: at t = $t the state is $(scale / u0_scale) times larger than at t = 0; " *
-                      "the run is probably unstable."
-                growth_warned = true
-            end
+            blown_up, growth_warned = _check_snapshot(us[snap_counter], t, tmax_val, k_step, u0_scale, growth_warned)
             snap_counter += 1
             blown_up && break
         end
@@ -216,6 +229,8 @@ function solve_equation(
 
     if snap_counter <= snapshots + 1
         saveData!(xs, us, ts, snapshots + 1, pg, t, remove_ghosts)
+        # The final slot is checked too (with one snapshot it is the only one after t = 0)
+        _check_snapshot(us[snapshots + 1], t, tmax_val, k_step, u0_scale, growth_warned; final = true)
     end
 
     return xs, us, ts, k_step, elapsed_time
