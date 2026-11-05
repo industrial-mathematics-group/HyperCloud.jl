@@ -16,7 +16,7 @@ parameters, so any key below may appear in either place.
 |:----|:--------|:--------|
 | `:sim_func_name` | — | Pipeline to run: `:run_direct_simulation`, `:run_kinetic_simulation` or `:run_bgk_simulation`. Set automatically by `create_method`; BGK configurations (`:PDE_name => :bgk`) run [`run_bgk_simulation`](@ref) from either of the other two. |
 | `:tmax` | — | Final time. `:Time_tmax` overrides it. |
-| `:snapshots` | — | Number of output intervals; `snapshots + 1` states are stored, including `t = 0`. |
+| `:snapshots` | — | Number of output intervals (≥ 1); `snapshots + 1` states are stored, including `t = 0`. |
 | `:remove_ghosts` | `true` | Drop boundary/ghost particles from the stored snapshots. |
 | `:T` | `Float64` | Floating-point type of the simulation. |
 | `:real_type` | `Float64` | Floating-point type of the exact reference (`analytical_solution`). |

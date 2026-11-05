@@ -72,7 +72,7 @@ The primary simulation orchestrator governing the main time-stepping loop.
 
 # Keyword Arguments
 - `is_cfl::Bool`: If true, `dt` is treated as a CFL number, and the physical time step is dynamically computed at each iteration using the grid and interpolator properties.
-- `snapshots::Integer`: The number of discrete data dumps to record evenly across the simulation timeline.
+- `snapshots::Integer`: The number of output intervals (at least 1); `snapshots + 1` states are stored, including `t = 0`.
 - `remove_ghosts::Bool`: Strips boundary/ghost particles from the returned snapshot data if true.
 - `show_progress::Bool`: Toggles visual progress tracking.
 - `progress_interval::Real`: Sets the refresh rate (in seconds) for logging the simulation's progress and calculating the ETA.
@@ -80,6 +80,10 @@ The primary simulation orchestrator governing the main time-stepping loop.
 
 # Returns
 - A tuple containing: `(position_history, state_history, time_history, total_steps, elapsed_wall_time)`.
+
+If the time step collapses (below `1e-12`) or is not finite (a blown-up state) before `tmax`, the loop
+stops with a warning that gives the time reached; the last stored state is the one at that time, and the
+snapshots that were not reached are left unassigned.
 """
 function solve_equation(
     timestepper::TimeStepper, 
@@ -95,6 +99,7 @@ function solve_equation(
     adaptivity::Union{Nothing, ParticleAdaptivity} = nothing
 ) where {D, M, T}
     
+    snapshots >= 1 || throw(ArgumentError("snapshots must be ≥ 1 (the number of output intervals), got $snapshots"))
     xs = Vector{Vector{Space{D, T}}}(undef, snapshots + 1)
     us = Vector{Vector{State{M, T}}}(undef, snapshots + 1)
     ts = Vector{T}(undef, snapshots + 1)
@@ -120,9 +125,17 @@ function solve_equation(
     last_sim_time = t
 
     elapsed_time = @elapsed while t < tmax_val
-        dt_val = is_cfl ? dt_inp * get_time_step(pg, eq, div_interp) : dt_inp
-        dt_val = min(dt_val, tmax_val - t)
-        if dt_val <= T(1e-12); break; end
+        dt_step = is_cfl ? dt_inp * get_time_step(pg, eq, div_interp) : dt_inp
+        # A collapsed or non-finite step (NaN states, unbounded wave speeds) ends the run early; `!(dt > ε)`
+        # also catches NaN, so no NaN time is ever recorded.
+        if !(isfinite(dt_step) && dt_step > T(1e-12))
+            @warn "solve_equation stopped at t = $t before tmax = $tmax_val after $k_step steps: the time step " *
+                  "is $(isfinite(dt_step) ? "collapsed" : "not finite") (dt = $dt_step); the state has probably " *
+                  "blown up. The data end at t = $t."
+            break
+        end
+        dt_val = min(dt_step, tmax_val - t)
+        if dt_val <= T(1e-12); break; end      # tmax reached up to round-off
 
         timestepper(eq, pg, t, dt_val)
         adaptivity === nothing || adapt_particles!(pg, adaptivity, _extract_order(div_interp))

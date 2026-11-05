@@ -54,6 +54,33 @@
         end
     end
 
+    @testset "Early stop is reported, snapshots = 0 is rejected" begin
+        # Sod with MUSCL2 and no limiter at CFL 4 blows up in the first step: the loop stops with a warning
+        # (instead of silently), records no NaN time and the runner still returns the data up to that point.
+        sod = euler_1d_sod()
+        p = merge(sod.shared, sod.methods[:RK2MUSCL2_VK], Dict{Symbol, Any}(:Grid_Ns => (100,), :Time_CFL => 4.0,
+                  :Limiter_name => :none, :tmax => 0.2, :snapshots => 4))
+        sim = @test_logs (:warn, r"solve_equation stopped at t = .* before tmax") match_mode = :any run_direct_simulation(p)
+        @test sim !== nothing
+        if sim !== nothing
+            @test all(isfinite, sim.t)
+            @test sim.t[end] < 0.2
+        end
+
+        # A non-finite step (here a NaN fixed dt) stops at once without recording a NaN time
+        pn = merge(linear_1d_gauss(50), UPWIND1, Dict{Symbol, Any}(:Time_dt => NaN))
+        delete!(pn, :Time_CFL)
+        simn = @test_logs (:warn, r"time step is not finite") match_mode = :any run_direct_simulation(pn)
+        @test simn !== nothing && simn.t == [0.0, 0.0]
+
+        p0 = merge(linear_1d_gauss(50), UPWIND1)
+        p0[:snapshots] = 0
+        logs, sim0 = Test.collect_test_logs(() -> run_direct_simulation(p0))
+        @test sim0 === nothing
+        errs = [first(l.kwargs[:exception]) for l in logs if haskey(l.kwargs, :exception)]
+        @test length(errs) == 1 && errs[1] isa ArgumentError && occursin("snapshots must be ≥ 1", errs[1].msg)
+    end
+
     @testset "Convergence order: $label" for (label, method, min_order) in [
         ("RK2 Upwind1", last(create_method(:RK2, :Upwind, 1; Scheme_upwind_alg_nd = :Classic)), 0.7),
         ("RK2 MUSCL2",  last(create_method(:RK2, :MUSCL, 2)), 1.8),

@@ -16,9 +16,16 @@ it is enabled, reports progress, and stores snapshots.
 
 The last step is shortened so the run ends exactly at `tmax`.
 
+If the step collapses (below ``10^{-12}``) or is not finite (NaN states or unbounded wave speeds
+after a blow-up) before `tmax`, the loop stops with a warning that gives the time reached. The final
+slot then holds the state at that time, snapshots that were not reached are dropped by the
+runners, and no NaN time is recorded. The runners still return the data, so check the warning or
+`t[end]`.
+
 ## Snapshots
 
-`snapshots + 1` states are stored, at the target times `range(0, tmax, length = snapshots + 1)`.
+`snapshots + 1` states are stored, at the target times `range(0, tmax, length = snapshots + 1)`;
+`snapshots` must be at least 1 (an `ArgumentError` otherwise).
 
 - Snapshot 1 is the initial state at `t = 0`.
 - Each further snapshot is taken at the end of the first step that reaches its target time,
