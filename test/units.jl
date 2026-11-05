@@ -271,6 +271,7 @@ end
     @testset "get_master_method_dict consistency" begin
         md = get_master_method_dict()
         @test haskey(md, "Analytical Solution")
+        @test md["ARS222MUSCL2"][:Time_stepper] === :ARS222        # the kinetic method of `burgers_kinetic`
         for (name, d) in md
             haskey(d, :Time_stepper) || continue
             expected = d[:Time_stepper] in IMEX_STEPPERS ? :run_kinetic_simulation : :run_direct_simulation
