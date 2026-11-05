@@ -45,8 +45,13 @@ shock tube):
    contact. It returns conservative variables.
 
 If the normal points in ``-x``, the problem is solved in the mirrored frame, so both
-orientations of the same data give the same solution. Vacuum generation is not handled: ``p^*``
-is floored at ``10^{-9}``.
+orientations of the same data give the same solution.
+
+**Vacuum generation.** If the pressure positivity condition fails,
+``2(c_L + c_R)/(\gamma - 1) \le u_R - u_L`` (Toro, Sec. 4.6), the two rarefactions do not meet: the
+solution is the left fan up to its tail ``u_L + 2c_L/(\gamma - 1)``, vacuum (``\rho = p = 0``, zero
+momentum) up to ``u_R - 2c_R/(\gamma - 1)``, and the right fan beyond. Close to this limit ``p^*`` is
+floored at ``10^{-9}``. Initial states that are already vacuum (``\rho_{L/R} = 0``) are not handled.
 
 ## API
 

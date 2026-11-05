@@ -869,6 +869,32 @@ end
         end
     end
 
+    @testset "Euler: vacuum generation (Toro, Sec. 4.6)" begin
+        eq = EulerEquation(Val(1), Float64, 1.4, Conservative())
+        geom = test_domain((-1.0,), (1.0,), false)
+        cons(ρ, u, p) = State{3, Float64}(ρ, ρ * u, p / 0.4 + 0.5 * ρ * u^2)
+        t = 0.1   # the fan heads (-0.72/0.72 and -0.62/0.91) are still inside [-1, 1]
+
+        # Symmetric: u = ∓6 with c = √1.4, 2 (c_L + c_R) / (γ - 1) = 11.8 < 12, so a vacuum opens at x = 0
+        sym = analytic_closure(eq, Riemann(cons(1.0, -6.0, 1.0), cons(1.0, 6.0, 1.0), Space{1}(0.0), Space{1}(1.0)), geom)
+        U(x) = sym(SVector(x, t))
+        @test U(0.0) == zeros(3)
+        @test all(x -> U(x) ≈ U(-x) .* (1, -1, 1), (0.1, 0.3, 0.5, 0.7, 0.9))
+        @test all(x -> U(x)[1] > 0, (-0.5, 0.5))                                  # inside the fans
+        @test U(0.9) ≈ cons(1.0, 6.0, 1.0)
+        # Conservation on [-1, 1]: the boundary fluxes are ρu = ±6, ρu² + p = 37, u (E + p) = ±129
+        @test integrate(x -> U(x)[1], -1.0, 1.0) ≈ 2.0 - 12t atol = 1e-4
+        @test integrate(x -> U(x)[2], -1.0, 1.0) ≈ 0.0 atol = 1e-10
+        @test integrate(x -> U(x)[3], -1.0, 1.0) ≈ 41.0 - 2 * 6 * 21.5 * t atol = 1e-3
+
+        # Asymmetric data: mass leaves through both ends at 5 and 4, i.e. M(t) = 1.5 - 9 t; mirroring agrees
+        UL, UR = cons(1.0, -5.0, 1.0), cons(0.5, 8.0, 0.4)
+        asym = analytic_closure(eq, Riemann(UL, UR, Space{1}(0.0), Space{1}(1.0)), geom)
+        @test integrate(x -> asym(SVector(x, t))[1], -1.0, 1.0) ≈ 1.5 - 9t atol = 1e-4
+        mirr = analytic_closure(eq, Riemann(UR, UL, Space{1}(0.0), Space{1}(-1.0)), geom)
+        @test all(x -> isapprox(asym(SVector(x, t)), mirr(SVector(x, t)); atol = 1e-12), range(-0.95, 0.95; length = 39))
+    end
+
     @testset "Missing closure warns" begin
         eq2 = EulerEquation(Val(2), Float64, 1.4, Conservative())
         ic  = Gauss(State{4, Float64}(1.0, 0.0, 0.0, 2.5), Space{2, Float64}(0.0, 0.0), 1.0)
