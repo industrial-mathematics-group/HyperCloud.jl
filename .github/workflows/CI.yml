@@ -33,7 +33,7 @@ jobs:
         with:
           version: ${{ matrix.version }}
           
-      - uses: julia-actions/cache@v2
+      - uses: julia-actions/cache@v3
 
       # 1. Install virtual display server for GLMakie headless testing
       - name: Install Xvfb
@@ -74,7 +74,7 @@ jobs:
         with:
           version: '1'
 
-      - uses: julia-actions/cache@v2
+      - uses: julia-actions/cache@v3
 
       # 5. Provide a virtual display to Documenter for plotting during doc build
       - name: Install Xvfb
