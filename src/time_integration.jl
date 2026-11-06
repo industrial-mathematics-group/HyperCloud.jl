@@ -111,9 +111,10 @@ The loop stops early with a warning that gives the time reached if the time step
 or is not finite, or if a stored snapshot is not finite (a blown-up state; this also covers fixed time steps
 and equations with constant wave speeds, whose step never collapses). Every stored snapshot is checked,
 the final one included. The last stored state is the one at that time, and the snapshots that were not
-reached are left unassigned. A snapshot that grew by more than a factor `1e8` over the initial state gives a
-warning (once) but does not stop the run. An infinite CFL step with a finite state (no wave moves) advances
-straight to `tmax`.
+reached are left unassigned. Each blow-up is reported once (the final slot of a stopped run is not checked again).
+A snapshot that grew by more than a factor `1e8` over the initial state gives a warning (once) but does not stop
+the run. An infinite CFL step with a finite state and a finite CFL number (no wave moves) advances straight to
+`tmax`; an infinite CFL number (or fixed step) stops at once.
 """
 function solve_equation(
     timestepper::TimeStepper, 
@@ -155,22 +156,28 @@ function solve_equation(
     # Initialize trackers for the interval-based ETA
     last_log_time = time()
     last_sim_time = t
+    stopped = false      # stopped early: the stop has been reported, the final slot is not checked again
 
     elapsed_time = @elapsed while t < tmax_val
         dt_step = is_cfl ? dt_inp * get_time_step(pg, eq, div_interp) : dt_inp
         # A collapsed or non-finite step (NaN states, unbounded wave speeds) ends the run early, so no NaN
         # time is ever recorded. An infinite CFL step means that no wave moves, and the run goes straight to
         # tmax, unless the state is not finite (the CFL estimate skips particles with NaN wave speeds).
-        if is_cfl && dt_step == T(Inf)
+        # An infinite CFL number is a configuration error, not a field at rest: it stops below.
+        if is_cfl && isfinite(dt_inp) && dt_step == T(Inf)
             if !isfinite(_max_abs(host_view(pg.rhos, pg.meta.N)))
                 @warn "solve_equation stopped at t = $t before tmax = $tmax_val after $k_step steps: the state " *
                       "is not finite (blown up). The data end at t = $t."
+                stopped = true
                 break
             end
         elseif !(isfinite(dt_step) && dt_step > T(1e-12))
             @warn "solve_equation stopped at t = $t before tmax = $tmax_val after $k_step steps: the time step " *
-                  "is $(isfinite(dt_step) ? "collapsed" : "not finite") (dt = $dt_step); the state has probably " *
-                  "blown up. The data end at t = $t."
+                  "is $(isfinite(dt_step) ? "collapsed" : "not finite") (dt = $dt_step" *
+                  (isfinite(dt_inp) && dt_inp > zero(T) ? "); the state has probably blown up." :
+                   ", from $(is_cfl ? "the CFL number" : "the fixed step") $dt_inp, which must be positive and finite).") *
+                  " The data end at t = $t."
+            stopped = true
             break
         end
         dt_val = min(dt_step, tmax_val - t)
@@ -189,7 +196,7 @@ function solve_equation(
             snap_counter += 1
             blown_up && break
         end
-        blown_up && break
+        blown_up && (stopped = true; break)
 
         if show_progress
             current_progress = ceil(Int, (t / tmax_val) * 10000)
@@ -229,8 +236,9 @@ function solve_equation(
 
     if snap_counter <= snapshots + 1
         saveData!(xs, us, ts, snapshots + 1, pg, t, remove_ghosts)
-        # The final slot is checked too (with one snapshot it is the only one after t = 0)
-        _check_snapshot(us[snapshots + 1], t, tmax_val, k_step, u0_scale, growth_warned; final = true)
+        # The final slot is checked too (with one snapshot it is the only one after t = 0), unless the run stopped:
+        # then it holds the state whose stop was just reported
+        stopped || _check_snapshot(us[snapshots + 1], t, tmax_val, k_step, u0_scale, growth_warned; final = true)
     end
 
     return xs, us, ts, k_step, elapsed_time

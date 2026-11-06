@@ -76,15 +76,31 @@
         # Blow-ups the step doesn't see (constant wave speeds): unstable linear advection at CFL 5 first grows
         # (warned once), then overflows; the run stops at the first non-finite snapshot
         pb = merge(linear_1d_gauss(50; tmax = 100.0), UPWIND1, Dict{Symbol, Any}(:Time_CFL => 5.0, :snapshots => 10))
-        simb = @test_logs (:warn, r"times larger than at t = 0") (:warn, r"is not finite \(blown up\)") match_mode = :any run_direct_simulation(pb)
+        logsb, simb = Test.collect_test_logs(() -> run_direct_simulation(pb))
+        warnsb = [l.message for l in logsb if l.level == Base.CoreLogging.Warn]
         @test simb !== nothing && all(isfinite, simb.t) && simb.t[end] < 100.0
+        # each blow-up is reported once: the growth warning and one stop (the final slot of a stopped run is not
+        # checked again; it used to repeat "not finite" without "stopped before tmax")
+        @test length(warnsb) == 2 && occursin("times larger than at t = 0", warnsb[1]) && occursin("stopped before tmax", warnsb[2])
         # ... also when the final slot is the only one after t = 0
         pb1 = merge(pb, Dict{Symbol, Any}(:snapshots => 1))
         @test_logs (:warn, r"is not finite \(blown up\)") match_mode = :any run_direct_simulation(pb1)
         # A NaN state has an infinite CFL step (NaN wave speeds are skipped): it stops, it doesn't jump to tmax
         pnan = merge(burgers_1d_gauss(50), UPWIND1, Dict{Symbol, Any}(:IC_a => (NaN,), :snapshots => 1))
-        simnan = @test_logs (:warn, r"is not finite \(blown up\)") match_mode = :any run_direct_simulation(pnan)
+        logsnan, simnan = Test.collect_test_logs(() -> run_direct_simulation(pnan))
+        @test count(l -> l.level == Base.CoreLogging.Warn, logsnan) == 1
+        @test any(l -> occursin("is not finite (blown up)", l.message), logsnan)
         @test simnan !== nothing && simnan.t[end] == 0.0
+        # An infinite CFL number is a configuration error: it stops at once instead of one silent step to tmax
+        pcfl = merge(linear_1d_gauss(50), UPWIND1, Dict{Symbol, Any}(:Time_CFL => Inf))
+        simcfl = @test_logs (:warn, r"from the CFL number Inf, which must be positive and finite") match_mode = :any run_direct_simulation(pcfl)
+        @test simcfl !== nothing && simcfl.t == [0.0, 0.0]
+        # A fixed-step blow-up with snapshots = 1 (the final slot is the only check): Sod without limiter at dt = 0.05
+        sod1 = euler_1d_sod()
+        pf = merge(sod1.shared, sod1.methods[:RK2MUSCL2_VK], Dict{Symbol, Any}(:Grid_Ns => (100,), :Time_dt => 0.05,
+                   :Limiter_name => :none, :tmax => 0.2, :snapshots => 1))
+        delete!(pf, :Time_CFL)
+        @test_logs (:warn, r"not finite") match_mode = :any run_direct_simulation(pf)
         # An infinite fixed step is not a step
         pinf = merge(linear_1d_gauss(50), UPWIND1, Dict{Symbol, Any}(:Time_dt => Inf))
         delete!(pinf, :Time_CFL)
