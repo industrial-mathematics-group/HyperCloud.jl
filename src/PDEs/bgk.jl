@@ -17,9 +17,10 @@ abstract type RelaxationTimeModel end
 """
     ConstantRelaxationTime(tau)
 
-Constant relaxation time `τ` (the Knudsen number of the non-dimensional BGK equation). `τ = Inf` is the
+Constant relaxation time `τ ≥ 0` (the Knudsen number of the non-dimensional BGK equation). `τ = Inf` is the
 collisionless (free transport) limit: the runners drop the collision term and `analytic_closure` returns
-the exact solution of the discrete-velocity model.
+the exact solution of the discrete-velocity model. `τ = 0` projects onto the equilibrium in every implicit
+stage (IMEX tableaus only); `BGKEquation` rejects `τ < 0`.
 """
 struct ConstantRelaxationTime{T} <: RelaxationTimeModel
     tau::T
@@ -48,6 +49,17 @@ state `U = (ρ, ρu..., E)` of the equation.
 
 _is_collisionless(m::ConstantRelaxationTime) = isinf(m.tau)
 _is_collisionless(::RelaxationTimeModel) = false
+
+_is_zero_relaxation(m::ConstantRelaxationTime) = iszero(m.tau)
+_is_zero_relaxation(m::ViscosityRelaxationTime) = iszero(m.mu_ref)
+_is_zero_relaxation(::RelaxationTimeModel) = false
+
+# τ < 0 (or NaN) has no meaning; τ = 0 is the Euler limit (implicit collision only), τ = Inf collisionless.
+_check_relaxation(m::ConstantRelaxationTime) = m.tau >= 0 ||
+    throw(ArgumentError("BGK: the relaxation time τ must be ≥ 0 (Inf is collisionless), got τ = $(m.tau)"))
+_check_relaxation(m::ViscosityRelaxationTime) = m.mu_ref >= 0 ||
+    throw(ArgumentError("BGK: the reference viscosity must be ≥ 0, got mu_ref = $(m.mu_ref)"))
+_check_relaxation(::RelaxationTimeModel) = true
 
 _convert_relaxation(::Type{T}, m::ConstantRelaxationTime) where {T} = ConstantRelaxationTime{T}(T(m.tau))
 _convert_relaxation(::Type{T}, m::ViscosityRelaxationTime) where {T} = ViscosityRelaxationTime{T}(T(m.mu_ref), T(m.omega))
@@ -150,6 +162,7 @@ function BGKEquation(::Val{D}, nodes::SVector{NV1, T}, weights::SVector{NV1, T},
     c  = SVector{D, T}(ntuple(d -> T(center[d]), Val(D)))
     smax = SVector{D, T}(ntuple(d -> maximum(abs, c[d] .+ nodes), Val(D)))
     rel = _convert_relaxation(T, relaxation)
+    _check_relaxation(rel)
     return BGKEquation{D, M, T, NV1, NV, typeof(rel)}(nodes, weights, c, smax, T(K), T((D + K + 2) / (D + K)), rel)
 end
 

@@ -38,22 +38,38 @@ function analytic_closure(eq::BurgersEquation{D, T}, ic::InitialCondition, geom:
 end
 
 # Multi-Dimensional Gauss (Newton-Raphson Characteristic Trace)
+#
+# The pulse u₀ = a exp(-|x - b|² / w²) is transported along (1, …, 1), so u solves u = u₀(x - u t (1, …, 1)).
+# This has a unique smooth solution only before the breaking time t_b = w e^{1/2} / (|a| √(2D)), where
+# 1 + t min (1, …, 1)⋅∇u₀ first vanishes. Past t_b the relation has several roots, none of which is the entropy
+# (shock) solution, so the closure warns (once) instead of returning a wrong reference silently. The safeguarded
+# Newton iteration stops on a relative tolerance: an absolute one is not reachable in Float32.
 function analytic_closure(eq::BurgersEquation{D, T}, ic::Gauss, geom::GeometricDomain) where {D, T}
-    tol = T(1e-10)
+    tol = 4 * eps(T)
     max_iter = 100
-    
+    a = T(ic.a[1])
+    b = SVector{D, T}(ic.b)
+    w = T(ic.width)
+    w2 = w^2
+    t_break = iszero(a) ? T(Inf) : w * exp(T(0.5)) / (abs(a) * sqrt(T(2 * D)))
+    warned_break = Threads.Atomic{Bool}(false)
+    warned_newton = Threads.Atomic{Bool}(false)
+
     return function exact_burgers_gauss(st::SVector)
         t = T(st[end])
         pos = SVector{D, T}(ntuple(d -> T(st[d]), Val(D)))
         
         if t <= T(1e-12); return ic(pos); end
+
+        if t > t_break && !Threads.atomic_xchg!(warned_break, true)
+            @warn "Burgers Gauss reference evaluated at t = $t, past the breaking time t_b = $t_break: the " *
+                  "characteristic solution is multivalued there and is not the entropy (shock) solution."
+        end
         
-        a = ic.a[1]
-        b = ic.b
-        w = ic.width
-        w2 = w^2
-        
-        u_curr = ic(pos)[1]
+        # F(u) = u - u₀(x - u t) changes sign on [min(0, a), max(0, a)] (u₀ takes its values there) and is
+        # increasing before breaking, so Newton steps that leave the bracket fall back to bisection.
+        lo, hi = min(zero(T), a), max(zero(T), a)
+        u_curr = T(ic(pos)[1])
         
         for _ in 1:max_iter
             x0 = pos .- u_curr .* t
@@ -61,18 +77,23 @@ function analytic_closure(eq::BurgersEquation{D, T}, ic::Gauss, geom::GeometricD
             exp_term = exp(-dist2 / w2)
             
             F = u_curr - a * exp_term
+            F < zero(T) ? (lo = u_curr) : (hi = u_curr)
             sum_diff = sum(x0 .- b)
-            dFdu = one(T) - (a * exp_term) * (T(2.0) * t * sum_diff / w2)
+            dFdu = one(T) - (a * exp_term) * (T(2) * t * sum_diff / w2)
             
             u_next = u_curr - F / dFdu
+            (lo <= u_next <= hi && isfinite(u_next)) || (u_next = (lo + hi) / 2)
             
-            if abs(u_next - u_curr) < tol
+            if abs(u_next - u_curr) <= tol * max(one(T), abs(u_next))
                 return SVector{1, T}(u_next)
             end
             u_curr = u_next
         end
         
-        @warn "Newton-Raphson did not converge for ND Burgers Gauss at pos=$pos, t=$t."
+        if !Threads.atomic_xchg!(warned_newton, true)
+            @warn "Newton-Raphson did not converge for the Burgers Gauss reference (first at pos = $pos, t = $t; " *
+                  "further failures of this reference are not reported)."
+        end
         return SVector{1, T}(u_curr)
     end
 end

@@ -1,0 +1,96 @@
+┌ Warning: Replacing docs for `HyperCloud.NoFallbackGrad :: Union{}` in module `HyperCloud`
+└ @ Base.Docs docs/Docs.jl:253
+┌ Warning: Replacing docs for `HyperCloud.saveData! :: Union{Tuple{T}, Tuple{M}, Tuple{D}, Tuple{AbstractVector, AbstractVector, AbstractVector, Int64, ParticleGrid{D, M, T}, Real, Bool}} where {D, M, T}` in module `HyperCloud`
+└ @ Base.Docs docs/Docs.jl:253
+┌ Warning: Replacing docs for `HyperCloud.solve_equation :: Union{Tuple{T}, Tuple{M}, Tuple{D}, Tuple{TimeStepper, HyperbolicPDE{D, M, T}, ParticleGrid{D, M, T}, Real, Real}} where {D, M, T}` in module `HyperCloud`
+└ @ Base.Docs docs/Docs.jl:253
+ERROR: LoadError: Some tests did not pass: 0 passed, 5 failed, 0 errored, 0 broken.
+in expression starting at /home/agent/.claude/jobs/b26d185e/tmp/reviews/round4/hc/probe_d3a.jl:41
+=== code: old ===
+new sims.jl tests (old): Log Test Failed at /home/agent/.claude/jobs/b26d185e/tmp/reviews/round4/hc/probe_d3a.jl:43
+  Expression: run_direct_simulation(pb1)
+  Log Pattern: (:warn, r"is not finite \(blown up\)") match_mode = :any
+  Captured Logs: 
+    LogRecord(Info, "--- Running Direct N-Dimensional Simulation ---", HyperCloud, :direct, :HyperCloud_35b31f83, "/workspace/julia/HyperCloudDev/HyperCloud.jl/src/SimulationFunctions/direct.jl", 16, Base.Pairs{Symbol, Union{}, Nothing, @NamedTuple{}}())
+    LogRecord(Info, "Using PolyesterBackend for parallel runs!", HyperCloud, :old_time_integration, :HyperCloud_678854fd, "/home/agent/.claude/jobs/b26d185e/tmp/reviews/round4/hc/old_time_integration.jl", 134, Base.Pairs{Symbol, Union{}, Nothing, @NamedTuple{}}())
+    LogRecord(Info, "Direct Simulation (D=1) finished in0.08 seconds.", HyperCloud, :direct, :HyperCloud_55788f79, "/workspace/julia/HyperCloudDev/HyperCloud.jl/src/SimulationFunctions/direct.jl", 82, Base.Pairs{Symbol, Union{}, Nothing, @NamedTuple{}}())
+    LogRecord(Info, "Added custom stat 'Runtime' keeping dimensions: none", PDEStudioCore, :StatCalculation, :PDEStudioCore_f6866eec, "/home/agent/.julia/packages/PDEStudioCore/pVByR/src/StatCalculation.jl", 134, Base.Pairs{Symbol, Union{}, Nothing, @NamedTuple{}}())
+    LogRecord(Info, "Added custom stat 'k_step' keeping dimensions: none", PDEStudioCore, :StatCalculation, :PDEStudioCore_f6866eec, "/home/agent/.julia/packages/PDEStudioCore/pVByR/src/StatCalculation.jl", 134, Base.Pairs{Symbol, Union{}, Nothing, @NamedTuple{}}())
+    LogRecord(Info, "Added custom stat 'final_particle_count' keeping dimensions: none", PDEStudioCore, :StatCalculation, :PDEStudioCore_f6866eec, "/home/agent/.julia/packages/PDEStudioCore/pVByR/src/StatCalculation.jl", 134, Base.Pairs{Symbol, Union{}, Nothing, @NamedTuple{}}())
+
+Stacktrace:
+ [1] record(ts::Test.DefaultTestSet, t::Test.LogTestFailure)
+   @ Test /opt/julia/share/julia/stdlib/v1.13/Test/src/logging.jl:166
+ [2] top-level scope
+   @ ~/.claude/jobs/b26d185e/tmp/reviews/round4/hc/probe_d3a.jl:42
+ [3] macro expansion
+   @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+ [4] macro expansion
+   @ ~/.claude/jobs/b26d185e/tmp/reviews/round4/hc/probe_d3a.jl:43 [inlined]
+new sims.jl tests (old): Log Test Failed at /home/agent/.claude/jobs/b26d185e/tmp/reviews/round4/hc/probe_d3a.jl:45
+  Expression: run_direct_simulation(pnan)
+  Log Pattern: (:warn, r"is not finite \(blown up\)") match_mode = :any
+  Captured Logs: 
+    LogRecord(Info, "--- Running Direct N-Dimensional Simulation ---", HyperCloud, :direct, :HyperCloud_35b31f83, "/workspace/julia/HyperCloudDev/HyperCloud.jl/src/SimulationFunctions/direct.jl", 16, Base.Pairs{Symbol, Union{}, Nothing, @NamedTuple{}}())
+    LogRecord(Info, "Using PolyesterBackend for parallel runs!", HyperCloud, :old_time_integration, :HyperCloud_678854fd, "/home/agent/.claude/jobs/b26d185e/tmp/reviews/round4/hc/old_time_integration.jl", 134, Base.Pairs{Symbol, Union{}, Nothing, @NamedTuple{}}())
+    LogRecord(Info, "Direct Simulation (D=1) finished in0.04 seconds.", HyperCloud, :direct, :HyperCloud_55788f79, "/workspace/julia/HyperCloudDev/HyperCloud.jl/src/SimulationFunctions/direct.jl", 82, Base.Pairs{Symbol, Union{}, Nothing, @NamedTuple{}}())
+    LogRecord(Info, "Added custom stat 'Runtime' keeping dimensions: none", PDEStudioCore, :StatCalculation, :PDEStudioCore_f6866eec, "/home/agent/.julia/packages/PDEStudioCore/pVByR/src/StatCalculation.jl", 134, Base.Pairs{Symbol, Union{}, Nothing, @NamedTuple{}}())
+    LogRecord(Info, "Added custom stat 'k_step' keeping dimensions: none", PDEStudioCore, :StatCalculation, :PDEStudioCore_f6866eec, "/home/agent/.julia/packages/PDEStudioCore/pVByR/src/StatCalculation.jl", 134, Base.Pairs{Symbol, Union{}, Nothing, @NamedTuple{}}())
+    LogRecord(Info, "Added custom stat 'final_particle_count' keeping dimensions: none", PDEStudioCore, :StatCalculation, :PDEStudioCore_f6866eec, "/home/agent/.julia/packages/PDEStudioCore/pVByR/src/StatCalculation.jl", 134, Base.Pairs{Symbol, Union{}, Nothing, @NamedTuple{}}())
+
+Stacktrace:
+ [1] record(ts::Test.DefaultTestSet, t::Test.LogTestFailure)
+   @ Test /opt/julia/share/julia/stdlib/v1.13/Test/src/logging.jl:166
+ [2] top-level scope
+   @ ~/.claude/jobs/b26d185e/tmp/reviews/round4/hc/probe_d3a.jl:42
+ [3] macro expansion
+   @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+ [4] macro expansion
+   @ ~/.claude/jobs/b26d185e/tmp/reviews/round4/hc/probe_d3a.jl:45 [inlined]
+
+new sims.jl tests (old): Test Failed at /home/agent/.claude/jobs/b26d185e/tmp/reviews/round4/hc/probe_d3a.jl:46
+  Expression: simnan !== nothing && simnan.t[var"end"] == 0.0
+  Stacktrace:
+   [1] top-level scope
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round4/hc/probe_d3a.jl:42
+   [2] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [3] macro expansion
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round4/hc/probe_d3a.jl:46 [inlined]
+   [4] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:758 [inlined]
+new sims.jl tests (old): Log Test Failed at /home/agent/.claude/jobs/b26d185e/tmp/reviews/round4/hc/probe_d3a.jl:48
+  Expression: run_direct_simulation(pinf)
+  Log Pattern: (:warn, r"time step is not finite") match_mode = :any
+  Captured Logs: 
+    LogRecord(Info, "--- Running Direct N-Dimensional Simulation ---", HyperCloud, :direct, :HyperCloud_35b31f83, "/workspace/julia/HyperCloudDev/HyperCloud.jl/src/SimulationFunctions/direct.jl", 16, Base.Pairs{Symbol, Union{}, Nothing, @NamedTuple{}}())
+    LogRecord(Info, "Using PolyesterBackend for parallel runs!", HyperCloud, :old_time_integration, :HyperCloud_678854fd, "/home/agent/.claude/jobs/b26d185e/tmp/reviews/round4/hc/old_time_integration.jl", 134, Base.Pairs{Symbol, Union{}, Nothing, @NamedTuple{}}())
+    LogRecord(Info, "Direct Simulation (D=1) finished in0.0 seconds.", HyperCloud, :direct, :HyperCloud_55788f79, "/workspace/julia/HyperCloudDev/HyperCloud.jl/src/SimulationFunctions/direct.jl", 82, Base.Pairs{Symbol, Union{}, Nothing, @NamedTuple{}}())
+    LogRecord(Info, "Added custom stat 'Runtime' keeping dimensions: none", PDEStudioCore, :StatCalculation, :PDEStudioCore_f6866eec, "/home/agent/.julia/packages/PDEStudioCore/pVByR/src/StatCalculation.jl", 134, Base.Pairs{Symbol, Union{}, Nothing, @NamedTuple{}}())
+    LogRecord(Info, "Added custom stat 'k_step' keeping dimensions: none", PDEStudioCore, :StatCalculation, :PDEStudioCore_f6866eec, "/home/agent/.julia/packages/PDEStudioCore/pVByR/src/StatCalculation.jl", 134, Base.Pairs{Symbol, Union{}, Nothing, @NamedTuple{}}())
+    LogRecord(Info, "Added custom stat 'final_particle_count' keeping dimensions: none", PDEStudioCore, :StatCalculation, :PDEStudioCore_f6866eec, "/home/agent/.julia/packages/PDEStudioCore/pVByR/src/StatCalculation.jl", 134, Base.Pairs{Symbol, Union{}, Nothing, @NamedTuple{}}())
+
+Stacktrace:
+ [1] record(ts::Test.DefaultTestSet, t::Test.LogTestFailure)
+   @ Test /opt/julia/share/julia/stdlib/v1.13/Test/src/logging.jl:166
+ [2] top-level scope
+   @ ~/.claude/jobs/b26d185e/tmp/reviews/round4/hc/probe_d3a.jl:42
+ [3] macro expansion
+   @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+ [4] macro expansion
+   @ ~/.claude/jobs/b26d185e/tmp/reviews/round4/hc/probe_d3a.jl:48 [inlined]
+
+new sims.jl tests (old): Test Failed at /home/agent/.claude/jobs/b26d185e/tmp/reviews/round4/hc/probe_d3a.jl:49
+  Expression: siminf !== nothing && siminf.t == [0.0, 0.0]
+  Stacktrace:
+   [1] top-level scope
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round4/hc/probe_d3a.jl:42
+   [2] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [3] macro expansion
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round4/hc/probe_d3a.jl:49 [inlined]
+   [4] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:758 [inlined]
+Test Summary:           | Fail  Total   Time
+new sims.jl tests (old) |    5      5  16.8s
+RNG of the outermost testset: Random.Xoshiro(0x1bdd0c1a71505d91, 0xfd8696b8bdbcbc89, 0xe02a36417c3c0387, 0x293898d85503399d, 0x95d00d766ac9381a)

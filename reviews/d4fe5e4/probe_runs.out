@@ -1,0 +1,149 @@
+[ Info: --- Running BGK Simulation ---
+[ Info: BGK: D = 1, 16 velocities, 32 equations, γ = 1.4, collision: implicit
+[ Info: Using PolyesterBackend for parallel runs!
+[ Info: BGK Simulation (D=1) finished in 0.25 seconds.
+[ Info: Added custom stat 'Runtime' keeping dimensions: none
+[ Info: Added custom stat 'k_step' keeping dimensions: none
+[ Info: Added custom stat 'final_particle_count' keeping dimensions: none
+[ Info: --- Running BGK Simulation ---
+[ Info: BGK: D = 1, 16 velocities, 32 equations, γ = 1.4, collision: implicit
+[ Info: Using PolyesterBackend for parallel runs!
+[ Info: BGK Simulation (D=1) finished in 0.19 seconds.
+[ Info: Added custom stat 'Runtime' keeping dimensions: none
+[ Info: Added custom stat 'k_step' keeping dimensions: none
+[ Info: Added custom stat 'final_particle_count' keeping dimensions: none
+[ Info: --- Running BGK Simulation ---
+[ Info: BGK: D = 1, 16 velocities, 32 equations, γ = 1.4, collision: implicit
+[ Info: Using PolyesterBackend for parallel runs!
+[ Info: BGK Simulation (D=1) finished in 0.1 seconds.
+[ Info: Added custom stat 'Runtime' keeping dimensions: none
+[ Info: Added custom stat 'k_step' keeping dimensions: none
+[ Info: Added custom stat 'final_particle_count' keeping dimensions: none
+[ Info: --- Running BGK Simulation ---
+[ Info: BGK: D = 1, 16 velocities, 32 equations, γ = 1.4, collision: implicit
+[ Info: Using PolyesterBackend for parallel runs!
+[ Info: BGK Simulation (D=1) finished in 0.15 seconds.
+[ Info: Added custom stat 'Runtime' keeping dimensions: none
+[ Info: Added custom stat 'k_step' keeping dimensions: none
+[ Info: Added custom stat 'final_particle_count' keeping dimensions: none
+[ Info: --- Running BGK Simulation ---
+[ Info: BGK: D = 1, 16 velocities, 32 equations, γ = 1.4, collision: implicit
+[ Info: Using PolyesterBackend for parallel runs!
+[ Info: BGK Simulation (D=1) finished in 0.15 seconds.
+[ Info: Added custom stat 'Runtime' keeping dimensions: none
+[ Info: Added custom stat 'k_step' keeping dimensions: none
+[ Info: Added custom stat 'final_particle_count' keeping dimensions: none
+[ Info: --- Running BGK Simulation ---
+[ Info: BGK: D = 1, 16 velocities, 32 equations, γ = 1.4, collision: implicit
+[ Info: Using PolyesterBackend for parallel runs!
+[ Info: BGK Simulation (D=1) finished in 0.16 seconds.
+[ Info: Added custom stat 'Runtime' keeping dimensions: none
+[ Info: Added custom stat 'k_step' keeping dimensions: none
+[ Info: Added custom stat 'final_particle_count' keeping dimensions: none
+ERROR: LoadError: Some tests did not pass: 27 passed, 5 failed, 0 errored, 0 broken.
+in expression starting at /home/agent/.claude/jobs/b26d185e/tmp/reviews/round2/hc/probe_runs.jl:33
+CFL 5: t[end] = 20.0, final state blown up = true, max |u| = 2.3839796845966837e79, early-stop warning = false
+
+A blown-up run with constant wave speeds is reported: Test Failed at /home/agent/.claude/jobs/b26d185e/tmp/reviews/round2/hc/probe_runs.jl:47
+  Expression: warned(logs)
+   Evaluated: warned(LogRecord[LogRecord(Info, "--- Running Direct N-Dimensional Simulation ---", HyperCloud, :direct, :HyperCloud_35b31f83, "/workspace/julia/HyperCloudDev/HyperCloud.jl/src/SimulationFunctions/direct.jl", 16, Base.Pairs{Symbol, Union{}, Nothing, @NamedTuple{}}()), LogRecord(Info, "Using PolyesterBackend for parallel runs!", HyperCloud, :time_integration, :HyperCloud_678854fd, "/workspace/julia/HyperCloudDev/HyperCloud.jl/src/time_integration.jl", 119, Base.Pairs{Symbol, Union{}, Nothing, @NamedTuple{}}()), LogRecord(Info, "Direct Simulation (D=1) finished in0.09 seconds.", HyperCloud, :direct, :HyperCloud_55788f79, "/workspace/julia/HyperCloudDev/HyperCloud.jl/src/SimulationFunctions/direct.jl", 82, Base.Pairs{Symbol, Union{}, Nothing, @NamedTuple{}}()), LogRecord(Info, "Added custom stat 'Runtime' keeping dimensions: none", PDEStudioCore, :StatCalculation, :PDEStudioCore_f6866eec, "/home/agent/.julia/packages/PDEStudioCore/pVByR/src/StatCalculation.jl", 134, Base.Pairs{Symbol, Union{}, Nothing, @NamedTuple{}}()), LogRecord(Info, "Added custom stat 'k_step' keeping dimensions: none", PDEStudioCore, :StatCalculation, :PDEStudioCore_f6866eec, "/home/agent/.julia/packages/PDEStudioCore/pVByR/src/StatCalculation.jl", 134, Base.Pairs{Symbol, Union{}, Nothing, @NamedTuple{}}()), LogRecord(Info, "Added custom stat 'final_particle_count' keeping dimensions: none", PDEStudioCore, :StatCalculation, :PDEStudioCore_f6866eec, "/home/agent/.julia/packages/PDEStudioCore/pVByR/src/StatCalculation.jl", 134, Base.Pairs{Symbol, Union{}, Nothing, @NamedTuple{}}())])
+  Stacktrace:
+   [1] top-level scope
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round2/hc/probe_runs.jl:34
+   [2] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [3] macro expansion
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round2/hc/probe_runs.jl:36 [inlined]
+   [4] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [5] macro expansion
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round2/hc/probe_runs.jl:47 [inlined]
+   [6] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:758 [inlined]
+fixed dt: t[end] = 20.0, final state blown up = true, max |u| = 9.607667508776626e21, early-stop warning = false
+
+A blown-up run with constant wave speeds is reported: Test Failed at /home/agent/.claude/jobs/b26d185e/tmp/reviews/round2/hc/probe_runs.jl:47
+  Expression: warned(logs)
+   Evaluated: warned(LogRecord[LogRecord(Info, "--- Running Direct N-Dimensional Simulation ---", HyperCloud, :direct, :HyperCloud_35b31f83, "/workspace/julia/HyperCloudDev/HyperCloud.jl/src/SimulationFunctions/direct.jl", 16, Base.Pairs{Symbol, Union{}, Nothing, @NamedTuple{}}()), LogRecord(Info, "Using PolyesterBackend for parallel runs!", HyperCloud, :time_integration, :HyperCloud_678854fd, "/workspace/julia/HyperCloudDev/HyperCloud.jl/src/time_integration.jl", 119, Base.Pairs{Symbol, Union{}, Nothing, @NamedTuple{}}()), LogRecord(Info, "Direct Simulation (D=1) finished in0.0 seconds.", HyperCloud, :direct, :HyperCloud_55788f79, "/workspace/julia/HyperCloudDev/HyperCloud.jl/src/SimulationFunctions/direct.jl", 82, Base.Pairs{Symbol, Union{}, Nothing, @NamedTuple{}}()), LogRecord(Info, "Added custom stat 'Runtime' keeping dimensions: none", PDEStudioCore, :StatCalculation, :PDEStudioCore_f6866eec, "/home/agent/.julia/packages/PDEStudioCore/pVByR/src/StatCalculation.jl", 134, Base.Pairs{Symbol, Union{}, Nothing, @NamedTuple{}}()), LogRecord(Info, "Added custom stat 'k_step' keeping dimensions: none", PDEStudioCore, :StatCalculation, :PDEStudioCore_f6866eec, "/home/agent/.julia/packages/PDEStudioCore/pVByR/src/StatCalculation.jl", 134, Base.Pairs{Symbol, Union{}, Nothing, @NamedTuple{}}()), LogRecord(Info, "Added custom stat 'final_particle_count' keeping dimensions: none", PDEStudioCore, :StatCalculation, :PDEStudioCore_f6866eec, "/home/agent/.julia/packages/PDEStudioCore/pVByR/src/StatCalculation.jl", 134, Base.Pairs{Symbol, Union{}, Nothing, @NamedTuple{}}())])
+  Stacktrace:
+   [1] top-level scope
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round2/hc/probe_runs.jl:34
+   [2] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [3] macro expansion
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round2/hc/probe_runs.jl:36 [inlined]
+   [4] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [5] macro expansion
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round2/hc/probe_runs.jl:47 [inlined]
+   [6] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:758 [inlined]
+zero speed: t = [0.0, 0.0], warning = true
+
+A run with zero wave speeds reaches tmax: Test Failed at /home/agent/.claude/jobs/b26d185e/tmp/reviews/round2/hc/probe_runs.jl:59
+  Expression: sim.t[var"end"] ≈ 0.1
+   Evaluated: 0.0 ≈ 0.1
+  Stacktrace:
+   [1] top-level scope
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round2/hc/probe_runs.jl:34
+   [2] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [3] macro expansion
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round2/hc/probe_runs.jl:54 [inlined]
+   [4] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [5] macro expansion
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round2/hc/probe_runs.jl:59 [inlined]
+   [6] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:758 [inlined]
+
+A run with zero wave speeds reaches tmax: Test Failed at /home/agent/.claude/jobs/b26d185e/tmp/reviews/round2/hc/probe_runs.jl:60
+  Expression: !(warned(logs))
+   Evaluated: !(warned(LogRecord[LogRecord(Info, "--- Running Direct N-Dimensional Simulation ---", HyperCloud, :direct, :HyperCloud_35b31f83, "/workspace/julia/HyperCloudDev/HyperCloud.jl/src/SimulationFunctions/direct.jl", 16, Base.Pairs{Symbol, Union{}, Nothing, @NamedTuple{}}()), LogRecord(Info, "Using PolyesterBackend for parallel runs!", HyperCloud, :time_integration, :HyperCloud_678854fd, "/workspace/julia/HyperCloudDev/HyperCloud.jl/src/time_integration.jl", 119, Base.Pairs{Symbol, Union{}, Nothing, @NamedTuple{}}()), LogRecord(Warn, "solve_equation stopped at t = 0.0 before tmax = 0.1 after 0 steps: the time step is not finite (dt = Inf); the state has probably blown up. The data end at t = 0.0.", HyperCloud, :time_integration, :HyperCloud_9ee8b7f8, "/workspace/julia/HyperCloudDev/HyperCloud.jl/src/time_integration.jl", 132, Base.Pairs{Symbol, Union{}, Nothing, @NamedTuple{}}()), LogRecord(Info, "Direct Simulation (D=1) finished in0.0 seconds.", HyperCloud, :direct, :HyperCloud_55788f79, "/workspace/julia/HyperCloudDev/HyperCloud.jl/src/SimulationFunctions/direct.jl", 82, Base.Pairs{Symbol, Union{}, Nothing, @NamedTuple{}}()), LogRecord(Info, "Added custom stat 'Runtime' keeping dimensions: none", PDEStudioCore, :StatCalculation, :PDEStudioCore_f6866eec, "/home/agent/.julia/packages/PDEStudioCore/pVByR/src/StatCalculation.jl", 134, Base.Pairs{Symbol, Union{}, Nothing, @NamedTuple{}}()), LogRecord(Info, "Added custom stat 'k_step' keeping dimensions: none", PDEStudioCore, :StatCalculation, :PDEStudioCore_f6866eec, "/home/agent/.julia/packages/PDEStudioCore/pVByR/src/StatCalculation.jl", 134, Base.Pairs{Symbol, Union{}, Nothing, @NamedTuple{}}()), LogRecord(Info, "Added custom stat 'final_particle_count' keeping dimensions: none", PDEStudioCore, :StatCalculation, :PDEStudioCore_f6866eec, "/home/agent/.julia/packages/PDEStudioCore/pVByR/src/StatCalculation.jl", 134, Base.Pairs{Symbol, Union{}, Nothing, @NamedTuple{}}())]))
+  Stacktrace:
+   [1] top-level scope
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round2/hc/probe_runs.jl:34
+   [2] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [3] macro expansion
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round2/hc/probe_runs.jl:54 [inlined]
+   [4] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [5] macro expansion
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round2/hc/probe_runs.jl:60 [inlined]
+   [6] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:758 [inlined]
+Burgers u=0: t = [0.0, 0.0], warning = true
+
+A run with zero wave speeds reaches tmax: Test Failed at /home/agent/.claude/jobs/b26d185e/tmp/reviews/round2/hc/probe_runs.jl:66
+  Expression: simb.t[var"end"] ≈ 0.1
+   Evaluated: 0.0 ≈ 0.1
+  Stacktrace:
+   [1] top-level scope
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round2/hc/probe_runs.jl:34
+   [2] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [3] macro expansion
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round2/hc/probe_runs.jl:54 [inlined]
+   [4] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [5] macro expansion
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round2/hc/probe_runs.jl:66 [inlined]
+   [6] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:758 [inlined]
+BGK τ = 0, ARS222: L1(ρ) vs Euler = 0.014260249950524809
+BGK τ = 0, ARS233: L1(ρ) vs Euler = 0.014258398917754444
+BGK τ = 0, IMEXEuler: L1(ρ) vs Euler = 0.013700416688512474
+BGK τ = 0, SSP332: L1(ρ) vs Euler = 0.01425995278523386
+BGK τ = 0, PRSSP3: L1(ρ) vs Euler = 0.014258379524023354
+Test Summary:                                              | Pass  Fail  Total   Time
+probe_runs                                                 |   27     5     32  24.7s
+  A blown-up run with constant wave speeds is reported     |    4     2      6  14.6s
+  A run with zero wave speeds reaches tmax                 |    2     3      5   1.2s
+  BGK τ = 0 end to end with every IMEX tableau (ARS222)    |    4            4   5.2s
+  BGK τ = 0 end to end with every IMEX tableau (ARS233)    |    4            4   1.3s
+  BGK τ = 0 end to end with every IMEX tableau (IMEXEuler) |    4            4   0.1s
+  BGK τ = 0 end to end with every IMEX tableau (SSP332)    |    4            4   0.2s
+  BGK τ = 0 end to end with every IMEX tableau (PRSSP3)    |    4            4   0.2s
+  BGK zero viscosity (τ ≡ 0) with ARS222                   |    1            1   2.0s
+RNG of the outermost testset: Random.Xoshiro(0x381308a774a62039, 0x11869df4174ea711, 0xc685f5a52cec949a, 0x8e38dcd89e231218, 0x30d2b8a9ee267b16)

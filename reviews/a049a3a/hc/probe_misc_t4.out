@@ -1,0 +1,68 @@
+┌ Info: Float32 vs Float64 Burgers Gauss at t = 0.5
+└   d = 9.183876348295428e-8
+ERROR: LoadError: Some tests did not pass: 1 passed, 0 failed, 1 errored, 0 broken.
+in expression starting at /home/agent/.claude/jobs/b26d185e/tmp/reviews/round1/hc/probe_misc.jl:11
+CHECKSUM threads=4 243.76608658973248 steps=34.0
+
+Euler exact solution with vacuum generation conserves mass: Error During Test at /home/agent/.claude/jobs/b26d185e/tmp/reviews/round1/hc/probe_misc.jl:12
+  Got exception outside of a @test
+  DomainError with -0.05798747255972876:
+  Exponentiation yielding a complex result requires a complex argument.
+  Replace x^y with (x+0im)^y, Complex(x)^y, or similar.
+  Stacktrace:
+     [1] throw_exp_domainerror(x::Float64)
+       @ Base.Math ./math.jl:41
+     [2] ^(x::Float64, y::Float64)
+       @ Base.Math ./special/pow.jl:25
+     [3] (::HyperCloud.var"#exact_euler_riemann#analytic_closure##25"{Float64, Riemann{1, 3, Float64}, Float64, Float64, Float64, Float64, Float64, Float64, Float64, Float64, Float64, Float64, Float64, Float64})(st::SVector{2, Float64})
+       @ HyperCloud /workspace/julia/HyperCloudDev/HyperCloud.jl/src/PDEs/euler.jl:194
+     [4] #14
+       @ ~/.claude/jobs/b26d185e/tmp/reviews/round1/hc/probe_misc.jl:21 [inlined]
+     [5] #3
+       @ ~/.claude/jobs/b26d185e/tmp/reviews/round1/hc/probe_misc.jl:4 [inlined]
+     [6] macro expansion
+       @ ./reduce.jl:264 [inlined]
+     [7] macro expansion
+       @ ./simdloop.jl:77 [inlined]
+     [8] mapreduce_impl(f::var"#3#4"{var"#14#15"{Float64, HyperCloud.var"#exact_euler_riemann#analytic_closure##25"{Float64, Riemann{1, 3, Float64}, Float64, Float64, Float64, Float64, Float64, Float64, Float64, Float64, Float64, Float64, Float64, Float64}}, Float64, Float64}, op::typeof(Base.add_sum), A::UnitRange{Int64}, ifirst::Int64, ilast::Int64, blksize::Int64)
+       @ Base ./reduce.jl:262
+   ┌ [9] mapreduce_impl(f::var"#3#4"{var"#14#15"{Float64, HyperCloud.var"#exact_euler_riemann#analytic_closure##25"{Float64, Riemann{1, 3, Float64}, Float64, Float64, Float64, Float64, Float64, Float64, Float64, Float64, Float64, Float64, Float64, Float64}}, Float64, Float64}, op::typeof(Base.add_sum), A::UnitRange{Int64}, ifirst::Int64, ilast::Int64, blksize::Int64)
+   │   @ Base ./reduce.jl:271
+   ╰──── repeated 4 times
+    [13] mapreduce_impl(f::var"#3#4"{var"#14#15"{Float64, HyperCloud.var"#exact_euler_riemann#analytic_closure##25"{Float64, Riemann{1, 3, Float64}, Float64, Float64, Float64, Float64, Float64, Float64, Float64, Float64, Float64, Float64, Float64, Float64}}, Float64, Float64}, op::typeof(Base.add_sum), A::UnitRange{Int64}, ifirst::Int64, ilast::Int64, blksize::Int64)
+       @ Base ./reduce.jl:270
+    [14] mapreduce_impl
+       @ ./reduce.jl:276 [inlined]
+    [15] _mapreduce(f::var"#3#4"{var"#14#15"{Float64, HyperCloud.var"#exact_euler_riemann#analytic_closure##25"{Float64, Riemann{1, 3, Float64}, Float64, Float64, Float64, Float64, Float64, Float64, Float64, Float64, Float64, Float64, Float64, Float64}}, Float64, Float64}, op::typeof(Base.add_sum), ::IndexLinear, A::UnitRange{Int64})
+       @ Base ./reduce.jl:447
+    [16] _mapreduce_dim
+       @ ./reducedim.jl:347 [inlined]
+    [17] mapreduce
+       @ ./reducedim.jl:330 [inlined]
+    [18] _sum
+       @ ./reducedim.jl:1003 [inlined]
+    [19] sum
+       @ ./reducedim.jl:999 [inlined]
+    [20] integrate(f::var"#14#15"{Float64, HyperCloud.var"#exact_euler_riemann#analytic_closure##25"{Float64, Riemann{1, 3, Float64}, Float64, Float64, Float64, Float64, Float64, Float64, Float64, Float64, Float64, Float64, Float64, Float64}}, a::Float64, b::Float64; n::Int64)
+       @ Main ~/.claude/jobs/b26d185e/tmp/reviews/round1/hc/probe_misc.jl:4
+    [21] top-level scope
+       @ ~/.claude/jobs/b26d185e/tmp/reviews/round1/hc/probe_misc.jl:12
+    [22] macro expansion
+       @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+    [23] macro expansion
+       @ ~/.claude/jobs/b26d185e/tmp/reviews/round1/hc/probe_misc.jl:13 [inlined]
+    [24] macro expansion
+       @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+    [25] macro expansion
+       @ ~/.claude/jobs/b26d185e/tmp/reviews/round1/hc/probe_misc.jl:21 [inlined]
+    [26] include(mod::Module, _path::String)
+       @ Base ./Base.jl:309
+    [27] exec_options(opts::Base.JLOptions)
+       @ Base ./client.jl:344
+    [28] _start()
+       @ Base ./client.jl:577
+Test Summary:                                                | Pass  Error  Total  Time
+misc                                                         |    1      1      2  1.0s
+  Euler exact solution with vacuum generation conserves mass |           1      1  0.7s
+  Float32 Burgers Gauss values despite the warnings          |    1             1  0.3s
+RNG of the outermost testset: Random.Xoshiro(0x3957c3b95bdcd710, 0x1b90fb914b35aa17, 0x013472d2f7c91fc3, 0x8489e7de53c512ab, 0x31d64ba05ecef6d1)

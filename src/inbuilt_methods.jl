@@ -105,8 +105,9 @@ function get_master_method_dict()
         create_method(:RK4SSP, :MUSCL,  4, mood_criterion=:only, ignore=ignore_relax),
 
         # =====================================================================
-        # 3. RELAXATION 2ND ORDER (ARS222) - KINETIC
+        # 3. RELAXATION 2ND ORDER (ARS222, SSP332) - KINETIC
         # =====================================================================
+        create_method(:ARS222, :MUSCL,  2),
         create_method(:SSP332, :MUSCL,  2),
         create_method(:SSP332, :MUSCL,  2, limiter=:VK, limiter_mode=:hard),
         create_method(:SSP332, :MUSCL,  2, limiter=:minmod, limiter_mode=:hard),

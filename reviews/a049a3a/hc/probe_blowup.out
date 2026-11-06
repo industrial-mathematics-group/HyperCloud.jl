@@ -1,0 +1,34 @@
+[ Info: --- Running Direct N-Dimensional Simulation ---
+[ Info: Using PolyesterBackend for parallel runs!
+[ Info: Direct Simulation (D=1) finished in0.14 seconds.
+[ Info: Added custom stat 'Runtime' keeping dimensions: none
+[ Info: Added custom stat 'k_step' keeping dimensions: none
+[ Info: Added custom stat 'final_particle_count' keeping dimensions: none
+┌ Info: blow-up run
+│   repr(sim.t) = "[0.0, 0.11041136815700524, 0.11041136815700524, 0.11041136815700524]"
+│   length(sim.t) = 4
+│   (sim.stats[:k_step])[1] = 1.0
+└   any((u->begin
+            #= /home/agent/.claude/jobs/b26d185e/tmp/reviews/round1/hc/probe_blowup.jl:11 =#
+            !(all(isfinite, u))
+        end), sim.u[var"end"]) = false
+ERROR: LoadError: Some tests did not pass: 0 passed, 1 failed, 0 errored, 0 broken.
+in expression starting at /home/agent/.claude/jobs/b26d185e/tmp/reviews/round1/hc/probe_blowup.jl:8
+
+blow-up is reported: Test Failed at /home/agent/.claude/jobs/b26d185e/tmp/reviews/round1/hc/probe_blowup.jl:9
+  Expression: sim === nothing || all(isfinite, sim.t) && (sim.t[var"end"] ≈ 0.2 && all((u->begin
+                        #= /home/agent/.claude/jobs/b26d185e/tmp/reviews/round1/hc/probe_blowup.jl:9 =#
+                        all(isfinite, u)
+                    end), sim.u[var"end"]))
+  Stacktrace:
+   [1] top-level scope
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round1/hc/probe_blowup.jl:9
+   [2] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [3] macro expansion
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round1/hc/probe_blowup.jl:9 [inlined]
+   [4] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:758 [inlined]
+Test Summary:       | Fail  Total  Time
+blow-up is reported |    1      1  0.7s
+RNG of the outermost testset: Random.Xoshiro(0x1adf4b65cff617e1, 0xb418820d053a0232, 0x583d6a5413ced11f, 0x12e98ec6c087c326, 0x74becca086648a1c)

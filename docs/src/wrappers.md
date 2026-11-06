@@ -33,14 +33,15 @@ The `:Upwind` scheme only exists at order 1.
 
 Returns all built-in methods as `Dict(label => method)`:
 
-- first-order baselines: `EulerUpwind1`, `RK2Upwind1`, `IMEXEulerUpwind1`, `ARS222Upwind1`,
-  `ARS233Upwind1`, and `RK2WENO2`;
+- the reference entry `"Analytical Solution"`;
+- first-order baselines: `EulerUpwind1`, `RK2Upwind1`, `IMEXEulerUpwind1`, `SSP332Upwind1`,
+  `PRSSP3Upwind1`, and `RK2WENO2`;
 - direct second order: `RK2MUSCL2` without limiter, with `VK`, `BJ` or `minmod`, and with MOOD
-  (`EPD0`, `EPD1`, `EPD2`, `SEPD0`, `U1`), plus `RK2MUSCL1`;
-- kinetic second order: `ARS222MUSCL2` without limiter, with `VK` or `minmod`, and with MOOD
-  (`EPD1`, `EPD2`, `SEPD0`, `U1`);
-- high order: `RK4MUSCL2`–`RK4MUSCL5` without limiter, with `VK`, `minmod`, or MOOD (`EPD1`,
-  `EPD2`), `RK4MUSCL4(EPD1,only)`, and kinetic `ARS233MUSCL2`–`ARS233MUSCL5` with MOOD.
+  (`EPD0`, `EPD1`, `EPD2`, `SEPD0`, `EPD1,U1`), plus `RK2MUSCL1` and `RK4SSPMUSCL4(EPD1,only)`;
+- kinetic second order: `ARS222MUSCL2` (no limiter) and `SSP332MUSCL2` without limiter, with `VK` or
+  `minmod`, and with MOOD (`EPD1`, `EPD2`, `SEPD0`, `EPD1,U1`);
+- high order: `RK4SSPMUSCL2`–`RK4SSPMUSCL5` without limiter, with `VK`, `minmod`, or MOOD (`EPD1`,
+  `EPD2`), and kinetic `PRSSP3MUSCL2(EPD1)`–`PRSSP3MUSCL5(EPD1)`.
 
 Select methods by label in a `SimulationConfig`, e.g. `["RK2MUSCL2", "ARS222MUSCL2"]`.
 

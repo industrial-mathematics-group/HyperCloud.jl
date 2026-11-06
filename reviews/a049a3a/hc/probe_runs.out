@@ -1,0 +1,103 @@
+┌ Info: representation primitive
+│   exception =
+│    UndefVarError: `Primitive` not defined in `HyperCloud`
+└    Suggestion: check for spelling errors or missing imports.
+┌ Info: representation lagrangian
+│   exception =
+│    UndefVarError: `Lagrangian` not defined in `HyperCloud`
+└    Suggestion: check for spelling errors or missing imports.
+[ Info: --- Running Direct N-Dimensional Simulation ---
+[ Info: Using PolyesterBackend for parallel runs!
+[ Info: Direct Simulation (D=1) finished in0.16 seconds.
+[ Info: Added custom stat 'Runtime' keeping dimensions: none
+[ Info: Added custom stat 'k_step' keeping dimensions: none
+[ Info: Added custom stat 'final_particle_count' keeping dimensions: none
+[ Info: --- Running Direct N-Dimensional Simulation ---
+[ Info: Using PolyesterBackend for parallel runs!
+[ Info: Direct Simulation (D=1) finished in0.15 seconds.
+[ Info: Added custom stat 'Runtime' keeping dimensions: none
+[ Info: Added custom stat 'k_step' keeping dimensions: none
+[ Info: Added custom stat 'final_particle_count' keeping dimensions: none
+┌ Info: Sod L1(rho)
+│   e64 = 0.016718272174025297
+└   e32 = 0.01671034947797383
+[ Info: --- Running Kinetic N-Dimensional Simulation ---
+[ Info: Using PolyesterBackend for parallel runs!
+[ Info: Kinetic Simulation (D=1) finished in0.16 seconds.
+[ Info: Added custom stat 'Runtime' keeping dimensions: none
+[ Info: Added custom stat 'k_step' keeping dimensions: none
+[ Info: Added custom stat 'final_particle_count' keeping dimensions: none
+┌ Info: kinetic Euler Sod L1(rho)
+└   err = 0.021610459255955228
+[ Info: --- Running BGK Simulation ---
+[ Info: BGK: D = 1, 12 velocities, 12 equations, γ = 3.0, collision: none (collisionless)
+[ Info: Using PolyesterBackend for parallel runs!
+[ Info: BGK Simulation (D=1) finished in 0.12 seconds.
+[ Info: Added custom stat 'Runtime' keeping dimensions: none
+[ Info: Added custom stat 'k_step' keeping dimensions: none
+[ Info: Added custom stat 'final_particle_count' keeping dimensions: none
+[ Info: --- Running BGK Simulation ---
+[ Info: BGK: D = 1, 12 velocities, 12 equations, γ = 3.0, collision: none (collisionless)
+[ Info: Using PolyesterBackend for parallel runs!
+[ Info: BGK Simulation (D=1) finished in 0.03 seconds.
+[ Info: Added custom stat 'Runtime' keeping dimensions: none
+[ Info: Added custom stat 'k_step' keeping dimensions: none
+[ Info: Added custom stat 'final_particle_count' keeping dimensions: none
+┌ Info: GH errors
+│   errs =
+│    2-element Vector{Float64}:
+│     0.00024929333268098653
+│     3.20370477065679e-5
+└   order = 2.9600311875896974
+[ Info: --- Running BGK Simulation ---
+[ Info: BGK: D = 1, 16 velocities, 32 equations, γ = 1.4, collision: implicit
+[ Info: Using PolyesterBackend for parallel runs!
+[ Info: BGK Simulation (D=1) finished in 0.26 seconds.
+[ Info: Added custom stat 'Runtime' keeping dimensions: none
+[ Info: Added custom stat 'k_step' keeping dimensions: none
+[ Info: Added custom stat 'final_particle_count' keeping dimensions: none
+┌ Info: BGK viscosity Sod Float32
+│   err = 0.015058600043991047
+└   eltype(us[1]) = Float32
+ERROR: LoadError: Some tests did not pass: 10 passed, 2 failed, 0 errored, 0 broken.
+in expression starting at /home/agent/.claude/jobs/b26d185e/tmp/reviews/round1/hc/probe_runs.jl:14
+
+documented :primitive / :lagrangian representations build: Test Failed at /home/agent/.claude/jobs/b26d185e/tmp/reviews/round1/hc/probe_runs.jl:24
+  Expression: ok
+  Stacktrace:
+   [1] top-level scope
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round1/hc/probe_runs.jl:15
+   [2] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [3] macro expansion
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round1/hc/probe_runs.jl:16 [inlined]
+   [4] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [5] macro expansion
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round1/hc/probe_runs.jl:24 [inlined]
+   [6] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:758 [inlined]
+
+documented :primitive / :lagrangian representations build: Test Failed at /home/agent/.claude/jobs/b26d185e/tmp/reviews/round1/hc/probe_runs.jl:24
+  Expression: ok
+  Stacktrace:
+   [1] top-level scope
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round1/hc/probe_runs.jl:15
+   [2] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [3] macro expansion
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round1/hc/probe_runs.jl:16 [inlined]
+   [4] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:1967 [inlined]
+   [5] macro expansion
+     @ ~/.claude/jobs/b26d185e/tmp/reviews/round1/hc/probe_runs.jl:24 [inlined]
+   [6] macro expansion
+     @ /opt/julia/share/julia/stdlib/v1.13/Test/src/Test.jl:758 [inlined]
+Test Summary:                                               | Pass  Fail  Total   Time
+probes: runs                                                |   10     2     12  35.9s
+  documented :primitive / :lagrangian representations build |          2      2   1.0s
+  Euler Sod Float32 vs Float64                              |    3            3  19.9s
+  Kinetic relaxation with an Euler macro model (Sod)        |    3            3   5.0s
+  BGK Gauss-Hermite grid, collisionless convergence         |    1            1   4.6s
+  BGK viscosity law, Sod, gamma = 1.4 (Chu pair), Float32   |    3            3   4.8s
+RNG of the outermost testset: Random.Xoshiro(0x19bfbde8004d9cc2, 0x4a9b700b0df9ebcf, 0x7708e35d0a707888, 0xb0248d87062feed2, 0x1dbe5d8b89bd4295)

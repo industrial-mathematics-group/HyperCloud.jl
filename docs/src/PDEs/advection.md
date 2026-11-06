@@ -42,7 +42,8 @@ In a configuration: `:PDE_name => :linear, :PDE_velocities => ((1.0,), (1.0,))`.
 The exact solution works with any initial condition and any dimension:
 
 1. **Commutation check.** For ``D > 1`` the matrices must commute
-   (``A_i A_j = A_j A_i``). Otherwise the closure throws an error.
+   (``A_i A_j = A_j A_i``, checked as ``\|A_i A_j - A_j A_i\| \le \sqrt{\varepsilon}\,\|A_i\|\,\|A_j\|``
+   with the machine epsilon of the precision). Otherwise the closure throws an error.
 2. **Characteristic variables.** It diagonalizes ``\sum_d A_d = R \Lambda R^{-1}``. The speed of
    characteristic ``m`` in direction ``d`` is ``\lambda_{m,d} = (R^{-1} A_d R)_{mm}``.
 3. **Tracing.** Each characteristic variable is the initial condition at
@@ -52,7 +53,8 @@ The exact solution works with any initial condition and any dimension:
 !!! note
     Step 2 assumes that the eigenvectors of ``\sum_d A_d`` also diagonalize every ``A_d``. This
     always holds for diagonal systems. It can fail for non-diagonal matrices when
-    ``\sum_d A_d`` has repeated eigenvalues.
+    ``\sum_d A_d`` has repeated eigenvalues; the closure then throws an error (off-diagonal
+    entries of ``R^{-1} A_d R`` above ``\sqrt{\varepsilon} \max(1, \max|R^{-1} A_d R|)``).
 
 ## API
 

@@ -16,7 +16,7 @@ parameters, so any key below may appear in either place.
 |:----|:--------|:--------|
 | `:sim_func_name` | — | Pipeline to run: `:run_direct_simulation`, `:run_kinetic_simulation` or `:run_bgk_simulation`. Set automatically by `create_method`; BGK configurations (`:PDE_name => :bgk`) run [`run_bgk_simulation`](@ref) from either of the other two. |
 | `:tmax` | — | Final time. `:Time_tmax` overrides it. |
-| `:snapshots` | — | Number of output intervals; `snapshots + 1` states are stored, including `t = 0`. |
+| `:snapshots` | — | Number of output intervals (≥ 1); `snapshots + 1` states are stored, including `t = 0`. |
 | `:remove_ghosts` | `true` | Drop boundary/ghost particles from the stored snapshots. |
 | `:T` | `Float64` | Floating-point type of the simulation. |
 | `:real_type` | `Float64` | Floating-point type of the exact reference (`analytical_solution`). |
@@ -37,9 +37,9 @@ parameters, so any key below may appear in either place.
 | `:tau` | `:bgk` | Constant relaxation time; `Inf` is collisionless. |
 | `:viscosity`, `:omega` | `:bgk` | Instead of `:tau`: `τ = μ / p` with `μ = viscosity * θ^omega` (`omega` default `0.5`). |
 
-The Euler representation is read from the same namespace by `parse_representation`:
-`:representation` is `:conservative` (default), `:primitive` or `:lagrangian`, the latter two with
-an integration `:path` (default `:mapped`).
+The equation representation is read from the same namespace by `parse_representation`:
+`:representation` may only be `:conservative` (the default). Non-conservative forms (`:primitive`,
+`:lagrangian`) are not implemented; any other value raises an `ArgumentError`.
 
 ## `Grid_` — domain and particles
 
@@ -55,8 +55,9 @@ an integration `:path` (default `:mapped`).
 | `:mover` | `:none` | Grid motion: `:none`, `:lagrangian`, `:scaled_lagrangian` (factor `:mover_alpha`) or `:sinusoidal` (amplitude `:mover_amplitude`); see [Moving Grids](@extref HyperCloudCore Moving-Grids-(ALE)). Lagrangian movers need `fluid_velocity` for the equation; all built-in equations define it. |
 | `:volumes` | `:shepard` | Particle volume estimator: `:shepard` (`:volumes_sweeps`) or `:mls` (`:volumes_degree`, `:volumes_samples_per_dx`); see [Particle Volumes](@extref HyperCloudCore Particle-Volumes-and-Adaptivity). Used for the initial volumes and, on a moving grid, for the re-estimation after every step and every adaptation call (HyperCloudCore ≥ 0.7.5; before, only the initial volumes). On a moving grid Shepard volumes give a resolution-independent bias in the discrete mass; `:mls` converges but costs about 3 (1-D) to 20 (2-D) time steps per re-estimation. |
 
-!!! warning "The key is `:Grid_bc`"
-    Boundary conditions are read from `:Grid_bc`. A key such as `:Grid_bc_map` is silently ignored.
+!!! note "`:Grid_bc` and `:Grid_bc_map`"
+    Boundary conditions are read from `:Grid_bc`; `:Grid_bc_map` is accepted as an alias when `:Grid_bc`
+    is absent (HyperCloudCore's `build_domain`). Other spellings are silently ignored.
 
 ## `Weight_` — MLS weight function
 

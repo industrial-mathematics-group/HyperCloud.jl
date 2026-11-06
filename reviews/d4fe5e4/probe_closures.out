@@ -1,0 +1,31 @@
+Test Summary:                                       | Pass  Total  Time
+Euler exact Riemann solver vs Toro tables (Float64) |   20     20  0.5s
+Test Summary:                                       | Pass  Total  Time
+Euler exact Riemann solver vs Toro tables (Float32) |   20     20  0.1s
+Burgers Gauss T=Float64 D=1 a=1.0 t=0.97 t_b: max residual 2.220446049250313e-16, 0 warnings
+Test Summary:                                                        | Pass  Total  Time
+Burgers Gauss closure just before breaking (Float64, D = 1, a = 1.0) |    2      2  0.2s
+Burgers Gauss T=Float64 D=1 a=-0.7 t=0.97 t_b: max residual 2.220446049250313e-16, 0 warnings
+Test Summary:                                                         | Pass  Total  Time
+Burgers Gauss closure just before breaking (Float64, D = 1, a = -0.7) |    2      2  0.0s
+Burgers Gauss T=Float64 D=2 a=1.0 t=0.97 t_b: max residual 2.220446049250313e-16, 0 warnings
+Test Summary:                                                        | Pass  Total  Time
+Burgers Gauss closure just before breaking (Float64, D = 2, a = 1.0) |    2      2  0.2s
+Burgers Gauss T=Float64 D=2 a=-0.7 t=0.97 t_b: max residual 2.220446049250313e-16, 0 warnings
+Test Summary:                                                         | Pass  Total  Time
+Burgers Gauss closure just before breaking (Float64, D = 2, a = -0.7) |    2      2  0.0s
+Burgers Gauss T=Float32 D=1 a=1.0 t=0.97 t_b: max residual 1.1920929e-7, 0 warnings
+Test Summary:                                                        | Pass  Total  Time
+Burgers Gauss closure just before breaking (Float32, D = 1, a = 1.0) |    2      2  0.1s
+Burgers Gauss T=Float32 D=1 a=-0.7 t=0.97 t_b: max residual 8.940697e-8, 0 warnings
+Test Summary:                                                         | Pass  Total  Time
+Burgers Gauss closure just before breaking (Float32, D = 1, a = -0.7) |    2      2  0.0s
+Burgers Gauss T=Float32 D=2 a=1.0 t=0.97 t_b: max residual 1.1920929e-7, 0 warnings
+Test Summary:                                                        | Pass  Total  Time
+Burgers Gauss closure just before breaking (Float32, D = 2, a = 1.0) |    2      2  0.2s
+Burgers Gauss T=Float32 D=2 a=-0.7 t=0.97 t_b: max residual 1.1920929e-7, 0 warnings
+Test Summary:                                                         | Pass  Total  Time
+Burgers Gauss closure just before breaking (Float32, D = 2, a = -0.7) |    2      2  0.0s
+master dict entries: 50
+Test Summary:                                 | Pass  Total  Time
+master method dictionary: no label collisions |    1      1  0.4s
