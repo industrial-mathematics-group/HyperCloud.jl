@@ -1,0 +1,73 @@
+## lin CFL5 tmax100 snaps10: #warn = 2, t = [0.0, 10.296698396023215, 20.26124523088439, 30.225792065745 … 08397940519053, 80.0485262400516, 80.0485262400516], final NONFINITE, k_step = [241.0]
+     Warn: solve_equation: at t = 10.296698396023215 the state is 2.2321002323607033e40 times larger than at t = 0; the run is probably unstable.
+     Warn: solve_equation: the state at t = 80.0485262400516 is not finite (blown up); the run stopped before tmax = 100.0 after 241 steps. The data end at t = 80.04852624
+## lin CFL5 tmax100 snaps1: #warn = 1, t = [0.0, 100.0], final NONFINITE, k_step = [302.0]
+     Warn: solve_equation: the state at t = 100.0 is not finite (blown up).
+## lin CFL5 tmax100 snaps2: #warn = 2, t = [0.0, 50.154885735468106, 100.0], final NONFINITE, k_step = [302.0]
+     Warn: solve_equation: at t = 50.154885735468106 the state is 1.2926641354699588e203 times larger than at t = 0; the run is probably unstable.
+     Warn: solve_equation: the state at t = 100.0 is not finite (blown up).
+## lin CFL5 tmax100 snaps10 Float32: #warn = 1, t = Float32[0.0, 10.296695, 10.296695], final NONFINITE, k_step = Float32[31.0]
+     Warn: solve_equation: the state at t = 10.296695 is not finite (blown up); the run stopped before tmax = 100.0 after 31 steps. The data end at t = 10.296695.
+## lin CFL5 tmax100 snaps10 ghosts kept: #warn = 2, t = [0.0, 10.296698396023215, 20.26124523088439, 30.225792065745 … 08397940519053, 80.0485262400516, 80.0485262400516], final NONFINITE, k_step = [241.0]
+     Warn: solve_equation: at t = 10.296698396023215 the state is 2.2321002323607033e40 times larger than at t = 0; the run is probably unstable.
+     Warn: solve_equation: the state at t = 80.0485262400516 is not finite (blown up); the run stopped before tmax = 100.0 after 241 steps. The data end at t = 80.04852624
+## burgers NaN snaps1: #warn = 1, t = [0.0, 0.0], final NONFINITE, k_step = [0.0]
+     Warn: solve_equation stopped at t = 0.0 before tmax = 0.15 after 0 steps: the state is not finite (blown up). The data end at t = 0.0.
+## burgers NaN snaps4: #warn = 1, t = [0.0, 0.0], final NONFINITE, k_step = [0.0]
+     Warn: solve_equation stopped at t = 0.0 before tmax = 0.15 after 0 steps: the state is not finite (blown up). The data end at t = 0.0.
+## lin CFL=Inf: #warn = 1, t = [0.0, 0.0], final finite, k_step = [0.0]
+     Warn: solve_equation stopped at t = 0.0 before tmax = 0.1 after 0 steps: the time step is not finite (dt = Inf, from the CFL number Inf, which must be positive and fi
+## lin CFL=-Inf: #warn = 1, t = [0.0, 0.0], final finite, k_step = [0.0]
+     Warn: solve_equation stopped at t = 0.0 before tmax = 0.1 after 0 steps: the time step is not finite (dt = -Inf, from the CFL number -Inf, which must be positive and 
+## lin CFL=NaN: #warn = 1, t = [0.0, 0.0], final finite, k_step = [0.0]
+     Warn: solve_equation stopped at t = 0.0 before tmax = 0.1 after 0 steps: the time step is not finite (dt = NaN, from the CFL number NaN, which must be positive and fi
+## lin CFL=-0.2: #warn = 1, t = [0.0, 0.0], final finite, k_step = [0.0]
+     Warn: solve_equation stopped at t = 0.0 before tmax = 0.1 after 0 steps: the time step is collapsed (dt = -0.013286062446481575, from the CFL number -0.2, which must 
+## lin CFL=0.0: #warn = 1, t = [0.0, 0.0], final finite, k_step = [0.0]
+     Warn: solve_equation stopped at t = 0.0 before tmax = 0.1 after 0 steps: the time step is collapsed (dt = 0.0, from the CFL number 0.0, which must be positive and fin
+## lin CFL=1.0e-14: #warn = 1, t = [0.0, 0.0], final finite, k_step = [0.0]
+     Warn: solve_equation stopped at t = 0.0 before tmax = 0.1 after 0 steps: the time step is collapsed (dt = 6.643031223240788e-16); the state has probably blown up. The
+## zero velocity CFL=0.2: #warn = 0, t = [0.0, 0.1, 0.1], final finite, k_step = [1.0]
+## zero velocity CFL=Inf: #warn = 1, t = [0.0, 0.0], final finite, k_step = [0.0]
+     Warn: solve_equation stopped at t = 0.0 before tmax = 0.1 after 0 steps: the time step is not finite (dt = Inf, from the CFL number Inf, which must be positive and fi
+## zero velocity CFL=-0.2: #warn = 1, t = [0.0, 0.0], final finite, k_step = [0.0]
+     Warn: solve_equation stopped at t = 0.0 before tmax = 0.1 after 0 steps: the time step is not finite (dt = -Inf, from the CFL number -0.2, which must be positive and 
+## zero velocity CFL=0.0: #warn = 1, t = [0.0, 0.0], final finite, k_step = [0.0]
+     Warn: solve_equation stopped at t = 0.0 before tmax = 0.1 after 0 steps: the time step is not finite (dt = NaN, from the CFL number 0.0, which must be positive and fi
+## lin fixed dt=Inf: #warn = 1, t = [0.0, 0.0], final finite, k_step = [0.0]
+     Warn: solve_equation stopped at t = 0.0 before tmax = 0.1 after 0 steps: the time step is not finite (dt = Inf, from the fixed step Inf, which must be positive and fi
+## lin fixed dt=-Inf: #warn = 1, t = [0.0, 0.0], final finite, k_step = [0.0]
+     Warn: solve_equation stopped at t = 0.0 before tmax = 0.1 after 0 steps: the time step is not finite (dt = -Inf, from the fixed step -Inf, which must be positive and 
+## lin fixed dt=NaN: #warn = 1, t = [0.0, 0.0], final finite, k_step = [0.0]
+     Warn: solve_equation stopped at t = 0.0 before tmax = 0.1 after 0 steps: the time step is not finite (dt = NaN, from the fixed step NaN, which must be positive and fi
+## lin fixed dt=-0.01: #warn = 1, t = [0.0, 0.0], final finite, k_step = [0.0]
+     Warn: solve_equation stopped at t = 0.0 before tmax = 0.1 after 0 steps: the time step is collapsed (dt = -0.01, from the fixed step -0.01, which must be positive and
+## lin fixed dt=0.0: #warn = 1, t = [0.0, 0.0], final finite, k_step = [0.0]
+     Warn: solve_equation stopped at t = 0.0 before tmax = 0.1 after 0 steps: the time step is collapsed (dt = 0.0, from the fixed step 0.0, which must be positive and fin
+## lin fixed dt=1.0e-13: #warn = 1, t = [0.0, 0.0], final finite, k_step = [0.0]
+     Warn: solve_equation stopped at t = 0.0 before tmax = 0.1 after 0 steps: the time step is collapsed (dt = 1.0e-13); the state has probably blown up. The data end at t
+## lin fixed dt=0.1: #warn = 0, t = [0.0, 0.1, 0.1], final finite, k_step = [1.0]
+## lin fixed dt=0.03: #warn = 0, t = [0.0, 0.06, 0.1], final finite, k_step = [4.0]
+## lin fixed dt=0.1 tmax=0.3 snaps3 (round-off end): #warn = 0, t = [0.0, 0.1, 0.2, 0.3], final finite, k_step = [3.0]
+## lin fixed dt=0.1 tmax=0.3 snaps3 Float32: #warn = 0, t = Float32[0.0, 0.1, 0.2, 0.3], final finite, k_step = Float32[3.0]
+## Sod no limiter fixed dt=0.05 snaps1: #warn = 1, t = [0.0, 0.2], final NONFINITE, k_step = [4.0, 4.0, 4.0]
+     Warn: solve_equation: the state at t = 0.2 is not finite (blown up).
+## Sod no limiter fixed dt=0.05 snaps4: #warn = 2, t = [0.0, 0.05, 0.1, 0.15000000000000002, 0.2], final NONFINITE, k_step = [4.0, 4.0, 4.0]
+     Warn: solve_equation: at t = 0.1 the state is 2.7121485312410867e51 times larger than at t = 0; the run is probably unstable.
+     Warn: solve_equation: the state at t = 0.2 is not finite (blown up).
+## Sod no limiter CFL4 snaps4: #warn = 2, t = [0.0, 0.11041136815700524, 0.11041136815700524, 0.11041136815700524], final finite, k_step = [1.0, 1.0, 1.0]
+     Warn: solve_equation: at t = 0.11041136815700524 the state is 4.442801926301142e9 times larger than at t = 0; the run is probably unstable.
+     Warn: solve_equation stopped at t = 0.11041136815700524 before tmax = 0.2 after 1 steps: the time step is collapsed (dt = 5.295475359584437e-20); the state has probab
+## Sod no limiter CFL4 snaps1: #warn = 1, t = [0.0, 0.11041136815700524], final finite, k_step = [1.0, 1.0, 1.0]
+     Warn: solve_equation stopped at t = 0.11041136815700524 before tmax = 0.2 after 1 steps: the time step is collapsed (dt = 5.295475359584437e-20); the state has probab
+## Sod VK snaps1 (legit): #warn = 0, t = [0.0, 0.2], final finite, k_step = [61.0, 61.0, 61.0]
+## Sod VK snaps51 (legit): #warn = 0, t = [0.0, 0.005520568407850262, 0.010097109443724902, 0.01431801 … 7788, 0.1923390520932052, 0.19843131990937296, 0.2], final finite, k_step = [61.0, 61.0, 61.0]
+## BGK wave CFL5 (blow-up, constant speeds): #warn = 2, t = [0.0, 5.021417767135144, 10.005080513464756, 10.005080513464756], final NONFINITE, k_step = [265.0, 265.0, 265.0]
+     Warn: solve_equation: at t = 5.021417767135144 the state is 2.2444885623753988e160 times larger than at t = 0; the run is probably unstable.
+     Warn: solve_equation: the state at t = 10.005080513464756 is not finite (blown up); the run stopped before tmax = 20.0 after 265 steps. The data end at t = 10.0050805
+## BGK wave CFL=Inf: #warn = 1, t = [0.0, 0.0], final finite, k_step = [0.0, 0.0, 0.0]
+     Warn: solve_equation stopped at t = 0.0 before tmax = 0.2 after 0 steps: the time step is not finite (dt = Inf, from the CFL number Inf, which must be positive and fi
+## Sod lagrangian + adaptivity (legit): #warn = 0, t = [0.0, 0.051834691711877455, 0.10090617741435547, 0.1503508056581406, 0.2], final finite, k_step = [67.0, 67.0, 67.0]
+## Sod lagrangian + adaptivity, no limiter CFL4: #warn = 2, t = [0.0, 0.11041136815700524, 0.11041136815700524, 0.11041136815700524], final finite, k_step = [1.0, 1.0, 1.0]
+     Warn: solve_equation: at t = 0.11041136815700524 the state is 5.440991261559353e9 times larger than at t = 0; the run is probably unstable.
+     Warn: solve_equation stopped at t = 0.11041136815700524 before tmax = 0.2 after 1 steps: the time step is collapsed (dt = 5.450567670074172e-20); the state has probab

@@ -48,10 +48,10 @@ Reviewed-by = "blhackslash <dev@blackslash.win>"
 AI-Review = "A2"
 AI-Reviewed-by = "Claude Opus 5.5 (Anthropic), new sessions without the generating conversation (reviews/)"
 
-# Changed on claude/aidecl by Claude agents to address the A2 reviews in reviews/ (and reviewed again there).
+# Changed by Claude agents to address the A2 reviews in reviews/ (and reviewed again there).
 # Human-Review: to be filled in by the responsible person (e.g. `aidecl annotate ... -H H1 --reviewed-by ...`).
 [[annotations]]
-path = ["docs/src/PDEs/advection.md", "docs/src/PDEs/bgk.md", "docs/src/PDEs/burgers.md", "docs/src/PDEs/euler.md", "docs/src/PDEs/main.md", "docs/src/configuration.md", "docs/src/time_integration.md", "docs/src/wrappers.md", "src/Examples/burgers_kinetic.jl", "src/PDEs/_main.jl", "src/PDEs/bgk.jl", "src/PDEs/burgers.jl", "src/PDEs/euler.jl", "src/PDEs/linear_advection.jl", "src/SourceTerms/bgk.jl", "src/inbuilt_methods.jl", "src/time_integration.jl", "test/examples.jl", "test/runtests.jl", "test/sims.jl", "test/units.jl"]
+path = ["CLAUDE.md", "docs/src/PDEs/advection.md", "docs/src/PDEs/bgk.md", "docs/src/PDEs/burgers.md", "docs/src/PDEs/euler.md", "docs/src/PDEs/main.md", "docs/src/configuration.md", "docs/src/time_integration.md", "docs/src/wrappers.md", "src/Builder/kinetic.jl", "src/Examples/burgers_kinetic.jl", "src/ICs/quadrant_riemann.jl", "src/PDEs/_main.jl", "src/PDEs/bgk.jl", "src/PDEs/burgers.jl", "src/PDEs/euler.jl", "src/PDEs/linear_advection.jl", "src/SimulationFunctions/bgk.jl", "src/SourceTerms/bgk.jl", "src/inbuilt_methods.jl", "src/time_integration.jl", "test/examples.jl", "test/gpu/runtests.jl", "test/runtests.jl", "test/sims.jl", "test/sims_bgk.jl", "test/units.jl"]
 AI-Generation = "G3"
 Human-Review = "H0"
 AI-Review = "A2"

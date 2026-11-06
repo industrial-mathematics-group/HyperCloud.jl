@@ -18,7 +18,7 @@ function build_kinetic_system(kin_conf::Dict, context::Dict)
     
     relax_config = kin_conf[:velocities]::Tuple
     relax_eps = T(kin_conf[:epsilon])
-    relax_indices = kin_conf[:indices]::Vector{Int}
+    relax_indices = collect(Int, kin_conf[:indices])      # a Vector or a tuple, as for every other key
     
     km = Kin2Macro(relax_indices)
     eq_kin = LinearAdvection(relax_config, T)

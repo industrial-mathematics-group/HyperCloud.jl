@@ -1,0 +1,265 @@
+[ Info: --- Running Direct N-Dimensional Simulation ---
+[ Info: Using KABackend for parallel runs!
+Running Simulation...   1%|▎                            |  ETA: 0:04:16[KRunning Simulation... 100%|█████████████████████████████| Time: 0:00:02[K
+[ Info: Direct Simulation (D=1) finished in2.24 seconds.
+[ Info: Added custom stat 'Runtime' keeping dimensions: none
+[ Info: Added custom stat 'k_step' keeping dimensions: none
+[ Info: Added custom stat 'final_particle_count' keeping dimensions: none
+[ Info: --- Running Direct N-Dimensional Simulation ---
+[ Info: Using KABackend for parallel runs!
+Running Simulation...   1%|▎                            |  ETA: 0:02:14[KRunning Simulation... 100%|█████████████████████████████| Time: 0:00:01[K
+[ Info: Direct Simulation (D=1) finished in1.19 seconds.
+[ Info: Added custom stat 'Runtime' keeping dimensions: none
+[ Info: Added custom stat 'k_step' keeping dimensions: none
+[ Info: Added custom stat 'final_particle_count' keeping dimensions: none
+[ Info: --- Running Direct N-Dimensional Simulation ---
+[ Info: Using KABackend for parallel runs!
+Running Simulation...   1%|▎                            |  ETA: 0:02:42[KRunning Simulation... 100%|█████████████████████████████| Time: 0:00:01[K
+[ Info: Direct Simulation (D=1) finished in1.47 seconds.
+[ Info: Added custom stat 'Runtime' keeping dimensions: none
+[ Info: Added custom stat 'k_step' keeping dimensions: none
+[ Info: Added custom stat 'final_particle_count' keeping dimensions: none
+[ Info: --- Running Direct N-Dimensional Simulation ---
+[ Info: Using KABackend for parallel runs!
+[ Info: Direct Simulation (D=1) finished in0.82 seconds.
+[ Info: Added custom stat 'Runtime' keeping dimensions: none
+[ Info: Added custom stat 'k_step' keeping dimensions: none
+[ Info: Added custom stat 'final_particle_count' keeping dimensions: none
+[ Info: --- Running Direct N-Dimensional Simulation ---
+[ Info: Using KABackend for parallel runs!
+[ Info: Direct Simulation (D=1) finished in0.33 seconds.
+[ Info: Added custom stat 'Runtime' keeping dimensions: none
+[ Info: Added custom stat 'k_step' keeping dimensions: none
+[ Info: Added custom stat 'final_particle_count' keeping dimensions: none
+[ Info: --- Running Direct N-Dimensional Simulation ---
+[ Info: Using KABackend for parallel runs!
+Running Simulation...   0%|▏                            |  ETA: 0:10:50[KRunning Simulation... 100%|█████████████████████████████| Time: 0:00:02[K
+[ Info: Direct Simulation (D=1) finished in2.76 seconds.
+[ Info: Added custom stat 'Runtime' keeping dimensions: none
+[ Info: Added custom stat 'k_step' keeping dimensions: none
+[ Info: Added custom stat 'final_particle_count' keeping dimensions: none
+[ Info: --- Running Direct N-Dimensional Simulation ---
+[ Info: Using KABackend for parallel runs!
+Running Simulation...   1%|▎                            |  ETA: 0:03:45[KRunning Simulation... 100%|█████████████████████████████| Time: 0:00:01[K
+[ Info: Direct Simulation (D=1) finished in1.92 seconds.
+[ Info: Added custom stat 'Runtime' keeping dimensions: none
+[ Info: Added custom stat 'k_step' keeping dimensions: none
+[ Info: Added custom stat 'final_particle_count' keeping dimensions: none
+[ Info: --- Running Direct N-Dimensional Simulation ---
+[ Info: Using KABackend for parallel runs!
+Running Simulation...   1%|▎                            |  ETA: 0:02:12[KRunning Simulation... 100%|█████████████████████████████| Time: 0:00:01[K
+[ Info: Direct Simulation (D=1) finished in1.15 seconds.
+[ Info: Added custom stat 'Runtime' keeping dimensions: none
+[ Info: Added custom stat 'k_step' keeping dimensions: none
+[ Info: Added custom stat 'final_particle_count' keeping dimensions: none
+[ Info: --- Running Direct N-Dimensional Simulation ---
+[ Info: Using KABackend for parallel runs!
+Running Simulation...   1%|▎                            |  ETA: 0:02:05[KRunning Simulation... 100%|█████████████████████████████| Time: 0:00:01[K
+[ Info: Direct Simulation (D=1) finished in1.13 seconds.
+[ Info: Added custom stat 'Runtime' keeping dimensions: none
+[ Info: Added custom stat 'k_step' keeping dimensions: none
+[ Info: Added custom stat 'final_particle_count' keeping dimensions: none
+[ Info: --- Running Direct N-Dimensional Simulation ---
+[ Info: Using KABackend for parallel runs!
+[ Info: Direct Simulation (D=1) finished in0.79 seconds.
+[ Info: Added custom stat 'Runtime' keeping dimensions: none
+[ Info: Added custom stat 'k_step' keeping dimensions: none
+[ Info: Added custom stat 'final_particle_count' keeping dimensions: none
+[ Info: --- Running Direct N-Dimensional Simulation ---
+[ Info: Using KABackend for parallel runs!
+[ Info: Direct Simulation (D=1) finished in0.33 seconds.
+[ Info: Added custom stat 'Runtime' keeping dimensions: none
+[ Info: Added custom stat 'k_step' keeping dimensions: none
+[ Info: Added custom stat 'final_particle_count' keeping dimensions: none
+[ Info: --- Running Direct N-Dimensional Simulation ---
+[ Info: Using KABackend for parallel runs!
+Running Simulation...   0%|▏                            |  ETA: 0:09:47[KRunning Simulation... 100%|█████████████████████████████| Time: 0:00:02[K
+[ Info: Direct Simulation (D=1) finished in2.54 seconds.
+[ Info: Added custom stat 'Runtime' keeping dimensions: none
+[ Info: Added custom stat 'k_step' keeping dimensions: none
+[ Info: Added custom stat 'final_particle_count' keeping dimensions: none
+[ Info: --- Running Direct N-Dimensional Simulation ---
+[ Info: Using KABackend for parallel runs!
+Running Simulation...   3%|▊                            |  ETA: 0:00:47[KRunning Simulation... 100%|█████████████████████████████| Time: 0:00:01[K
+[ Info: Direct Simulation (D=1) finished in1.37 seconds.
+[ Info: Added custom stat 'Runtime' keeping dimensions: none
+[ Info: Added custom stat 'k_step' keeping dimensions: none
+[ Info: Added custom stat 'final_particle_count' keeping dimensions: none
+[ Info: --- Running Direct N-Dimensional Simulation ---
+[ Info: Using KABackend for parallel runs!
+[ Info: Direct Simulation (D=1) finished in0.02 seconds.
+[ Info: Added custom stat 'Runtime' keeping dimensions: none
+[ Info: Added custom stat 'k_step' keeping dimensions: none
+[ Info: Added custom stat 'final_particle_count' keeping dimensions: none
+[ Info: --- Running Direct N-Dimensional Simulation ---
+[ Info: Using KABackend for parallel runs!
+[ Info: Direct Simulation (D=1) finished in0.06 seconds.
+[ Info: Added custom stat 'Runtime' keeping dimensions: none
+[ Info: Added custom stat 'k_step' keeping dimensions: none
+[ Info: Added custom stat 'final_particle_count' keeping dimensions: none
+[ Info: --- Running Direct N-Dimensional Simulation ---
+[ Info: Using KABackend for parallel runs!
+[ Info: Direct Simulation (D=1) finished in0.02 seconds.
+[ Info: Added custom stat 'Runtime' keeping dimensions: none
+[ Info: Added custom stat 'k_step' keeping dimensions: none
+[ Info: Added custom stat 'final_particle_count' keeping dimensions: none
+[ Info: --- Running Direct N-Dimensional Simulation ---
+[ Info: Using KABackend for parallel runs!
+[ Info: Direct Simulation (D=1) finished in0.05 seconds.
+[ Info: Added custom stat 'Runtime' keeping dimensions: none
+[ Info: Added custom stat 'k_step' keeping dimensions: none
+[ Info: Added custom stat 'final_particle_count' keeping dimensions: none
+[ Info: --- Running Direct N-Dimensional Simulation ---
+[ Info: Using KABackend for parallel runs!
+[ Info: Direct Simulation (D=1) finished in0.02 seconds.
+[ Info: Added custom stat 'Runtime' keeping dimensions: none
+[ Info: Added custom stat 'k_step' keeping dimensions: none
+[ Info: Added custom stat 'final_particle_count' keeping dimensions: none
+[ Info: --- Running Direct N-Dimensional Simulation ---
+[ Info: Using KABackend for parallel runs!
+[ Info: Direct Simulation (D=1) finished in0.12 seconds.
+[ Info: Added custom stat 'Runtime' keeping dimensions: none
+[ Info: Added custom stat 'k_step' keeping dimensions: none
+[ Info: Added custom stat 'final_particle_count' keeping dimensions: none
+[ Info: --- Running Direct N-Dimensional Simulation ---
+[ Info: Using KABackend for parallel runs!
+[ Info: Direct Simulation (D=1) finished in0.08 seconds.
+[ Info: Added custom stat 'Runtime' keeping dimensions: none
+[ Info: Added custom stat 'k_step' keeping dimensions: none
+[ Info: Added custom stat 'final_particle_count' keeping dimensions: none
+[ Info: --- Running Direct N-Dimensional Simulation ---
+[ Info: Using KABackend for parallel runs!
+[ Info: Direct Simulation (D=1) finished in0.13 seconds.
+[ Info: Added custom stat 'Runtime' keeping dimensions: none
+[ Info: Added custom stat 'k_step' keeping dimensions: none
+[ Info: Added custom stat 'final_particle_count' keeping dimensions: none
+[ Info: --- Running Direct N-Dimensional Simulation ---
+[ Info: Using KABackend for parallel runs!
+[ Info: Direct Simulation (D=1) finished in0.06 seconds.
+[ Info: Added custom stat 'Runtime' keeping dimensions: none
+[ Info: Added custom stat 'k_step' keeping dimensions: none
+[ Info: Added custom stat 'final_particle_count' keeping dimensions: none
+[ Info: --- Running Direct N-Dimensional Simulation ---
+[ Info: Using KABackend for parallel runs!
+[ Info: Direct Simulation (D=1) finished in0.55 seconds.
+[ Info: Added custom stat 'Runtime' keeping dimensions: none
+[ Info: Added custom stat 'k_step' keeping dimensions: none
+[ Info: Added custom stat 'final_particle_count' keeping dimensions: none
+[ Info: --- Running Direct N-Dimensional Simulation ---
+[ Info: Using KABackend for parallel runs!
+[ Info: Direct Simulation (D=1) finished in0.23 seconds.
+[ Info: Added custom stat 'Runtime' keeping dimensions: none
+[ Info: Added custom stat 'k_step' keeping dimensions: none
+[ Info: Added custom stat 'final_particle_count' keeping dimensions: none
+[ Info: --- Running Direct N-Dimensional Simulation ---
+[ Info: Using KABackend for parallel runs!
+[ Info: Direct Simulation (D=1) finished in0.5 seconds.
+[ Info: Added custom stat 'Runtime' keeping dimensions: none
+[ Info: Added custom stat 'k_step' keeping dimensions: none
+[ Info: Added custom stat 'final_particle_count' keeping dimensions: none
+[ Info: --- Running Direct N-Dimensional Simulation ---
+[ Info: Using KABackend for parallel runs!
+[ Info: Direct Simulation (D=1) finished in0.14 seconds.
+[ Info: Added custom stat 'Runtime' keeping dimensions: none
+[ Info: Added custom stat 'k_step' keeping dimensions: none
+[ Info: Added custom stat 'final_particle_count' keeping dimensions: none
+[ Info: --- Running Direct N-Dimensional Simulation ---
+[ Info: Using KABackend for parallel runs!
+[ Info: Direct Simulation (D=1) finished in0.0 seconds.
+[ Info: Added custom stat 'Runtime' keeping dimensions: none
+[ Info: Added custom stat 'k_step' keeping dimensions: none
+[ Info: Added custom stat 'final_particle_count' keeping dimensions: none
+[ Info: --- Running Direct N-Dimensional Simulation ---
+[ Info: Using KABackend for parallel runs!
+[ Info: Direct Simulation (D=1) finished in0.0 seconds.
+[ Info: Added custom stat 'Runtime' keeping dimensions: none
+[ Info: Added custom stat 'k_step' keeping dimensions: none
+[ Info: Added custom stat 'final_particle_count' keeping dimensions: none
+[ Info: --- Running Direct N-Dimensional Simulation ---
+[ Info: Using KABackend for parallel runs!
+[ Info: Direct Simulation (D=1) finished in0.0 seconds.
+[ Info: Added custom stat 'Runtime' keeping dimensions: none
+[ Info: Added custom stat 'k_step' keeping dimensions: none
+[ Info: Added custom stat 'final_particle_count' keeping dimensions: none
+[ Info: --- Running Direct N-Dimensional Simulation ---
+[ Info: Using KABackend for parallel runs!
+[ Info: Direct Simulation (D=1) finished in0.0 seconds.
+[ Info: Added custom stat 'Runtime' keeping dimensions: none
+[ Info: Added custom stat 'k_step' keeping dimensions: none
+[ Info: Added custom stat 'final_particle_count' keeping dimensions: none
+[ Info: --- Running Direct N-Dimensional Simulation ---
+[ Info: Using KABackend for parallel runs!
+Running Simulation...   1%|▎                            |  ETA: 0:13:51[KRunning Simulation... 100%|█████████████████████████████| Time: 0:00:06[K
+[ Info: Direct Simulation (D=2) finished in6.87 seconds.
+[ Info: Added custom stat 'Runtime' keeping dimensions: none
+[ Info: Added custom stat 'k_step' keeping dimensions: none
+[ Info: Added custom stat 'final_particle_count' keeping dimensions: none
+[ Info: --- Running Direct N-Dimensional Simulation ---
+[ Info: Using KABackend for parallel runs!
+Running Simulation...  20%|█████▊                       |  ETA: 0:00:04[KRunning Simulation... 100%|█████████████████████████████| Time: 0:00:01[K
+[ Info: Direct Simulation (D=2) finished in1.25 seconds.
+[ Info: Added custom stat 'Runtime' keeping dimensions: none
+[ Info: Added custom stat 'k_step' keeping dimensions: none
+[ Info: Added custom stat 'final_particle_count' keeping dimensions: none
+[ Info: --- Running Direct N-Dimensional Simulation ---
+[ Info: Using KABackend for parallel runs!
+Running Simulation...   1%|▎                            |  ETA: 0:14:00[KRunning Simulation... 100%|█████████████████████████████| Time: 0:00:06[K
+[ Info: Direct Simulation (D=2) finished in6.88 seconds.
+[ Info: Added custom stat 'Runtime' keeping dimensions: none
+[ Info: Added custom stat 'k_step' keeping dimensions: none
+[ Info: Added custom stat 'final_particle_count' keeping dimensions: none
+[ Info: --- Running Direct N-Dimensional Simulation ---
+[ Info: Using KABackend for parallel runs!
+Running Simulation...   1%|▎                            |  ETA: 0:02:12[KRunning Simulation... 100%|█████████████████████████████| Time: 0:00:01[K
+[ Info: Direct Simulation (D=2) finished in1.36 seconds.
+[ Info: Added custom stat 'Runtime' keeping dimensions: none
+[ Info: Added custom stat 'k_step' keeping dimensions: none
+[ Info: Added custom stat 'final_particle_count' keeping dimensions: none
+[ Info: --- Running Direct N-Dimensional Simulation ---
+[ Info: Using KABackend for parallel runs!
+[ Info: Direct Simulation (D=2) finished in0.48 seconds.
+[ Info: Added custom stat 'Runtime' keeping dimensions: none
+[ Info: Added custom stat 'k_step' keeping dimensions: none
+[ Info: Added custom stat 'final_particle_count' keeping dimensions: none
+[ Info: --- Running Direct N-Dimensional Simulation ---
+[ Info: Using KABackend for parallel runs!
+[ Info: Direct Simulation (D=2) finished in0.52 seconds.
+[ Info: Added custom stat 'Runtime' keeping dimensions: none
+[ Info: Added custom stat 'k_step' keeping dimensions: none
+[ Info: Added custom stat 'final_particle_count' keeping dimensions: none
+sod RK2Upwind1 Float64: t_end=0.2 min rho=0.12500249202701058 (22.3 s)
+sod RK2MUSCL2_VK Float64: t_end=0.2 min rho=0.12499999999983052 (3.3 s)
+sod RK2MUSCL2_U2_EPD1 Float64: t_end=0.2 min rho=0.12495092411449892 (3.6 s)
+sod RK2MUSCL2_U2_EPD2 Float64: t_end=0.2 min rho=0.12499643504058458 (2.3 s)
+sod RK2MUSCL2_U1_EPD1 Float64: t_end=0.2 min rho=0.12499985556055097 (1.6 s)
+sod RK4MUSCL4_U2_EPD1 Float64: t_end=0.2 min rho=0.12496880193348252 (5.5 s)
+sod RK2Upwind1 Float32: t_end=0.2 min rho=0.12500428 (7.1 s)
+sod RK2MUSCL2_VK Float32: t_end=0.2 min rho=0.125 (3.1 s)
+sod RK2MUSCL2_U2_EPD1 Float32: t_end=0.2 min rho=0.12494378 (2.9 s)
+sod RK2MUSCL2_U2_EPD2 Float32: t_end=0.2 min rho=0.124997266 (2.2 s)
+sod RK2MUSCL2_U1_EPD1 Float32: t_end=0.2 min rho=0.12499981 (1.5 s)
+sod RK4MUSCL4_U2_EPD1 Float32: t_end=0.2 min rho=0.12497746 (5.0 s)
+sod lagr+adapt run1: t_end=0.2 min rho=0.12511169629906335 (4.0 s)
+sod lagr+adapt run2: t_end=0.2 min rho=0.12511169629906335 (0.0 s)
+toro2 RK2MUSCL2_U2_EPD1 Float64: t_end=0.1 min rho=0.04290415441916327 (0.1 s)
+toro2 RK2Upwind1 Float64: t_end=0.1 min rho=0.03706022515468697 (0.0 s)
+toro2 RK2MUSCL2_U2_EPD1 Float32: t_end=0.1 min rho=0.04300059 (0.1 s)
+toro2 RK2Upwind1 Float32: t_end=0.1 min rho=0.036911894 (0.0 s)
+vacuum6 RK2MUSCL2_U2_EPD1 Float64: t_end=0.1 min rho=0.008634777041072024 (0.1 s)
+vacuum6 RK2Upwind1 Float64: t_end=0.1 min rho=0.00525667252545182 (0.1 s)
+vacuum6 RK2MUSCL2_U2_EPD1 Float32: t_end=0.1 min rho=0.008647583 (0.1 s)
+vacuum6 RK2Upwind1 Float32: t_end=0.1 min rho=0.005209693 (0.1 s)
+vacuum20 RK2MUSCL2_U2_EPD1 Float64: t_end=0.1 min rho=0.0016031247298421423 (0.6 s)
+vacuum20 RK2Upwind1 Float64: t_end=0.1 min rho=0.0007013331412812871 (0.2 s)
+vacuum20 RK2MUSCL2_U2_EPD1 Float32: t_end=0.1 min rho=0.0016158571 (0.5 s)
+vacuum20 RK2Upwind1 Float32: t_end=0.1 min rho=0.0006918141 (0.1 s)
+lowp1e-8 RK2MUSCL2_U2_EPD1 Float64: t_end=0.1 min rho=0.124999922830359 (0.0 s)
+lowp1e-8 RK2Upwind1 Float64: t_end=0.1 min rho=0.125 (0.0 s)
+lowp1e-8 RK2MUSCL2_U2_EPD1 Float32: t_end=0.1 min rho=0.124999925 (0.0 s)
+lowp1e-8 RK2Upwind1 Float32: t_end=0.1 min rho=0.125 (0.0 s)
+2d q3 RK2MUSCL2_U2_EPD1 Float64: t_end=0.1 min rho=0.13716849495383698 (14.1 s)
+2d q3 RK2MUSCL2_VK Float64: t_end=0.1 min rho=0.13736890703387322 (2.8 s)
+2d q3 RK2MUSCL2_U2_EPD1 Float32: t_end=0.1 min rho=0.13717252 (14.0 s)
+2d q3 RK2MUSCL2_VK Float32: t_end=0.1 min rho=0.13734296 (2.9 s)
+2d vac Float64: t_end=0.05 min rho=0.02326512902400522 (0.5 s)
+2d vac Float32: t_end=0.05 min rho=0.021308884 (0.5 s)

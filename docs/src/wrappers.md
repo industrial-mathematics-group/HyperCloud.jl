@@ -19,8 +19,9 @@ Returns `label => method`, where `method` uses the namespaced keys of the
   `:ARS233`, `:PRSSP3`, `:SSP332`) select `:run_kinetic_simulation` and all others
   `:run_direct_simulation`.
 - **Label.** `"<stepper><scheme><order>"`, followed in parentheses by any non-default flux,
-  the limiter, and for MOOD the strategy (plus the criterion if it is not `:U2`). Examples:
-  `"RK2MUSCL2"`, `"RK2MUSCL2(VK)"`, `"RK2MUSCL2(EPD1)"`, `"RK2MUSCL2(EPD2,U1)"`,
+  the limiter (with its mode if it is not `:hard`), and for MOOD the strategy (plus the criterion if it is not
+  `:U2`, and `δ=<MOOD_delta_relax>` if it is non-zero). Examples: `"RK2MUSCL2"`, `"RK2MUSCL2(VK)"`,
+  `"RK2MUSCL2(VK soft)"`, `"RK2MUSCL2(EPD1)"`, `"RK2MUSCL2(EPD2,U1)"`, `"RK2MUSCL2(EPD1,δ=0.0001)"`,
   `"RK4MUSCL3(Upwind,minmod)"`. `custom_label` replaces it.
 - **Extra keywords** are stored as additional keys, e.g. `Scheme_upwind_alg_nd = :Classic` or
   `MOOD_delta_relax = 1e-4`. String values are converted to `Symbol`s.

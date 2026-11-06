@@ -8,7 +8,9 @@ const ignore_relax = [:Kinetic_velocities, :Kinetic_epsilon, :Kinetic_indices, :
     create_method(timestepper::Symbol, main_gradient::Symbol, order::Int; kwargs...)
 
 Automatically generates a method ParamDict using the strict namespace API, 
-automatically assigns the correct simulation pipeline, and generates a standardized plot label.
+automatically assigns the correct simulation pipeline, and generates a standardized plot label:
+`"<stepper><scheme><order>"` followed in parentheses by a non-default flux, the limiter (with its mode if not
+`:hard`), and for MOOD the strategy, the criterion if it is not `:U2`, and `δ=<MOOD_delta_relax>` if non-zero.
 """
 function create_method(timestepper::Symbol, main_gradient::Symbol, order::Int;
                        main_flux::Symbol = :AlignedRusanov,
@@ -52,13 +54,16 @@ function create_method(timestepper::Symbol, main_gradient::Symbol, order::Int;
         
         mods = String[]
         if main_flux != :AlignedRusanov; push!(mods, string(main_flux)); end
-        if limiter != :none; push!(mods, string(limiter)); end
+        # the limiter mode and the MOOD relaxation only when not the default (`:hard`, 0), so the existing labels stay
+        if limiter != :none; push!(mods, limiter_mode == :hard ? string(limiter) : "$(limiter) $(limiter_mode)"); end
         
         if mood_criterion != :none
             push!(mods, string(mood_strategy))
             if mood_criterion != :U2
                 push!(mods, string(mood_criterion))
             end
+            δ = get(kwargs, :MOOD_delta_relax, 0)
+            iszero(δ) || push!(mods, "δ=$(δ)")
         end
         
         if !isempty(mods)
@@ -131,11 +136,12 @@ function get_master_method_dict()
 end
 
 """
-    generate_relax_params(v_mag::Float64, dim::Int, NM::Int)
+    generate_relax_params(v_mag::Real, dim::Integer, NM::Integer)
 
 Generates symmetric kinetic velocities matching the native `Flux{D, NK}` tuple format 
 along with the uniformly partitioned edge indices (`relax_indices`) for the kinetic system.
 """
+generate_relax_params(v_mag::Real, dim::Integer, NM::Integer) = generate_relax_params(Float64(v_mag), Int(dim), Int(NM))
 function generate_relax_params(v_mag::Float64, dim::Int, NM::Int)
     kin_per_macro = 2 * dim
     NK = kin_per_macro * NM
