@@ -107,6 +107,11 @@
         siminf = @test_logs (:warn, r"time step is not finite") match_mode = :any run_direct_simulation(pinf)
         @test siminf !== nothing && siminf.t == [0.0, 0.0]
 
+        # No fixed time scale: tmax = 1e-13 is integrated (the absolute round-off end 1e-12 returned the IC at t = 0)
+        ptiny = merge(linear_1d_gauss(50; tmax = 1e-13), UPWIND1)
+        simtiny = run_direct_simulation(ptiny)
+        @test simtiny !== nothing && simtiny.t[end] ≈ 1e-13
+
         # No wave moves (zero velocity: infinite CFL step): the run reaches tmax without a warning
         pz = merge(linear_1d_gauss(50), UPWIND1, Dict{Symbol, Any}(:PDE_velocities => ((0.0,),)))
         logs, simz = Test.collect_test_logs(() -> run_direct_simulation(pz))

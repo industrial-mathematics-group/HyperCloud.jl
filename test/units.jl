@@ -495,6 +495,19 @@ end
         @test_throws ErrorException build_equation(merge(conf, Dict(:viscosity => 1.0)), ctx)
     end
 
+    @testset "Initial state the velocity grid cannot represent: warned once" begin
+        T = Float64
+        # γ = 3, 16 nodes up to vmax = 6: a state at rest is represented to round-off (quiet); u = 5.5 puts the
+        # Maxwellian against the edge of the grid (moment error O(1), the run would start elsewhere: one warning)
+        eq = build_equation(Dict{Symbol, Any}(:name => :bgk, :D => 1, :Nv => 16, :vmax => 6.0, :gamma => 3.0, :tau => 1.0),
+                            Dict{Symbol, Any}(:T => T))
+        pg, _ = test_grid((0.0,), (1.0,), (8,); M = HC.get_M(eq))
+        rest = Riemann(State{3, T}(1, 0, 0.5), State{3, T}(1, 0, 0.5), Space{1, T}(0.5), Space{1, T}(1))
+        fast = Riemann(State{3, T}(1, 0, 0.5), State{3, T}(1, 5.5, 5.5^2 / 2 + 0.5), Space{1, T}(0.5), Space{1, T}(1))
+        @test_logs set_initial_conditions!(pg, eq, rest)
+        @test_logs (:warn, r"cannot represent the macroscopic state of \d+ particle") set_initial_conditions!(pg, eq, fast)
+    end
+
     @testset "Conservative discrete Maxwellian (D = $D, γ = $γ, $kind, $T)" for (D, γ, Nv, kind) in
             ((1, 3.0, 24, :uniform), (1, 1.4, 16, :uniform), (1, 5 / 3, 12, :gauss_hermite), (2, 2.0, 10, :uniform), (2, 1.4, 8, :gauss_hermite)),
             T in (Float32, Float64)

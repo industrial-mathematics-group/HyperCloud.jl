@@ -8,7 +8,9 @@ const ignore_relax = [:Kinetic_velocities, :Kinetic_epsilon, :Kinetic_indices, :
     create_method(timestepper::Symbol, main_gradient::Symbol, order::Int; kwargs...)
 
 Automatically generates a method ParamDict using the strict namespace API, 
-automatically assigns the correct simulation pipeline, and generates a standardized plot label.
+automatically assigns the correct simulation pipeline, and generates a standardized plot label:
+`"<stepper><scheme><order>"` followed in parentheses by a non-default flux, the limiter (with its mode if not
+`:hard`), and for MOOD the strategy, the criterion if it is not `:U2`, and `δ=<MOOD_delta_relax>` if non-zero.
 """
 function create_method(timestepper::Symbol, main_gradient::Symbol, order::Int;
                        main_flux::Symbol = :AlignedRusanov,
@@ -134,7 +136,7 @@ function get_master_method_dict()
 end
 
 """
-    generate_relax_params(v_mag::Float64, dim::Int, NM::Int)
+    generate_relax_params(v_mag::Real, dim::Integer, NM::Integer)
 
 Generates symmetric kinetic velocities matching the native `Flux{D, NK}` tuple format 
 along with the uniformly partitioned edge indices (`relax_indices`) for the kinetic system.

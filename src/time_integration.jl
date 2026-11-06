@@ -107,7 +107,7 @@ The primary simulation orchestrator governing the main time-stepping loop.
 # Returns
 - A tuple containing: `(position_history, state_history, time_history, total_steps, elapsed_wall_time)`.
 
-The loop stops early with a warning that gives the time reached if the time step collapses (below `1e-12`)
+The loop stops early with a warning that gives the time reached if the time step collapses (below `1e-12 tmax`)
 or is not finite, or if a stored snapshot is not finite (a blown-up state; this also covers fixed time steps
 and equations with constant wave speeds, whose step never collapses). Every stored snapshot is checked,
 the final one included. The last stored state is the one at that time, and the snapshots that were not
@@ -171,7 +171,7 @@ function solve_equation(
                 stopped = true
                 break
             end
-        elseif !(isfinite(dt_step) && dt_step > T(1e-12))
+        elseif !(isfinite(dt_step) && dt_step > T(1e-12) * tmax_val)      # relative: no fixed time scale
             @warn "solve_equation stopped at t = $t before tmax = $tmax_val after $k_step steps: the time step " *
                   "is $(isfinite(dt_step) ? "collapsed" : "not finite") (dt = $dt_step" *
                   (isfinite(dt_inp) && dt_inp > zero(T) ? "); the state has probably blown up." :
@@ -181,7 +181,7 @@ function solve_equation(
             break
         end
         dt_val = min(dt_step, tmax_val - t)
-        if dt_val <= T(1e-12); break; end      # tmax reached up to round-off
+        if dt_val <= max(T(1e-12), 4 * eps(T)) * tmax_val; break; end      # tmax reached up to round-off (relative)
 
         timestepper(eq, pg, t, dt_val)
         adaptivity === nothing || adapt_particles!(pg, adaptivity, _extract_order(div_interp))
