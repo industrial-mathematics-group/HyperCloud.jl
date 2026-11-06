@@ -1,0 +1,138 @@
+==== Float64
+T1           scale p1e+00: new p*=3.031302e-01 it=  6 tol   res=3.4e-15 err=5.9e-07 | old p*=3.031302e-01 it=  5 tol   err=5.9e-07 | closure p(contact)=3.031302e-01
+T2           scale p1e+00: new p*=1.893873e-03 it= 15 tol   res=1.1e-15 err=2.0e-03 | old p*=1.893873e-03 it= 11 tol   err=2.0e-03 | closure p(contact)=1.893873e-03
+T3           scale p1e+00: new p*=4.608938e+02 it=  5 tol   res=3.8e-16 err=4.6e-07 | old p*=4.608938e+02 it=  4 tol   err=4.6e-07 | closure p(contact)=4.608938e+02
+T4           scale p1e+00: new p*=4.609504e+01 it=  5 tol   res=1.5e-16 err=9.6e-07 | old p*=4.609504e+01 it=  4 tol   err=9.6e-07 | closure p(contact)=4.609504e+01
+T5           scale p1e+00: new p*=1.691647e+03 it=  7 tol   res=0.0e+00 err=4.1e-06 | old p*=1.691647e+03 it=  6 tol   err=4.1e-06 | closure p(contact)=1.691647e+03
+nearvac      scale p1e+00: new p*=9.062530e-04 it= 15 tol   res=7.2e-16 err=NaN | old p*=9.062530e-04 it= 11 tol   err=NaN | closure p(contact)=9.062530e-04
+nearvac2     scale p1e+00: new p*=9.061072e-04 it= 15 tol   res=6.3e-16 err=NaN | old p*=9.061072e-04 it= 11 tol   err=NaN | closure p(contact)=9.061072e-04
+strong1e10   scale p1e+00: new p*=4.608875e+09 it=  5 tol   res=6.1e-17 err=NaN | old p*=4.608875e+09 it=  5 tol   err=NaN | closure p(contact)=4.608875e+09
+strong1e-10  scale p1e+00: new p*=4.608875e-01 it=  5 tol   res=9.4e-17 err=NaN | old p*=4.608875e-01 it=  3 tol   err=NaN | closure p(contact)=4.608875e-01
+collide      scale p1e+00: new p*=1.200217e+04 it=  8 tol   res=1.3e-15 err=NaN | old p*=1.200217e+04 it=  8 tol   err=NaN | closure p(contact)=1.200217e+04
+dens1e6      scale p1e+00: new p*=1.000000e+00 it=  0 tol   res=0.0e+00 err=NaN | old p*=1.000000e+00 it=  0 tol   err=NaN | closure p(contact)=1.000000e+00
+equal        scale p1e+00: new p*=1.000000e+00 it=  0 tol   res=0.0e+00 err=0.0e+00 | old p*=1.000000e+00 it=  0 tol   err=0.0e+00 | closure p(contact)=1.000000e+00
+T1           scale p1e-08: new p*=3.031302e-09 it=  7 tol   res=0.0e+00 err=5.9e-07 | old p*=3.031302e-09 it=  4 tol   err=6.2e-07 | closure p(contact)=3.031302e-09
+T2           scale p1e-08: new p*=1.893873e-11 it= 15 tol   res=1.2e-15 err=2.0e-03 | old p*=1.000000e-09 it=100 maxit err=5.2e+01 | closure p(contact)=5.285453e-12
+T3           scale p1e-08: new p*=4.608938e-06 it=  5 tol   res=4.6e-16 err=4.6e-07 | old p*=4.608938e-06 it=  3 tol   err=4.6e-07 | closure p(contact)=4.608938e-06
+T4           scale p1e-08: new p*=4.609504e-07 it=  5 tol   res=1.8e-16 err=9.6e-07 | old p*=4.609504e-07 it=  3 tol   err=9.6e-07 | closure p(contact)=4.609504e-07
+T5           scale p1e-08: new p*=1.691647e-05 it=  7 tol   res=0.0e+00 err=4.1e-06 | old p*=1.691647e-05 it=  5 tol   err=4.1e-06 | closure p(contact)=1.691647e-05
+nearvac      scale p1e-08: new p*=9.062530e-12 it= 15 tol   res=6.6e-16 err=NaN | old p*=1.000000e-09 it=100 maxit err=NaN | closure p(contact)=2.529186e-12
+nearvac2     scale p1e-08: new p*=9.061072e-12 it= 15 tol   res=6.6e-16 err=NaN | old p*=1.000000e-09 it=100 maxit err=NaN | closure p(contact)=2.528779e-12
+strong1e10   scale p1e-08: new p*=4.608875e+01 it=  5 tol   res=0.0e+00 err=NaN | old p*=4.608875e+01 it=  4 tol   err=NaN | closure p(contact)=4.608875e+01
+strong1e-10  scale p1e-08: new p*=4.608875e-09 it=  5 tol   res=0.0e+00 err=NaN | old p*=4.608867e-09 it=  2 tol   err=NaN | closure p(contact)=4.608867e-09
+collide      scale p1e-08: new p*=1.200217e-04 it=  8 tol   res=1.4e-15 err=NaN | old p*=1.200217e-04 it=  6 tol   err=NaN | closure p(contact)=1.200217e-04
+dens1e6      scale p1e-08: new p*=1.000000e-08 it=  0 tol   res=0.0e+00 err=NaN | old p*=1.000000e-08 it=  0 tol   err=NaN | closure p(contact)=1.000000e-08
+equal        scale p1e-08: new p*=1.000000e-08 it=  0 tol   res=0.0e+00 err=0.0e+00 | old p*=1.000000e-08 it=  0 tol   err=0.0e+00 | closure p(contact)=1.000000e-08
+T1           scale p1e+08: new p*=3.031302e+07 it=  6 tol   res=3.5e-15 err=5.9e-07 | old p*=3.031302e+07 it=  6 tol   err=5.9e-07 | closure p(contact)=3.031302e+07
+T2           scale p1e+08: new p*=1.893873e+05 it= 15 tol   res=1.1e-15 err=2.0e-03 | old p*=1.893873e+05 it= 16 tol   err=2.0e-03 | closure p(contact)=1.893873e+05
+T3           scale p1e+08: new p*=4.608938e+10 it=  5 tol   res=3.9e-16 err=4.6e-07 | old p*=4.608938e+10 it=  5 tol   err=4.6e-07 | closure p(contact)=4.608938e+10
+T4           scale p1e+08: new p*=4.609504e+09 it=  5 tol   res=6.1e-17 err=9.6e-07 | old p*=4.609504e+09 it=  5 tol   err=9.6e-07 | closure p(contact)=4.609504e+09
+T5           scale p1e+08: new p*=1.691647e+11 it=  7 tol   res=0.0e+00 err=4.1e-06 | old p*=1.691647e+11 it=  7 tol   err=4.1e-06 | closure p(contact)=1.691647e+11
+nearvac      scale p1e+08: new p*=9.062530e+04 it= 15 tol   res=8.9e-16 err=NaN | old p*=9.062530e+04 it= 16 tol   err=NaN | closure p(contact)=9.062530e+04
+nearvac2     scale p1e+08: new p*=9.061072e+04 it= 15 tol   res=7.4e-16 err=NaN | old p*=9.061072e+04 it= 16 tol   err=NaN | closure p(contact)=9.061072e+04
+strong1e10   scale p1e+08: new p*=4.608875e+17 it=  5 tol   res=0.0e+00 err=NaN | old p*=4.608875e+17 it= 29 tol   err=NaN | closure p(contact)=4.608875e+17
+strong1e-10  scale p1e+08: new p*=4.608875e+07 it=  5 tol   res=0.0e+00 err=NaN | old p*=4.608875e+07 it=  5 tol   err=NaN | closure p(contact)=4.608875e+07
+collide      scale p1e+08: new p*=1.200217e+12 it=  8 tol   res=1.4e-15 err=NaN | old p*=1.200217e+12 it=  9 tol   err=NaN | closure p(contact)=1.200217e+12
+dens1e6      scale p1e+08: new p*=1.000000e+08 it=  0 tol   res=0.0e+00 err=NaN | old p*=1.000000e+08 it=  0 tol   err=NaN | closure p(contact)=1.000000e+08
+equal        scale p1e+08: new p*=1.000000e+08 it=  0 tol   res=0.0e+00 err=0.0e+00 | old p*=1.000000e+08 it=  0 tol   err=0.0e+00 | closure p(contact)=1.000000e+08
+T1           scale p1e-20: new p*=3.031302e-21 it=  6 tol   res=3.5e-15 err=5.9e-07 | old p*=5.500000e-21 it=  0 tol   err=8.1e-01 | closure p(contact)=5.500000e-21
+T2           scale p1e-20: new p*=1.893873e-23 it= 15 tol   res=9.4e-16 err=2.0e-03 | old p*=4.000000e-21 it=  0 tol   err=2.1e+02 | closure p(contact)=5.285453e-24
+T3           scale p1e-20: new p*=4.608938e-18 it=  5 tol   res=4.4e-16 err=4.6e-07 | old p*=5.000050e-18 it=  0 tol   err=8.5e-02 | closure p(contact)=5.000050e-18
+T4           scale p1e-20: new p*=4.609504e-19 it=  5 tol   res=1.7e-16 err=9.6e-07 | old p*=5.000500e-19 it=  0 tol   err=8.5e-02 | closure p(contact)=5.000500e-19
+T5           scale p1e-20: new p*=1.691647e-17 it=  7 tol   res=0.0e+00 err=4.1e-06 | old p*=1.000000e-09 it=100 maxit err=5.9e+07 | closure p(contact)=1.000000e-09
+nearvac      scale p1e-20: new p*=9.062530e-24 it= 15 tol   res=7.3e-16 err=NaN | old p*=1.000000e-20 it=  0 tol   err=NaN | closure p(contact)=2.529186e-24
+nearvac2     scale p1e-20: new p*=9.061072e-24 it= 15 tol   res=7.3e-16 err=NaN | old p*=1.000000e-20 it=  0 tol   err=NaN | closure p(contact)=2.528779e-24
+strong1e10   scale p1e-20: new p*=4.608875e-11 it=  5 tol   res=7.2e-17 err=NaN | old p*=1.000000e-09 it=100 maxit err=NaN | closure p(contact)=1.000000e-09
+strong1e-10  scale p1e-20: new p*=4.608875e-21 it=  5 tol   res=0.0e+00 err=NaN | old p*=5.000000e-21 it=  0 tol   err=NaN | closure p(contact)=5.000000e-21
+collide      scale p1e-20: new p*=1.200217e-16 it=  8 tol   res=1.5e-15 err=NaN | old p*=1.000000e-09 it=100 maxit err=NaN | closure p(contact)=1.000000e-09
+dens1e6      scale p1e-20: new p*=1.000000e-20 it=  0 tol   res=0.0e+00 err=NaN | old p*=1.000000e-20 it=  0 tol   err=NaN | closure p(contact)=1.000000e-20
+equal        scale p1e-20: new p*=1.000000e-20 it=  0 tol   res=0.0e+00 err=0.0e+00 | old p*=1.000000e-20 it=  0 tol   err=0.0e+00 | closure p(contact)=1.000000e-20
+==== Float32
+T1           scale p1e+00: new p*=3.031302e-01 it=  4 tol   res=5.3e-08 err=5.9e-07 | old p*=3.031301e-01 it=100 maxit err=4.9e-07 | closure p(contact)=3.031301e-01
+T2           scale p1e+00: new p*=1.893874e-03 it=  9 tol   res=4.3e-08 err=2.0e-03 | old p*=1.893874e-03 it=100 maxit err=2.0e-03 | closure p(contact)=1.893872e-03
+T3           scale p1e+00: new p*=4.608929e+02 it=  2 tol   res=1.7e-06 err=2.4e-06 | old p*=4.608938e+02 it=  3 tol   err=4.4e-07 | closure p(contact)=4.608938e+02
+T4           scale p1e+00: new p*=4.609496e+01 it=  2 tol   res=1.6e-06 err=8.0e-07 | old p*=4.609504e+01 it=100 maxit err=9.4e-07 | closure p(contact)=4.609503e+01
+T5           scale p1e+00: new p*=1.691643e+03 it=  4 tol   res=1.2e-06 err=1.5e-06 | old p*=1.691647e+03 it=  7 tol   err=4.3e-06 | closure p(contact)=1.691647e+03
+nearvac      scale p1e+00: new p*=9.062529e-04 it=  9 tol   res=0.0e+00 err=NaN | old p*=9.062530e-04 it= 10 tol   err=NaN | closure p(contact)=9.062522e-04
+nearvac2     scale p1e+00: new p*=9.061065e-04 it=  9 tol   res=0.0e+00 err=NaN | old p*=9.061074e-04 it= 10 tol   err=NaN | closure p(contact)=9.061076e-04
+strong1e10   scale p1e+00: new p*=4.608867e+09 it=  2 tol   res=1.6e-06 err=NaN | old p*=4.608874e+09 it=100 maxit err=NaN | closure p(contact)=4.608874e+09
+strong1e-10  scale p1e+00: new p*=4.608867e-01 it=  2 tol   res=1.5e-06 err=NaN | old p*=4.608874e-01 it=100 maxit err=NaN | closure p(contact)=4.608874e-01
+collide      scale p1e+00: new p*=1.200217e+04 it=  6 tol   res=0.0e+00 err=NaN | old p*=1.200217e+04 it=100 maxit err=NaN | closure p(contact)=1.200217e+04
+dens1e6      scale p1e+00: new p*=1.000000e+00 it=  0 tol   res=0.0e+00 err=NaN | old p*=1.000000e+00 it=  0 tol   err=NaN | closure p(contact)=1.000000e+00
+equal        scale p1e+00: new p*=1.000000e+00 it=  0 tol   res=0.0e+00 err=0.0e+00 | old p*=1.000000e+00 it=  0 tol   err=0.0e+00 | closure p(contact)=1.000000e+00
+T1           scale p1e-08: new p*=3.031301e-09 it=  4 tol   res=3.2e-08 err=4.7e-07 | old p*=3.031301e-09 it=  4 tol   err=4.7e-07 | closure p(contact)=3.031302e-09
+T2           scale p1e-08: new p*=1.893874e-11 it=  9 tol   res=5.3e-08 err=2.0e-03 | old p*=1.000000e-09 it=100 maxit err=5.2e+01 | closure p(contact)=5.285451e-12
+T3           scale p1e-08: new p*=4.608930e-06 it=  2 tol   res=1.7e-06 err=2.2e-06 | old p*=4.608938e-06 it=  4 tol   err=5.2e-07 | closure p(contact)=4.608938e-06
+T4           scale p1e-08: new p*=4.609505e-07 it=  3 tol   res=9.7e-08 err=1.1e-06 | old p*=4.609505e-07 it=  3 tol   err=1.1e-06 | closure p(contact)=4.609504e-07
+T5           scale p1e-08: new p*=1.691643e-05 it=  4 tol   res=1.1e-06 err=1.9e-06 | old p*=1.691647e-05 it=  5 tol   err=4.3e-06 | closure p(contact)=1.691647e-05
+nearvac      scale p1e-08: new p*=9.062526e-12 it=  9 tol   res=0.0e+00 err=NaN | old p*=1.000000e-09 it=100 maxit err=NaN | closure p(contact)=2.529183e-12
+nearvac2     scale p1e-08: new p*=9.061064e-12 it=  9 tol   res=0.0e+00 err=NaN | old p*=1.000000e-09 it=100 maxit err=NaN | closure p(contact)=2.528775e-12
+strong1e10   scale p1e-08: new p*=4.608870e+01 it=  2 tol   res=8.1e-07 err=NaN | old p*=4.608876e+01 it=100 maxit err=NaN | closure p(contact)=4.608874e+01
+strong1e-10  scale p1e-08: new p*=4.608867e-09 it=  2 tol   res=1.6e-06 err=NaN | old p*=4.608867e-09 it=  2 tol   err=NaN | closure p(contact)=4.608867e-09
+collide      scale p1e-08: new p*=1.200217e-04 it=  6 tol   res=0.0e+00 err=NaN | old p*=1.200217e-04 it=  6 tol   err=NaN | closure p(contact)=1.200217e-04
+dens1e6      scale p1e-08: new p*=1.000000e-08 it=  0 tol   res=0.0e+00 err=NaN | old p*=1.000000e-08 it=  0 tol   err=NaN | closure p(contact)=1.000000e-08
+equal        scale p1e-08: new p*=1.000000e-08 it=  0 tol   res=0.0e+00 err=6.1e-09 | old p*=1.000000e-08 it=  0 tol   err=6.1e-09 | closure p(contact)=1.000000e-08
+T1           scale p1e+08: new p*=3.031302e+07 it=  4 tol   res=0.0e+00 err=5.3e-07 | old p*=3.031302e+07 it=  6 tol   err=5.3e-07 | closure p(contact)=3.031301e+07
+T2           scale p1e+08: new p*=1.893873e+05 it=  9 tol   res=7.1e-08 err=2.0e-03 | old p*=1.893875e+05 it= 14 tol   err=2.1e-03 | closure p(contact)=1.893873e+05
+T3           scale p1e+08: new p*=4.608929e+10 it=  2 tol   res=1.7e-06 err=2.3e-06 | old p*=4.608938e+10 it=100 maxit err=4.4e-07 | closure p(contact)=4.608937e+10
+T4           scale p1e+08: new p*=4.609505e+09 it=  3 tol   res=9.8e-08 err=1.0e-06 | old p*=4.609504e+09 it=100 maxit err=9.2e-07 | closure p(contact)=4.609504e+09
+T5           scale p1e+08: new p*=1.691642e+11 it=  4 tol   res=1.3e-06 err=1.3e-06 | old p*=1.691647e+11 it=  6 tol   err=4.1e-06 | closure p(contact)=1.691647e+11
+nearvac      scale p1e+08: new p*=9.062260e+04 it=  8 tol   res=1.9e-06 err=NaN | old p*=9.062536e+04 it= 13 tol   err=NaN | closure p(contact)=9.062530e+04
+nearvac2     scale p1e+08: new p*=9.061073e+04 it=  9 tol   res=0.0e+00 err=NaN | old p*=9.061077e+04 it= 13 tol   err=NaN | closure p(contact)=9.061073e+04
+strong1e10   scale p1e+08: new p*=4.608868e+17 it=  2 tol   res=1.5e-06 err=NaN | old p*=4.608875e+17 it=100 maxit err=NaN | closure p(contact)=4.608875e+17
+strong1e-10  scale p1e+08: new p*=4.608866e+07 it=  2 tol   res=1.6e-06 err=NaN | old p*=4.608875e+07 it=100 maxit err=NaN | closure p(contact)=4.608875e+07
+collide      scale p1e+08: new p*=1.200217e+12 it=  6 tol   res=6.2e-08 err=NaN | old p*=1.200217e+12 it=100 maxit err=NaN | closure p(contact)=1.200217e+12
+dens1e6      scale p1e+08: new p*=1.000000e+08 it=  0 tol   res=0.0e+00 err=NaN | old p*=1.000000e+08 it=  0 tol   err=NaN | closure p(contact)=1.000000e+08
+equal        scale p1e+08: new p*=1.000000e+08 it=  0 tol   res=0.0e+00 err=0.0e+00 | old p*=1.000000e+08 it=  0 tol   err=0.0e+00 | closure p(contact)=1.000000e+08
+T1           scale p1e-20: new p*=3.031302e-21 it=  4 tol   res=9.3e-08 err=6.3e-07 | old p*=5.500000e-21 it=  0 tol   err=8.1e-01 | closure p(contact)=5.500000e-21
+T2           scale p1e-20: new p*=1.893875e-23 it=  9 tol   res=5.0e-08 err=2.1e-03 | old p*=4.000000e-21 it=  0 tol   err=2.1e+02 | closure p(contact)=5.285451e-24
+T3           scale p1e-20: new p*=4.608930e-18 it=  2 tol   res=1.7e-06 err=2.3e-06 | old p*=5.000050e-18 it=  0 tol   err=8.5e-02 | closure p(contact)=5.000049e-18
+T4           scale p1e-20: new p*=4.609504e-19 it=  3 tol   res=4.6e-08 err=9.3e-07 | old p*=5.000500e-19 it=  0 tol   err=8.5e-02 | closure p(contact)=5.000501e-19
+T5           scale p1e-20: new p*=1.691642e-17 it=  4 tol   res=1.2e-06 err=1.4e-06 | old p*=1.000000e-09 it=100 maxit err=5.9e+07 | closure p(contact)=1.000000e-09
+nearvac      scale p1e-20: new p*=9.062264e-24 it=  8 tol   res=1.8e-06 err=NaN | old p*=1.000000e-20 it=  0 tol   err=NaN | closure p(contact)=2.529180e-24
+nearvac2     scale p1e-20: new p*=9.061069e-24 it=  9 tol   res=0.0e+00 err=NaN | old p*=1.000000e-20 it=  0 tol   err=NaN | closure p(contact)=2.528781e-24
+strong1e10   scale p1e-20: new p*=4.608867e-11 it=  2 tol   res=1.5e-06 err=NaN | old p*=1.000000e-09 it=100 maxit err=NaN | closure p(contact)=1.000000e-09
+strong1e-10  scale p1e-20: new p*=4.608866e-21 it=  2 tol   res=1.6e-06 err=NaN | old p*=5.000000e-21 it=  0 tol   err=NaN | closure p(contact)=5.000000e-21
+collide      scale p1e-20: new p*=1.200217e-16 it=  6 tol   res=0.0e+00 err=NaN | old p*=1.000000e-09 it=100 maxit err=NaN | closure p(contact)=1.000000e-09
+dens1e6      scale p1e-20: new p*=1.000000e-20 it=  0 tol   res=0.0e+00 err=NaN | old p*=1.000000e-20 it=  0 tol   err=NaN | closure p(contact)=1.000000e-20
+equal        scale p1e-20: new p*=1.000000e-20 it=  0 tol   res=0.0e+00 err=3.2e-08 | old p*=1.000000e-20 it=  0 tol   err=3.2e-08 | closure p(contact)=1.000000e-20
+Float64 t=0.0 x=-0.1 -> [1.0, 0.0, 2.5]
+Float64 t=0.0 x=0.0 -> [0.125, 0.0, 0.25]
+Float64 t=0.0 x=1.0e-12 -> [0.125, 0.0, 0.25]
+Float64 t=0.0 x=0.1 -> [0.125, 0.0, 0.25]
+Float64 t=1.0e-300 x=-0.1 -> [1.0, 0.0, 2.5]
+Float64 t=1.0e-300 x=0.0 -> [0.125, 0.0, 0.25]
+Float64 t=1.0e-300 x=1.0e-12 -> [0.125, 0.0, 0.25]
+Float64 t=1.0e-300 x=0.1 -> [0.125, 0.0, 0.25]
+Float64 t=1.0e-40 x=-0.1 -> [1.0, 0.0, 2.5]
+Float64 t=1.0e-40 x=0.0 -> [0.125, 0.0, 0.25]
+Float64 t=1.0e-40 x=1.0e-12 -> [0.125, 0.0, 0.25]
+Float64 t=1.0e-40 x=0.1 -> [0.125, 0.0, 0.25]
+Float64 t=1.0e-12 x=-0.1 -> [1.0, 0.0, 2.5]
+Float64 t=1.0e-12 x=0.0 -> [0.125, 0.0, 0.25]
+Float64 t=1.0e-12 x=1.0e-12 -> [0.125, 0.0, 0.25]
+Float64 t=1.0e-12 x=0.1 -> [0.125, 0.0, 0.25]
+Float64 t=1.0e-9 x=-0.1 -> [1.0, 0.0, 2.5]
+Float64 t=1.0e-9 x=0.0 -> [0.125, 0.0, 0.25]
+Float64 t=1.0e-9 x=1.0e-12 -> [0.125, 0.0, 0.25]
+Float64 t=1.0e-9 x=0.1 -> [0.125, 0.0, 0.25]
+Float32 t=0.0 x=-0.1 -> Float32[1.0, 0.0, 2.5]
+Float32 t=0.0 x=0.0 -> Float32[0.125, 0.0, 0.25]
+Float32 t=0.0 x=1.0e-12 -> Float32[0.125, 0.0, 0.25]
+Float32 t=0.0 x=0.1 -> Float32[0.125, 0.0, 0.25]
+Float32 t=1.0e-300 x=-0.1 -> Float32[1.0, 0.0, 2.5]
+Float32 t=1.0e-300 x=0.0 -> Float32[0.125, 0.0, 0.25]
+Float32 t=1.0e-300 x=1.0e-12 -> Float32[0.125, 0.0, 0.25]
+Float32 t=1.0e-300 x=0.1 -> Float32[0.125, 0.0, 0.25]
+Float32 t=1.0e-40 x=-0.1 -> Float32[1.0, 0.0, 2.5]
+Float32 t=1.0e-40 x=0.0 -> Float32[0.125, 0.0, 0.25]
+Float32 t=1.0e-40 x=1.0e-12 -> Float32[0.125, 0.0, 0.25]
+Float32 t=1.0e-40 x=0.1 -> Float32[0.125, 0.0, 0.25]
+Float32 t=1.0e-12 x=-0.1 -> Float32[1.0, 0.0, 2.5]
+Float32 t=1.0e-12 x=0.0 -> Float32[0.125, 0.0, 0.25]
+Float32 t=1.0e-12 x=1.0e-12 -> Float32[0.125, 0.0, 0.25]
+Float32 t=1.0e-12 x=0.1 -> Float32[0.125, 0.0, 0.25]
+Float32 t=1.0e-9 x=-0.1 -> Float32[1.0, 0.0, 2.5]
+Float32 t=1.0e-9 x=0.0 -> Float32[0.125, 0.0, 0.25]
+Float32 t=1.0e-9 x=1.0e-12 -> Float32[0.125, 0.0, 0.25]
+Float32 t=1.0e-9 x=0.1 -> Float32[0.125, 0.0, 0.25]
