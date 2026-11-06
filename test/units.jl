@@ -132,6 +132,10 @@ end
         @test_throws ErrorException build_ic(Dict{Symbol, Any}(:a => (1.0,)), ctx1)
         # Requires the fixed fallback signature in src/ICs/_main.jl
         @test_throws ErrorException build_ic(Dict{Symbol, Any}(:name => :does_not_exist), ctx1)
+        # q_riemann needs one state per quadrant (a short tuple gave a BoundsError only when evaluated)
+        ctx2 = Dict{Symbol, Any}(:T => Float64, :D => 2, :M => 1)
+        @test_throws ArgumentError build_ic(Dict{Symbol, Any}(:name => :q_riemann, :states => ((1.0,), (2.0,)), :p0 => (0.0, 0.0)), ctx2)
+        @test build_ic(Dict{Symbol, Any}(:name => :q_riemann, :states => ((1.0,), (2.0,), (3.0,), (4.0,)), :p0 => (0.0, 0.0)), ctx2) isa HC.QRiemann
     end
 
     @testset "ICs keep the requested precision ($T)" for T in (Float32, Float64)
@@ -258,6 +262,12 @@ end
         @test first(create_method(:RK2, :MUSCL, 2; mood_criterion = :U1, mood_strategy = :EPD2)) == "RK2MUSCL2(EPD2,U1)"
         @test first(create_method(:RK4, :MUSCL, 3; main_flux = :Upwind, limiter = :minmod)) == "RK4MUSCL3(Upwind,minmod)"
         @test first(create_method(:RK2, :MUSCL, 2; custom_label = "mine")) == "mine"
+        # non-default limiter modes and MOOD relaxations are part of the label (they used to collide); the defaults
+        # (`:hard`, 0) leave the existing labels as they are
+        @test first(create_method(:RK2, :MUSCL, 2; limiter = :VK, limiter_mode = :soft)) == "RK2MUSCL2(VK soft)"
+        @test first(create_method(:RK2, :MUSCL, 2; limiter = :VK, limiter_mode = :hard)) == "RK2MUSCL2(VK)"
+        @test first(create_method(:RK2, :MUSCL, 2; mood_criterion = :U2, MOOD_delta_relax = 1e-4)) == "RK2MUSCL2(EPD1,δ=0.0001)"
+        @test first(create_method(:RK2, :MUSCL, 2; mood_criterion = :U2, MOOD_delta_relax = 0.0)) == "RK2MUSCL2(EPD1)"
     end
 
     @testset "create_method pipeline inference and kwargs" begin
@@ -297,6 +307,7 @@ end
         v1, i1 = generate_relax_params(1.5, 1, 3)
         @test i1 == [1, 3, 5, 7]
         @test v1 == ((1.5, -1.5, 1.5, -1.5, 1.5, -1.5),)
+        @test generate_relax_params(2, 1, 1) == generate_relax_params(2.0, 1, 1)   # an integer speed (was a MethodError)
     end
 end
 
@@ -351,7 +362,7 @@ end
 
         # Positivity floors in cons2prim
         Vbad = HC.cons2prim(eq, State{4, Float64}(1.0, 0.0, 0.0, -1.0))
-        @test Vbad[4] ≈ 1e-7
+        @test Vbad[4] ≈ HC._euler_floor(Float64)       # the same floor as the wave speeds (was 1e-7 vs 1e-9)
 
         # Admissibility (MOOD PAD): positive density and pressure, finite
         @test HC.is_admissible(eq, U)
@@ -385,6 +396,9 @@ end
         @test HC.get_M(eq_kin) == NK
         @test eq_kin.max_eigs ≈ fill(2.0, D)
         @test st.inv_epsilon ≈ 1 / ε
+        # `:indices` as a tuple, as every other key (was a `Vector{Int}` type assertion)
+        _, st_t = build_kinetic_system(Dict{Symbol, Any}(:velocities => vels, :epsilon => ε, :indices => Tuple(idx)), ctx)
+        @test st_t.km == st.km
 
         pg, _ = test_grid(ntuple(_ -> 0.0, D), ntuple(_ -> 1.0, D), ntuple(_ -> 8, D); M = NK)
         ic = Gauss(State{1, Float64}(0.8), Space{D, Float64}(ntuple(_ -> 0.5, D)), 0.3)
@@ -911,6 +925,30 @@ end
         @test integrate(x -> asym(SVector(x, t))[1], -1.0, 1.0) ≈ 1.5 - 9t atol = 1e-4
         mirr = analytic_closure(eq, Riemann(UR, UL, Space{1}(0.0), Space{1}(-1.0)), geom)
         @test all(x -> isapprox(asym(SVector(x, t)), mirr(SVector(x, t)); atol = 1e-12), range(-0.95, 0.95; length = 39))
+    end
+
+    @testset "Euler: exact Riemann solver vs Toro's Tests 1-5 ($T), also at small pressure scales" for T in (Float64, Float32)
+        # Toro, Riemann Solvers, Table 4.2 (γ = 1.4): (ρL, uL, pL, ρR, uR, pR) -> (p*, u*). Scaled copies (p × 1e-8,
+        # u × 1e-4: the same solution in other units) test the relative tolerances; the absolute tolerance and floor
+        # 1e-9 gave p* = 1e-9 instead of 1.9e-11 for Test 2 there
+        eq = EulerEquation(Val(1), T, T(1.4), Conservative())
+        geom = build_domain(Dict{Symbol, Any}(:domain => :rectangular, :mins => (-1.0,), :maxs => (1.0,), :periodic => false),
+                            Dict{Symbol, Any}(:T => T, :D => 1))
+        cons(ρ, u, p) = State{3, T}(ρ, ρ * u, p / 0.4 + 0.5 * ρ * u^2)
+        pres(U) = T(0.4) * (U[3] - U[2]^2 / (2U[1]))
+        toro = [((1.0, 0.0, 1.0, 0.125, 0.0, 0.1), (0.30313, 0.92745)), ((1.0, -2.0, 0.4, 1.0, 2.0, 0.4), (0.00189, 0.0)),
+                ((1.0, 0.0, 1000.0, 1.0, 0.0, 0.01), (460.894, 19.5975)), ((1.0, 0.0, 0.01, 1.0, 0.0, 100.0), (46.0950, -6.19633)),
+                ((5.99924, 19.5975, 460.894, 5.99242, -6.19633, 46.0950), (1691.64, 8.68975))]
+        for (ps_scale, u_scale) in ((1.0, 1.0), (1e-8, 1e-4)), ((ρL, uL, pL, ρR, uR, pR), (ps, us)) in toro
+            ex = analytic_closure(eq, Riemann(cons(ρL, u_scale * uL, ps_scale * pL), cons(ρR, u_scale * uR, ps_scale * pR),
+                                              Space{1, T}(0), Space{1, T}(1)), geom)
+            t = T(0.01)
+            for δ in (-1e-4, 1e-4)        # just left and right of the contact x/t = u*: pressure p*, velocity u*
+                U = ex(SVector{2, T}(T(u_scale * (us + δ) * t), t))
+                @test isapprox(pres(U), ps_scale * ps; rtol = ps < 0.01 ? 3e-3 : 2e-4)   # Toro gives 3 digits for Test 2
+                @test isapprox(U[2] / U[1], u_scale * us; atol = 2e-4 * u_scale * max(1, abs(us)))
+            end
+        end
     end
 
     @testset "Missing closure warns" begin

@@ -30,7 +30,7 @@ with `ka_cpu` too when a change touches anything that ends up in a kernel.
 
 | Path | Contents |
 |:-----|:---------|
-| `src/PDEs/` | Equations and representations (`Conservative`, primitive/Lagrangian paths), `analytical_solution` |
+| `src/PDEs/` | Equations (`Conservative` form; `NCRepresentation` is only an extension point, no non-conservative form is implemented), `analytical_solution` |
 | `src/ICs/` | Initial condition functors and `build_ic` |
 | `src/SourceTerms/` | Kinetic relaxation source terms |
 | `src/Builder/` | `build_equation`, kinetic system builder, reference solutions |
@@ -46,7 +46,7 @@ with `ka_cpu` too when a change touches anything that ends up in a kernel.
   `:Grid_Ns`, `:Weight_range`, `:Scheme_order`, `:MOOD_criterion`, …);
   `extract_namespace` strips the prefix before a builder sees it. Unprefixed keys are global
   (`:tmax`, `:snapshots`, `:T`, `:sim_func_name`).
-- Misspelled keys are silently ignored (e.g. `:Grid_bc_map` instead of `:Grid_bc`). When
+- Misspelled keys are silently ignored (e.g. `:Grid_boundary` instead of `:Grid_bc`; `:Grid_bc_map` is an alias). When
   adding or renaming a key, update `docs/src/configuration.md` and add a test that the
   key has an effect.
 - Extend by dispatch on `Val(name)`: e.g. a new IC is a functor plus

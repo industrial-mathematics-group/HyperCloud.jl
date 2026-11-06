@@ -52,13 +52,16 @@ function create_method(timestepper::Symbol, main_gradient::Symbol, order::Int;
         
         mods = String[]
         if main_flux != :AlignedRusanov; push!(mods, string(main_flux)); end
-        if limiter != :none; push!(mods, string(limiter)); end
+        # the limiter mode and the MOOD relaxation only when not the default (`:hard`, 0), so the existing labels stay
+        if limiter != :none; push!(mods, limiter_mode == :hard ? string(limiter) : "$(limiter) $(limiter_mode)"); end
         
         if mood_criterion != :none
             push!(mods, string(mood_strategy))
             if mood_criterion != :U2
                 push!(mods, string(mood_criterion))
             end
+            δ = get(kwargs, :MOOD_delta_relax, 0)
+            iszero(δ) || push!(mods, "δ=$(δ)")
         end
         
         if !isempty(mods)
@@ -136,6 +139,7 @@ end
 Generates symmetric kinetic velocities matching the native `Flux{D, NK}` tuple format 
 along with the uniformly partitioned edge indices (`relax_indices`) for the kinetic system.
 """
+generate_relax_params(v_mag::Real, dim::Integer, NM::Integer) = generate_relax_params(Float64(v_mag), Int(dim), Int(NM))
 function generate_relax_params(v_mag::Float64, dim::Int, NM::Int)
     kin_per_macro = 2 * dim
     NK = kin_per_macro * NM

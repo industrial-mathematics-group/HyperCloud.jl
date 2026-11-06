@@ -100,7 +100,7 @@ function run_bgk_simulation(params::ParamDict)::Union{AbstractSimData, Nothing}
 
         # 10. Data Packaging: macroscopic moments unless the distributions are requested
         valid_indices = findall(i -> isassigned(us_svector, i), 1:length(us_svector))
-        us_final = if get(params, :save_relax, false)
+        us_final = if get(params, :save_relax, false) || get(params, :Kinetic_save_relax, false)   # as the kinetic runner
             us_svector[valid_indices]
         else
             [[moments(eq, u) for u in snap] for snap in us_svector[valid_indices]]

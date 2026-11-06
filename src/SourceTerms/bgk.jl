@@ -34,8 +34,9 @@ const _BGKCollision = Union{BGKRelaxation, ExplicitBGKRelaxation}
     f_eq, ok = equilibrium(st.eq, U)
     ok || return zero(f)
     # τ = 0 gives ±Inf/NaN here. The IMEX steppers only evaluate it at stages with a_ii = 0, and in the shipped
-    # tableaus it never enters the update there: IMEXEuler and ARS233 have a zero first column and b[1] = 0,
-    # ARS222, PRSSP3 and SSP2332 have no such stage. A tableau that used it would turn the run into NaN
+    # tableaus it never enters the update there: IMEX_Euler and IMEX_ARS233 (config keys :IMEXEuler, :ARS233) have a
+    # zero first column and b[1] = 0; IMEX_ARS222, IMEX_PRSSP3 and IMEX_SSP2332 (:ARS222, :PRSSP3, :SSP332) have no
+    # such stage. A tableau that used it would turn the run into NaN
     # (loudly) rather than silently drop the collision.
     return (f_eq - f) / relaxation_time(st.eq, U)
 end
@@ -75,14 +76,24 @@ end
 
 For the BGK equation `IC` gives the macroscopic state `(ρ, ρu..., E)` (the conservative Euler variables
 of [`euler_limit`](@ref)); every particle starts in the conservative discrete Maxwellian of that state.
+If the velocity grid cannot represent a state (its moments differ from `U` by more than `√ε` relative, e.g. a
+mean velocity near `vmax` or a temperature the grid does not resolve), it warns once with the number of such
+particles: the collision term then does not conserve what the run starts from. (`equilibrium` itself runs in
+kernels and stops silently at the closest equilibrium.)
 """
 function set_initial_conditions!(pg::ParticleGrid, eq::BGKEquation{D, M, T}, IC::InitialCondition) where {D, M, T}
+    n_bad, worst = Ref(0), Ref(zero(T))
     set_states!(pg) do pos
         U = IC(pos)
         length(U) == D + 2 || error("BGK initial conditions give the macroscopic state (ρ, ρu..., E) of length $(D + 2), got $(length(U))")
-        f, ok = equilibrium(eq, SVector{D + 2, T}(U))
+        Uv = SVector{D + 2, T}(U)
+        f, ok = equilibrium(eq, Uv)
         ok || error("initial state $U at $pos is not admissible for the BGK equation (ρ > 0, θ > 0)")
+        r = maximum(abs.(moments(eq, f) .- Uv)) / maximum(abs, Uv)
+        r > sqrt(eps(T)) && (n_bad[] += 1; worst[] = max(worst[], r))
         f
     end
+    n_bad[] > 0 && @warn "BGK initial state: the velocity grid cannot represent the macroscopic state of $(n_bad[]) " *
+                         "particle(s) (relative moment error up to $(worst[])); enlarge `vmax` or refine the velocity grid"
     return nothing
 end
