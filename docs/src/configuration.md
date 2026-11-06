@@ -153,12 +153,12 @@ The number of particles at the end is stored in the statistic `final_particle_co
 
 ## `Kinetic_` — relaxation system
 
-Only read by `run_kinetic_simulation`.
+Only read by `run_kinetic_simulation` (and `:save_relax` also by `run_bgk_simulation`).
 
 | Key | Default | Meaning |
 |:----|:--------|:--------|
 | `:velocities` | — | Kinetic speeds, one `NK`-tuple per dimension. Use [`generate_relax_params`](@ref). |
-| `:indices` | — | `Vector{Int}` of edges mapping kinetic to macroscopic variables (see [`Kin2Macro`](@ref)). |
+| `:indices` | — | Edges (a `Vector{Int}` or a tuple) mapping kinetic to macroscopic variables (see [`Kin2Macro`](@ref)). |
 | `:epsilon` | — | Relaxation time ``\epsilon``. |
 | `:interior_factor` | `D` | Scaling of the inverse kinetic speeds in the Maxwellian. |
 | `:save_relax` | `false` | Same as the global key. |

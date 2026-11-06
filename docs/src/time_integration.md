@@ -16,9 +16,10 @@ it is enabled, reports progress, and stores snapshots.
 
 The last step is shortened so the run ends exactly at `tmax`.
 
-If the step collapses (below ``10^{-12}``) or is not finite (NaN states or unbounded wave speeds after a
-blow-up), or a stored snapshot (the final one included) is not finite, the loop stops before `tmax` with a
-warning that gives the time reached. The snapshot check also catches blow-ups the step doesn't see: fixed time steps,
+If the step collapses (below ``10^{-12}\,t_{max}``, relative, so no time scale is assumed) or is not finite (NaN states or unbounded wave speeds after a
+blow-up, or an infinite CFL number or fixed step), or a stored intermediate snapshot is not finite, the loop stops
+before `tmax` with a warning that gives the time reached; a non-finite final snapshot (at `tmax`) gives a warning
+too. Each blow-up is reported once. The snapshot check also catches blow-ups the step doesn't see: fixed time steps,
 equations with constant wave speeds (linear advection, BGK, kinetic runs) and CFL estimates that skip NaN
 particles. The final slot then holds the state at that time, snapshots that were not reached are dropped
 by the runners, and no NaN time is recorded. The runners still return the data, so check the warning or

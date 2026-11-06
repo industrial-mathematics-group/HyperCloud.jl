@@ -38,6 +38,8 @@ function build_ic(::Val{:q_riemann}, conf::Dict, ctx::Dict)
     
     # Process the tuple of states explicitly via the extracted dictionary list
     raw_states = conf[:states]::Tuple
+    length(raw_states) == 2^D ||
+        throw(ArgumentError("q_riemann needs 2^D = $(2^D) states (one per quadrant/octant, binary order), got $(length(raw_states))"))
     states = ntuple(i -> State{M, T}(Tuple(T.(raw_states[i]))), length(raw_states))
     
     p0 = Space{D, T}(Tuple(T.(conf[:p0])))

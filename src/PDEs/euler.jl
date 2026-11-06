@@ -32,15 +32,20 @@ end
     return State{M, T}(rho, m..., E)
 end
 
+# Positivity floor of density and pressure, the same everywhere (fluxes, primitive variables, wave speeds, fluid
+# velocity): `cons2prim` used 1e-7 while the eigenvalues used 1e-9, so the flux and its CFL bound saw different
+# states near vacuum.
+@inline _euler_floor(::Type{T}) where {T} = T(1e-9)
+
 @inline function cons2prim(eq::EulerEquation{D, M, T}, U::State{M, T}) where {D, M, T}
-    rho = max(U[1], T(1e-7))
+    rho = max(U[1], _euler_floor(T))
     m = Space{D, T}(ntuple(d -> U[1+d], Val(D)))
     E = U[M]
     
     u = m ./ rho
     p = (eq.gamma - T(1)) * (E - T(0.5) * sum(abs2, m) / rho)
     
-    return State{M, T}(rho, u..., max(p, T(1e-7)))
+    return State{M, T}(rho, u..., max(p, _euler_floor(T)))
 end
 
 @inline function flux(eq::EulerEquation{D, M, T, <:Conservative}, U::State{M, T}) where {D, M, T}
@@ -70,21 +75,21 @@ end
 end
 
 @inline function max_eigenvalue(eq::EulerEquation{D, M, T, <:Conservative}, U::State{M, T}, d::Int) where {D, M, T}
-    rho = max(U[1], T(1e-9))
+    rho = max(U[1], _euler_floor(T))
     m_d = U[1+d]
     E = U[M]
     
     m_sq = sum(abs2, ntuple(i -> U[1+i], Val(D)))
-    p = max((eq.gamma - one(T)) * (E - T(0.5) * m_sq / rho), T(1e-9))
+    p = max((eq.gamma - one(T)) * (E - T(0.5) * m_sq / rho), _euler_floor(T))
     c = sqrt(eq.gamma * p / rho)
     
     return abs(m_d / rho) + c
 end
 
 @inline function max_eigenvalue(eq::EulerEquation{D, M, T, <:NCRepresentation}, V::State{M, T}, d::Int) where {D, M, T}
-    rho = max(V[1], T(1e-9))
+    rho = max(V[1], _euler_floor(T))
     u_d = V[1+d]
-    p = max(V[M], T(1e-9))
+    p = max(V[M], _euler_floor(T))
     
     c = sqrt(eq.gamma * p / rho)
     
@@ -93,20 +98,20 @@ end
 
 # Moving grids: material velocity and exact relative wave speed |u_d − w| + c
 @inline function fluid_velocity(eq::EulerEquation{D, M, T, <:Conservative}, U::State{M, T}) where {D, M, T}
-    rho = max(U[1], T(1e-9))
+    rho = max(U[1], _euler_floor(T))
     return Space{D, T}(ntuple(d -> U[1+d] / rho, Val(D)))
 end
 @inline fluid_velocity(eq::EulerEquation{D, M, T, <:NCRepresentation}, V::State{M, T}) where {D, M, T} =
     Space{D, T}(ntuple(d -> V[1+d], Val(D)))
 
 @inline function max_eigenvalue(eq::EulerEquation{D, M, T, <:Conservative}, U::State{M, T}, d::Int, shift::Real) where {D, M, T}
-    rho = max(U[1], T(1e-9))
+    rho = max(U[1], _euler_floor(T))
     m_sq = sum(abs2, ntuple(i -> U[1+i], Val(D)))
-    p = max((eq.gamma - one(T)) * (U[M] - T(0.5) * m_sq / rho), T(1e-9))
+    p = max((eq.gamma - one(T)) * (U[M] - T(0.5) * m_sq / rho), _euler_floor(T))
     return abs(U[1+d] / rho - T(shift)) + sqrt(eq.gamma * p / rho)
 end
 @inline function max_eigenvalue(eq::EulerEquation{D, M, T, <:NCRepresentation}, V::State{M, T}, d::Int, shift::Real) where {D, M, T}
-    rho = max(V[1], T(1e-9)); p = max(V[M], T(1e-9))
+    rho = max(V[1], _euler_floor(T)); p = max(V[M], _euler_floor(T))
     return abs(V[1+d] - T(shift)) + sqrt(eq.gamma * p / rho)
 end
 
@@ -148,12 +153,17 @@ function analytic_closure(eq::EulerEquation{1, M, T}, ic::Riemann, geom::Geometr
         return f_L + f_R + (u_R - u_L)
     end
 
-    p_star = T(0.5) * (p_L + p_R)
+    # Newton iteration for p*. Tolerance and floor are relative to the data (absolute 1e-9 values made the solution
+    # scale dependent: wrong star states for pressures ~1e-8, and in Float32 the tolerance was never reached).
+    u_scale = abs(u_L) + abs(u_R) + c_L + c_R
+    p_floor = eps(T) * min(p_L, p_R)
+    p_star  = T(0.5) * (p_L + p_R)
     for _ in 1:(vacuum ? 0 : 100)
         f_p = pressure_func(p_star)
-        if abs(f_p) < T(1e-9); break; end
+        if abs(f_p) <= 16 * eps(T) * u_scale; break; end
         dfdp = (pressure_func(p_star * T(1.001)) - f_p) / (p_star * T(0.001))
-        p_star = max(T(1e-9), p_star - f_p / (dfdp + T(1e-9)))
+        dfdp > zero(T) || break                        # f is increasing in p*; a non-positive slope is round-off
+        p_star = max(p_floor, p_star - f_p / dfdp)
     end
 
     f_L_final = p_star > p_L ? (p_star - p_L) * sqrt((T(2.0) / ((gamma + one(T)) * rho_L)) / (p_star + p_L * (gamma - one(T)) / (gamma + one(T)))) : (T(2.0) * c_L / (gamma - one(T))) * ((p_star / p_L)^((gamma - one(T)) / (T(2.0) * gamma)) - one(T))
@@ -163,7 +173,7 @@ function analytic_closure(eq::EulerEquation{1, M, T}, ic::Riemann, geom::Geometr
         t = T(st[end])
         x = T(st[1])
         
-        if t <= T(1e-9); return ic(SVector{1, T}(x)); end
+        if t <= zero(T); return ic(SVector{1, T}(x)); end
         
         s_query = σ * (x - x0) / t
         rho_final, u_final, p_final = zero(T), zero(T), zero(T)

@@ -176,7 +176,7 @@ try
                     logs, sim = Test.collect_test_logs(min_level = Logging.Error) do
                         with_backend(() -> run_direct_simulation(merge(lin_2d(false), last(create_method(:ARS222, :MUSCL, 2)))), device_backend)
                     end
-                    refused = any(l -> occursin("memory reservation corrupted", sprint(showerror, first(l.kwargs[:exception]))), logs)
+                    refused = any(l -> haskey(l.kwargs, :exception) && occursin("memory reservation corrupted", sprint(showerror, first(l.kwargs[:exception]))), logs)
                     push!(RESULTS, "runner | second reserved device run" => (sim !== nothing ? "ran" : refused ? "refused by the corruption check" : "FAILED otherwise"))
                     @test sim !== nothing || refused
                 end

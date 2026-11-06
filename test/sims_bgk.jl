@@ -53,6 +53,19 @@
                 @test length(s_kin.u[end][1]) == HC.get_M(eq) == 16
                 @test all(i -> moments(eq, s_kin.u[end][i]) ≈ s_mac.u[end][i], eachindex(s_mac.u[end]))
             end
+            # ... also through the Kinetic namespace, as for run_kinetic_simulation (the BGK runner ignored it)
+            s_kin2 = run_sim(merge(p, Dict{Symbol, Any}(:Kinetic_save_relax => true)))
+            @test s_kin2 !== nothing && length(s_kin2.u[end][1]) == 16
+        end
+
+        @testset "τ = 0 (the Euler limit as a projection) runs end to end" begin
+            p0 = bgk_wave_params(32; tau = 0.0, stepper = :ARS222, order = 2)
+            s0 = run_sim(p0)
+            @test s0 !== nothing && all(u -> all(isfinite, u), s0.u[end])
+            if s0 !== nothing
+                m(s, k) = sum(u -> u[k], s.u[end]) / length(s.u[end])
+                @test all(k -> isapprox(m(s0, k), sum(u -> u[k], s0.u[1]) / length(s0.u[1]); atol = 1e-12), 1:3)   # conserved
+            end
         end
 
         @testset "Float32 end-to-end" begin

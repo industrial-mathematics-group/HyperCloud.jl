@@ -13,7 +13,8 @@ the collisionless limit (`:PDE_tau => Inf`). Schemes, fluxes, limiters, MOOD and
 exactly as for the other equations.
 
 The returned snapshots hold the macroscopic moments `(ρ, ρu..., E)`, directly comparable with Euler
-runs; with `:save_relax => true` they keep the full distributions instead.
+runs; with `:save_relax => true` (or `:Kinetic_save_relax => true`, as for `run_kinetic_simulation`) they keep the
+full distributions instead.
 `run_direct_simulation` and `run_kinetic_simulation` forward BGK configurations here, so the method
 dictionaries work unchanged.
 """
@@ -100,7 +101,7 @@ function run_bgk_simulation(params::ParamDict)::Union{AbstractSimData, Nothing}
 
         # 10. Data Packaging: macroscopic moments unless the distributions are requested
         valid_indices = findall(i -> isassigned(us_svector, i), 1:length(us_svector))
-        us_final = if get(params, :save_relax, false)
+        us_final = if get(params, :save_relax, false) || get(params, :Kinetic_save_relax, false)   # as the kinetic runner
             us_svector[valid_indices]
         else
             [[moments(eq, u) for u in snap] for snap in us_svector[valid_indices]]
