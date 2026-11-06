@@ -12,6 +12,32 @@ HyperCloudCore._extract_order(::NoFallbackGrad) = 1
 HyperCloudCore._divergence_degree(::NoFallbackGrad) = 1
 HyperCloudCore.update_size!(::NoFallbackGrad, ::Int) = nothing
 
+# Largest absolute component of a stored state (NaN or Inf if any component is not finite).
+function _max_abs(states::AbstractVector)
+    m = zero(eltype(eltype(states)))
+    for u in states, c in u
+        isfinite(c) || return oftype(m, Inf)
+        m = max(m, abs(c))
+    end
+    return m
+end
+
+# The step does not see every blow-up (fixed steps, constant wave speeds, CFL estimates that skip NaN
+# particles), so every stored state is checked as well. Returns `(blown_up, growth_warned)`.
+function _check_snapshot(state, t, tmax, k_step, u0_scale, growth_warned::Bool; final::Bool = false)
+    scale = _max_abs(state)
+    if !isfinite(scale)
+        @warn "solve_equation: the state at t = $t is not finite (blown up)" *
+              (final ? "." : "; the run stopped before tmax = $tmax after $k_step steps. The data end at t = $t.")
+        return true, growth_warned
+    elseif !growth_warned && u0_scale > 0 && scale > 1e8 * u0_scale
+        @warn "solve_equation: at t = $t the state is $(scale / u0_scale) times larger than at t = 0; " *
+              "the run is probably unstable."
+        return false, true
+    end
+    return false, growth_warned
+end
+
 """
     saveData!(xs_storage, us_storage, ts_storage, snap_idx, pg, current_t, remove_ghosts)
 
@@ -72,7 +98,7 @@ The primary simulation orchestrator governing the main time-stepping loop.
 
 # Keyword Arguments
 - `is_cfl::Bool`: If true, `dt` is treated as a CFL number, and the physical time step is dynamically computed at each iteration using the grid and interpolator properties.
-- `snapshots::Integer`: The number of discrete data dumps to record evenly across the simulation timeline.
+- `snapshots::Integer`: The number of output intervals (at least 1); `snapshots + 1` states are stored, including `t = 0`.
 - `remove_ghosts::Bool`: Strips boundary/ghost particles from the returned snapshot data if true.
 - `show_progress::Bool`: Toggles visual progress tracking.
 - `progress_interval::Real`: Sets the refresh rate (in seconds) for logging the simulation's progress and calculating the ETA.
@@ -80,6 +106,14 @@ The primary simulation orchestrator governing the main time-stepping loop.
 
 # Returns
 - A tuple containing: `(position_history, state_history, time_history, total_steps, elapsed_wall_time)`.
+
+The loop stops early with a warning that gives the time reached if the time step collapses (below `1e-12`)
+or is not finite, or if a stored snapshot is not finite (a blown-up state; this also covers fixed time steps
+and equations with constant wave speeds, whose step never collapses). Every stored snapshot is checked,
+the final one included. The last stored state is the one at that time, and the snapshots that were not
+reached are left unassigned. A snapshot that grew by more than a factor `1e8` over the initial state gives a
+warning (once) but does not stop the run. An infinite CFL step with a finite state (no wave moves) advances
+straight to `tmax`.
 """
 function solve_equation(
     timestepper::TimeStepper, 
@@ -95,6 +129,7 @@ function solve_equation(
     adaptivity::Union{Nothing, ParticleAdaptivity} = nothing
 ) where {D, M, T}
     
+    snapshots >= 1 || throw(ArgumentError("snapshots must be ≥ 1 (the number of output intervals), got $snapshots"))
     xs = Vector{Vector{Space{D, T}}}(undef, snapshots + 1)
     us = Vector{Vector{State{M, T}}}(undef, snapshots + 1)
     ts = Vector{T}(undef, snapshots + 1)
@@ -110,6 +145,8 @@ function solve_equation(
 
     saveData!(xs, us, ts, snap_counter, pg, t, remove_ghosts)
     snap_counter += 1 
+    u0_scale = _max_abs(us[1])
+    growth_warned = false
     
     @info "Using $(nameof(typeof(get_backend()))) for parallel runs!"
 
@@ -120,9 +157,24 @@ function solve_equation(
     last_sim_time = t
 
     elapsed_time = @elapsed while t < tmax_val
-        dt_val = is_cfl ? dt_inp * get_time_step(pg, eq, div_interp) : dt_inp
-        dt_val = min(dt_val, tmax_val - t)
-        if dt_val <= T(1e-12); break; end
+        dt_step = is_cfl ? dt_inp * get_time_step(pg, eq, div_interp) : dt_inp
+        # A collapsed or non-finite step (NaN states, unbounded wave speeds) ends the run early, so no NaN
+        # time is ever recorded. An infinite CFL step means that no wave moves, and the run goes straight to
+        # tmax, unless the state is not finite (the CFL estimate skips particles with NaN wave speeds).
+        if is_cfl && dt_step == T(Inf)
+            if !isfinite(_max_abs(host_view(pg.rhos, pg.meta.N)))
+                @warn "solve_equation stopped at t = $t before tmax = $tmax_val after $k_step steps: the state " *
+                      "is not finite (blown up). The data end at t = $t."
+                break
+            end
+        elseif !(isfinite(dt_step) && dt_step > T(1e-12))
+            @warn "solve_equation stopped at t = $t before tmax = $tmax_val after $k_step steps: the time step " *
+                  "is $(isfinite(dt_step) ? "collapsed" : "not finite") (dt = $dt_step); the state has probably " *
+                  "blown up. The data end at t = $t."
+            break
+        end
+        dt_val = min(dt_step, tmax_val - t)
+        if dt_val <= T(1e-12); break; end      # tmax reached up to round-off
 
         timestepper(eq, pg, t, dt_val)
         adaptivity === nothing || adapt_particles!(pg, adaptivity, _extract_order(div_interp))
@@ -130,10 +182,14 @@ function solve_equation(
         t += dt_val
         k_step += 1
         
+        blown_up = false
         while snap_counter <= snapshots && t >= t_snap[snap_counter]
             saveData!(xs, us, ts, snap_counter, pg, t, remove_ghosts)
+            blown_up, growth_warned = _check_snapshot(us[snap_counter], t, tmax_val, k_step, u0_scale, growth_warned)
             snap_counter += 1
+            blown_up && break
         end
+        blown_up && break
 
         if show_progress
             current_progress = ceil(Int, (t / tmax_val) * 10000)
@@ -173,6 +229,8 @@ function solve_equation(
 
     if snap_counter <= snapshots + 1
         saveData!(xs, us, ts, snapshots + 1, pg, t, remove_ghosts)
+        # The final slot is checked too (with one snapshot it is the only one after t = 0)
+        _check_snapshot(us[snapshots + 1], t, tmax_val, k_step, u0_scale, growth_warned; final = true)
     end
 
     return xs, us, ts, k_step, elapsed_time

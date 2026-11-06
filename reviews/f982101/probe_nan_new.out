@@ -1,0 +1,7 @@
+=== code: new ===
+Burgers IC_a = NaN snaps=1               t = [0.0, 0.15] k_step = [1.0] | final max|u| = NaN | warns = Any[]
+Burgers IC_a = NaN snaps=4               t = [0.0, 0.15, 0.15] k_step = [1.0] | final max|u| = NaN | warns = SubString{String}["solve_equation stopped at t = 0.15 before tmax = 0.15 after 1 steps: the state is not finite (blown up). The data end at t = 0.15."]
+Burgers CFL 3.0 tmax 2 snaps=1           t = [0.0, 2.0] k_step = [5.0] | final max|u| = 0.358951811921552 | warns = Any[]
+Burgers CFL 8.0 tmax 2 snaps=1           t = [0.0, 1.167] k_step = [15.0] | final max|u| = 1.405468795644023e12 | warns = SubString{String}["solve_equation stopped at t = 1.1674572212332281 before tmax = 2.0 after 15 steps: the time step is collapsed (dt = 7.56249444322586e-13)"]
+Burgers CFL 3.0 tmax 2 snaps=4           t = [0.0, 0.7207, 1.141, 1.749, 2.0] k_step = [5.0] | final max|u| = 0.358951811921552 | warns = Any[]
+Burgers CFL 8.0 tmax 2 snaps=4           t = [0.0, 1.063, 1.063, 1.167] k_step = [15.0] | final max|u| = 1.405468795644023e12 | warns = SubString{String}["solve_equation stopped at t = 1.1674572212332281 before tmax = 2.0 after 15 steps: the time step is collapsed (dt = 7.56249444322586e-13)"]

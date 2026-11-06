@@ -113,6 +113,14 @@ end
 
         @test_throws ErrorException build_equation(Dict{Symbol, Any}(:D => 1), ctxT)
         @test_throws ErrorException build_equation(Dict{Symbol, Any}(:name => :navier_stokes), ctxT)
+
+        # Only the conservative representation exists; the others raise a clear error (no UndefVarError)
+        eu_conf = Dict{Symbol, Any}(:name => :euler, :D => 1, :gamma => 1.4)
+        @test build_equation(merge(eu_conf, Dict(:representation => :conservative)), ctxT).rep isa Conservative
+        for rep in (:primitive, :lagrangian, :bogus)
+            @test_throws r"not supported; only :conservative" build_equation(merge(eu_conf, Dict(:representation => rep)), ctxT)
+            @test_throws ArgumentError build_equation(merge(eu_conf, Dict(:representation => rep)), ctxT)
+        end
     end
 
     @testset "build_ic" begin
@@ -271,6 +279,7 @@ end
     @testset "get_master_method_dict consistency" begin
         md = get_master_method_dict()
         @test haskey(md, "Analytical Solution")
+        @test md["ARS222MUSCL2"][:Time_stepper] === :ARS222        # the kinetic method of `burgers_kinetic`
         for (name, d) in md
             haskey(d, :Time_stepper) || continue
             expected = d[:Time_stepper] in IMEX_STEPPERS ? :run_kinetic_simulation : :run_direct_simulation
@@ -543,6 +552,25 @@ end
         @test HC.bgk_sources(eq, RK2_SSP_Tableau(Float64)) == ((ExplicitBGKRelaxation(eq),), ())
         eq_free = BGKEquation(Val(1), nodes, w, 1.4, ConstantRelaxationTime(Inf))
         @test HC.bgk_sources(eq_free, IMEX_ARS222_Tableau(Float64)) == ((), ())
+
+        # τ = 0: the implicit collision is the projection onto the equilibrium (it was Inf / Inf = NaN);
+        # the explicit form cannot divide by τ = 0, and τ < 0 is rejected at construction.
+        for T in (Float64, Float32)
+            nodesT, wT = velocity_grid(:uniform, 16, 6.0, T)
+            eq0 = BGKEquation(Val(1), nodesT, wT, 1.4, ConstantRelaxationTime(0.0))
+            pgT, _ = test_grid((0.0,), (1.0,), (4,); M = M)
+            fT = State{M, T}(f)
+            MfT, _ = equilibrium(eq0, moments(eq0, fT))
+            f0 = HC.implicit_solve(BGKRelaxation(eq0), fT, T(0.05), 1, pgT, zero(T))
+            @test all(isfinite, f0) && f0 ≈ MfT
+            @test HC.bgk_sources(eq0, IMEX_ARS222_Tableau(T)) == ((), (BGKRelaxation(eq0),))
+            @test_throws ArgumentError HC.bgk_sources(eq0, RK2_SSP_Tableau(T))
+            eqμ0 = BGKEquation(Val(1), nodesT, wT, 1.4, ViscosityRelaxationTime(0.0, 0.5))
+            @test_throws ArgumentError HC.bgk_sources(eqμ0, RK2_SSP_Tableau(T))
+        end
+        @test_throws ArgumentError BGKEquation(Val(1), nodes, w, 1.4, ConstantRelaxationTime(-1e-3))
+        @test_throws ArgumentError BGKEquation(Val(1), nodes, w, 1.4, ConstantRelaxationTime(NaN))
+        @test_throws ArgumentError BGKEquation(Val(1), nodes, w, 1.4, ViscosityRelaxationTime(-1e-3, 0.5))
     end
 
     @testset "Numerical flux is the exact upwind flux per velocity" begin
@@ -623,6 +651,24 @@ end
             for k in 1:4
                 @test exact(SVector(peaks[k]..., 1.0))[k] ≈ k
             end
+        end
+
+        @testset "Commutation check is relative ($T, entries O($s))" for (T, s) in ((Float64, 100.0), (Float32, 1.0))
+            # A₂ = p(A₁) commutes with A₁, but the round-off of the products (2e-11 resp. 7e-7) exceeded the old
+            # absolute tolerance 1e-12
+            A1 = SMatrix{3, 3, T}(1.1, 0.7, 0.3, 0.7, 2.2, 0.5, 0.3, 0.5, 0.9) .* T(s)
+            A2 = A1 * A1 ./ T(37) .+ T(0.3) .* A1
+            eq = LinearAdvection(SVector{2, SMatrix{3, 3, T, 9}}((A1, A2)), T)
+            geom = build_domain(Dict{Symbol, Any}(:domain => :rectangular, :mins => (-3.0, -3.0), :maxs => (3.0, 3.0),
+                                                  :periodic => true), Dict{Symbol, Any}(:T => T, :D => 2))
+            ic = Gauss(State{3, T}(1, 0, 0), Space{2, T}(0, 0), T(0.3))
+            exact = analytic_closure(eq, ic, geom)
+            @test exact(SVector{3, T}(0.1, -0.2, 0)) ≈ ic(Space{2, T}(0.1, -0.2))
+            @test eltype(exact(SVector{3, T}(0.1, -0.2, 0.01))) == T
+            # Non-commuting matrices are still rejected
+            B = SMatrix{3, 3, T}(0, 1, 0, 1, 0, 0, 0, 0, 1) .* T(s)
+            eq_nc = LinearAdvection(SVector{2, SMatrix{3, 3, T, 9}}((A1, B)), T)
+            @test_throws r"do not commute" analytic_closure(eq_nc, ic, geom)
         end
 
         @testset "Precision is preserved" begin
@@ -707,6 +753,35 @@ end
             @test ex3(SVector(0.0, 0.0, 0.0))[1] ≈ 1.0
             @test ex3(SVector(1.0, 0.0, 0.0))[1] ≈ exp(-1.0)
             @test ex3(SVector(0.5, 0.5, 0.5))[1] ≈ 1.0   # peak travels along (1, 1)
+        end
+
+        @testset "Gauss: breaking time, warn once, Float32 tolerance" begin
+            # u₀ = exp(-x²) breaks at t_b = e^{1/2} / √2 ≈ 1.166 (the pulse of `burgers_kinetic`)
+            ic = Gauss(State{1, Float64}(1.0), Space{1, Float64}(0.0), 1.0)
+            ex = analytic_closure(eq, ic, geom)
+            xs = range(-3.0, 4.0; length = 141)
+            @test_logs min_level = Base.CoreLogging.Warn foreach(x -> ex(SVector(x, 1.1)), xs)
+            logs, _ = Test.collect_test_logs() do
+                foreach(t -> foreach(x -> ex(SVector(x, t)), xs), (1.5, 2.0))
+            end
+            @test count(l -> occursin("breaking time", string(l.message)), logs) == 1
+            @test count(l -> occursin("did not converge", string(l.message)), logs) <= 1
+            @test all(l -> l.level == Base.CoreLogging.Warn, logs) && length(logs) <= 2
+
+            # The reference of `burgers_kinetic` stops before breaking and conserves mass there
+            p = copy(burgers_kinetic().shared)
+            @test p[:tmax] < exp(0.5) / sqrt(2.0)
+            exk = analytical_solution(p)
+            m0 = integrate(x -> exk(SVector(x, 0.0))[1], -5.0, 5.0; n = 4000)
+            @test integrate(x -> exk(SVector(x, p[:tmax]))[1], -5.0, 5.0; n = 4000) ≈ m0 rtol = 1e-6
+
+            # Float32: the Newton tolerance is relative, so it converges without warnings before breaking
+            ic32 = Gauss(State{1, Float32}(1.0f0), Space{1, Float32}(0.0f0), 1.0f0)
+            ex32 = analytic_closure(BurgersEquation{1, Float32}(), ic32, geom)
+            xs32 = range(-2.0f0, 2.0f0; length = 41)
+            @test_logs min_level = Base.CoreLogging.Warn foreach(x -> ex32(SVector(x, 0.5f0)), xs32)
+            @test all(x -> eltype(ex32(SVector(x, 0.5f0))) == Float32, xs32)
+            @test maximum(x -> abs(ex32(SVector(x, 0.5f0))[1] - ex(SVector(Float64(x), 0.5))[1]), xs32) < 1e-6
         end
 
         @testset "2D Riemann" begin
@@ -810,6 +885,32 @@ end
             @test integrate(x -> U(x)[2], -1.0, 1.0) ≈ 0.18  atol = 1e-3   # momentum gains (p_L − p_R)·t
             @test integrate(x -> U(x)[3], -1.0, 1.0) ≈ 2.75  atol = 1e-3   # energy
         end
+    end
+
+    @testset "Euler: vacuum generation (Toro, Sec. 4.6)" begin
+        eq = EulerEquation(Val(1), Float64, 1.4, Conservative())
+        geom = test_domain((-1.0,), (1.0,), false)
+        cons(ρ, u, p) = State{3, Float64}(ρ, ρ * u, p / 0.4 + 0.5 * ρ * u^2)
+        t = 0.1   # the fan heads (-0.72/0.72 and -0.62/0.91) are still inside [-1, 1]
+
+        # Symmetric: u = ∓6 with c = √1.4, 2 (c_L + c_R) / (γ - 1) = 11.8 < 12, so a vacuum opens at x = 0
+        sym = analytic_closure(eq, Riemann(cons(1.0, -6.0, 1.0), cons(1.0, 6.0, 1.0), Space{1}(0.0), Space{1}(1.0)), geom)
+        U(x) = sym(SVector(x, t))
+        @test U(0.0) == zeros(3)
+        @test all(x -> U(x) ≈ U(-x) .* (1, -1, 1), (0.1, 0.3, 0.5, 0.7, 0.9))
+        @test all(x -> U(x)[1] > 0, (-0.5, 0.5))                                  # inside the fans
+        @test U(0.9) ≈ cons(1.0, 6.0, 1.0)
+        # Conservation on [-1, 1]: the boundary fluxes are ρu = ±6, ρu² + p = 37, u (E + p) = ±129
+        @test integrate(x -> U(x)[1], -1.0, 1.0) ≈ 2.0 - 12t atol = 1e-4
+        @test integrate(x -> U(x)[2], -1.0, 1.0) ≈ 0.0 atol = 1e-10
+        @test integrate(x -> U(x)[3], -1.0, 1.0) ≈ 41.0 - 2 * 6 * 21.5 * t atol = 1e-3
+
+        # Asymmetric data: mass leaves through both ends at 5 and 4, i.e. M(t) = 1.5 - 9 t; mirroring agrees
+        UL, UR = cons(1.0, -5.0, 1.0), cons(0.5, 8.0, 0.4)
+        asym = analytic_closure(eq, Riemann(UL, UR, Space{1}(0.0), Space{1}(1.0)), geom)
+        @test integrate(x -> asym(SVector(x, t))[1], -1.0, 1.0) ≈ 1.5 - 9t atol = 1e-4
+        mirr = analytic_closure(eq, Riemann(UR, UL, Space{1}(0.0), Space{1}(-1.0)), geom)
+        @test all(x -> isapprox(asym(SVector(x, t)), mirr(SVector(x, t)); atol = 1e-12), range(-0.95, 0.95; length = 39))
     end
 
     @testset "Missing closure warns" begin

@@ -52,8 +52,11 @@ With an IMEX tableau the collision is the implicit source [`BGKRelaxation`](@ref
 conserves the moments, the implicit stage equation has the closed-form solution
 ``f = (f^* + \lambda\,\mathcal M[f^*])/(1 + \lambda)``, ``\lambda = \Delta t\,a_{ii}/\tau``, for any
 stiffness, which makes the scheme asymptotic preserving: at ``\tau = 10^{-5}`` the BGK Sod solution
-is as close to the exact Euler solution as the Euler scheme itself. With an explicit tableau the
-collision becomes [`ExplicitBGKRelaxation`](@ref) (stable for ``\Delta t \lesssim \tau`` only).
+is as close to the exact Euler solution as the Euler scheme itself, and ``\tau = 0``
+(``\lambda = \infty``) gives ``\mathcal M[f^*]``. With an explicit tableau the collision becomes
+[`ExplicitBGKRelaxation`](@ref) (stable for ``\Delta t \lesssim \tau`` only; ``\tau = 0`` is
+rejected with an `ArgumentError`). Negative relaxation times are rejected when the equation is
+built.
 
 ## Transport
 

@@ -54,6 +54,57 @@
         end
     end
 
+    @testset "Early stop is reported, snapshots = 0 is rejected" begin
+        # Sod with MUSCL2 and no limiter at CFL 4 blows up in the first step: the loop stops with a warning
+        # (instead of silently), records no NaN time and the runner still returns the data up to that point.
+        sod = euler_1d_sod()
+        p = merge(sod.shared, sod.methods[:RK2MUSCL2_VK], Dict{Symbol, Any}(:Grid_Ns => (100,), :Time_CFL => 4.0,
+                  :Limiter_name => :none, :tmax => 0.2, :snapshots => 4))
+        sim = @test_logs (:warn, r"solve_equation stopped at t = .* before tmax") match_mode = :any run_direct_simulation(p)
+        @test sim !== nothing
+        if sim !== nothing
+            @test all(isfinite, sim.t)
+            @test sim.t[end] < 0.2
+        end
+
+        # A non-finite step (here a NaN fixed dt) stops at once without recording a NaN time
+        pn = merge(linear_1d_gauss(50), UPWIND1, Dict{Symbol, Any}(:Time_dt => NaN))
+        delete!(pn, :Time_CFL)
+        simn = @test_logs (:warn, r"time step is not finite") match_mode = :any run_direct_simulation(pn)
+        @test simn !== nothing && simn.t == [0.0, 0.0]
+
+        # Blow-ups the step doesn't see (constant wave speeds): unstable linear advection at CFL 5 first grows
+        # (warned once), then overflows; the run stops at the first non-finite snapshot
+        pb = merge(linear_1d_gauss(50; tmax = 100.0), UPWIND1, Dict{Symbol, Any}(:Time_CFL => 5.0, :snapshots => 10))
+        simb = @test_logs (:warn, r"times larger than at t = 0") (:warn, r"is not finite \(blown up\)") match_mode = :any run_direct_simulation(pb)
+        @test simb !== nothing && all(isfinite, simb.t) && simb.t[end] < 100.0
+        # ... also when the final slot is the only one after t = 0
+        pb1 = merge(pb, Dict{Symbol, Any}(:snapshots => 1))
+        @test_logs (:warn, r"is not finite \(blown up\)") match_mode = :any run_direct_simulation(pb1)
+        # A NaN state has an infinite CFL step (NaN wave speeds are skipped): it stops, it doesn't jump to tmax
+        pnan = merge(burgers_1d_gauss(50), UPWIND1, Dict{Symbol, Any}(:IC_a => (NaN,), :snapshots => 1))
+        simnan = @test_logs (:warn, r"is not finite \(blown up\)") match_mode = :any run_direct_simulation(pnan)
+        @test simnan !== nothing && simnan.t[end] == 0.0
+        # An infinite fixed step is not a step
+        pinf = merge(linear_1d_gauss(50), UPWIND1, Dict{Symbol, Any}(:Time_dt => Inf))
+        delete!(pinf, :Time_CFL)
+        siminf = @test_logs (:warn, r"time step is not finite") match_mode = :any run_direct_simulation(pinf)
+        @test siminf !== nothing && siminf.t == [0.0, 0.0]
+
+        # No wave moves (zero velocity: infinite CFL step): the run reaches tmax without a warning
+        pz = merge(linear_1d_gauss(50), UPWIND1, Dict{Symbol, Any}(:PDE_velocities => ((0.0,),)))
+        logs, simz = Test.collect_test_logs(() -> run_direct_simulation(pz))
+        @test simz !== nothing && simz.t[end] ≈ 0.1
+        @test !any(l -> l.level >= Base.CoreLogging.Warn, logs)
+
+        p0 = merge(linear_1d_gauss(50), UPWIND1)
+        p0[:snapshots] = 0
+        logs, sim0 = Test.collect_test_logs(() -> run_direct_simulation(p0))
+        @test sim0 === nothing
+        errs = [first(l.kwargs[:exception]) for l in logs if haskey(l.kwargs, :exception)]
+        @test length(errs) == 1 && errs[1] isa ArgumentError && occursin("snapshots must be ≥ 1", errs[1].msg)
+    end
+
     @testset "Convergence order: $label" for (label, method, min_order) in [
         ("RK2 Upwind1", last(create_method(:RK2, :Upwind, 1; Scheme_upwind_alg_nd = :Classic)), 0.7),
         ("RK2 MUSCL2",  last(create_method(:RK2, :MUSCL, 2)), 1.8),
@@ -184,6 +235,24 @@
         )
         conf = SimulationConfig(linear_1d_gauss(50), methods, [:analytical_solution, :Upwind];
                                 reference = :analytical_solution)
-        run_all_simulations(conf; force_overwrite = true, calculate_stats = true)
+        old_path = get_save_path()
+        set_save_path!(mktempdir())          # never reuse or write results in the working directory
+        try
+            run_all_simulations(conf; force_overwrite = true, calculate_stats = true)
+            tasks = generate_tasks(conf)
+            @test length(tasks) == 1                                   # the reference method is not run
+            p = only(tasks)
+            @test does_sim_data_exist(p)
+            if does_sim_data_exist(p)
+                sim = load_sim_data(p, Val(:lagrangian))
+                @test sim.t[end] ≈ 0.1
+                exact = analytical_solution(p)
+                xs, us = sim.x[end], sim.u[end]
+                err = sum(i -> abs(exact(spacetime(xs[i], sim.t[end]))[1] - us[i][1]), eachindex(xs)) / length(xs)
+                @test err < 0.15                                      # Upwind1 at N = 50: 0.079
+            end
+        finally
+            set_save_path!(old_path)
+        end
     end
 end

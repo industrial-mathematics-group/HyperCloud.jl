@@ -134,6 +134,13 @@ function analytic_closure(eq::EulerEquation{1, M, T}, ic::Riemann, geom::Geometr
     c_L = sqrt(gamma * p_L / rho_L)
     c_R = sqrt(gamma * p_R / rho_R)
     
+    # Pressure positivity condition (Toro, Sec. 4.6): if the outer states separate faster than the two
+    # rarefactions can fill, i.e. 2 (c_L + c_R) / (γ - 1) ≤ u_R - u_L, a vacuum (ρ = p = 0) opens between the
+    # rarefaction tails u_L + 2 c_L / (γ - 1) and u_R - 2 c_R / (γ - 1); there is no star region.
+    vacuum = T(2) * (c_L + c_R) / (gamma - one(T)) <= u_R - u_L
+    S_vac_L = u_L + T(2) * c_L / (gamma - one(T))
+    S_vac_R = u_R - T(2) * c_R / (gamma - one(T))
+
     # Pre-calculate exact p_star and u_star
     function pressure_func(p_star_guess::T)
         f_L = p_star_guess > p_L ? (p_star_guess - p_L) * sqrt((T(2.0) / ((gamma + one(T)) * rho_L)) / (p_star_guess + p_L * (gamma - one(T)) / (gamma + one(T)))) : (T(2.0) * c_L / (gamma - one(T))) * ((p_star_guess / p_L)^((gamma - one(T)) / (T(2.0) * gamma)) - one(T))
@@ -142,7 +149,7 @@ function analytic_closure(eq::EulerEquation{1, M, T}, ic::Riemann, geom::Geometr
     end
 
     p_star = T(0.5) * (p_L + p_R)
-    for _ in 1:100
+    for _ in 1:(vacuum ? 0 : 100)
         f_p = pressure_func(p_star)
         if abs(f_p) < T(1e-9); break; end
         dfdp = (pressure_func(p_star * T(1.001)) - f_p) / (p_star * T(0.001))
@@ -161,7 +168,25 @@ function analytic_closure(eq::EulerEquation{1, M, T}, ic::Riemann, geom::Geometr
         s_query = σ * (x - x0) / t
         rho_final, u_final, p_final = zero(T), zero(T), zero(T)
 
-        if s_query <= u_star # Left of contact
+        if vacuum
+            if s_query <= u_L - c_L                                  # left state
+                rho_final, u_final, p_final = rho_L, u_L, p_L
+            elseif s_query < S_vac_L                                 # left rarefaction fan
+                u_final = (T(2.0) / (gamma + one(T))) * (c_L + (gamma - one(T)) / T(2.0) * u_L + s_query)
+                c_final = c_L - (gamma - one(T)) / T(2.0) * (u_final - u_L)
+                rho_final = rho_L * (c_final / c_L)^(T(2.0) / (gamma - one(T)))
+                p_final = p_L * (rho_final / rho_L)^gamma
+            elseif s_query <= S_vac_R                                # vacuum: ρ = p = 0 (and zero momentum)
+                rho_final, u_final, p_final = zero(T), zero(T), zero(T)
+            elseif s_query < u_R + c_R                               # right rarefaction fan
+                u_final = (T(2.0) / (gamma + one(T))) * (-c_R + (gamma - one(T)) / T(2.0) * u_R + s_query)
+                c_final = c_R + (gamma - one(T)) / T(2.0) * (u_final - u_R)
+                rho_final = rho_R * (c_final / c_R)^(T(2.0) / (gamma - one(T)))
+                p_final = p_R * (rho_final / rho_R)^gamma
+            else                                                     # right state
+                rho_final, u_final, p_final = rho_R, u_R, p_R
+            end
+        elseif s_query <= u_star # Left of contact
             if p_star > p_L # Left Shock
                 S_L = u_L - c_L * sqrt((gamma + one(T)) / (T(2.0) * gamma) * (p_star / p_L) + (gamma - one(T)) / (T(2.0) * gamma))
                 rho_star_L = rho_L * ((p_star / p_L) + (gamma - one(T)) / (gamma + one(T))) / (one(T) + (p_star / p_L) * (gamma - one(T)) / (gamma + one(T)))
