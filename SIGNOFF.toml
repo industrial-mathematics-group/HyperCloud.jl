@@ -60,10 +60,20 @@ AI-Reviewed-by = ["Claude Opus 5.5 (Anthropic), new sessions without the generat
 Reviewed-by = ["blhackslash <dev@blackslash.win>"]
 
 [[annotations]]
-path = [".github/workflows/file-signoff.yml", ".github/workflows/pr-signoff.yml", ".github/workflows/signoff-badges.yml"]
+path = [".github/workflows/**"]
+AI-Generation = "G2"
+Assisted-by = "Claude Opus 5.5 (Anthropic)"
+AI-Review = "A1"
+AI-Reviewed-by = "Claude Opus 5.5 (Anthropic), same session"
+Human-Review = "H1"
+Reviewed-by = ["blhackslash <dev@blackslash.win>"]
+
+# PDEStudioCore 0.5 features (claude/pdestudiocore-05): run metadata, @sim options; not reviewed by a fresh session yet.
+[[annotations]]
+path = ["docs/src/macros.md", "docs/src/simulation.md", "src/SimulationFunctions/direct.jl", "src/SimulationFunctions/kinetic.jl", "src/device.jl", "src/macros.jl"]
 AI-Generation = "G3"
 Assisted-by = "Claude Opus 5.5 (Anthropic)"
 AI-Review = "A1"
 AI-Reviewed-by = "Claude Opus 5.5 (Anthropic), same session"
-Human-Review = "TODO"
-Reviewed-by = "TODO"
+Human-Review = "H1"
+Reviewed-by = ["blhackslash <dev@blackslash.win>"]

@@ -79,6 +79,7 @@
         logsb, simb = Test.collect_test_logs(() -> run_direct_simulation(pb))
         warnsb = [l.message for l in logsb if l.level == Base.CoreLogging.Warn]
         @test simb !== nothing && all(isfinite, simb.t) && simb.t[end] < 100.0
+        @test simb.metadata[:stopped_early] && simb.metadata[:t_final] == simb.t[end]   # findable later
         # each blow-up is reported once: the growth warning and one stop (the final slot of a stopped run is not
         # checked again; it used to repeat "not finite" without "stopped before tmax")
         @test length(warnsb) == 2 && occursin("times larger than at t = 0", warnsb[1]) && occursin("stopped before tmax", warnsb[2])
@@ -259,14 +260,22 @@
         old_path = get_save_path()
         set_save_path!(mktempdir())          # never reuse or write results in the working directory
         try
-            run_all_simulations(conf; force_overwrite = true, calculate_stats = true)
+            summary = run_all_simulations(conf; force_overwrite = true, calculate_stats = true)
             tasks = generate_tasks(conf)
             @test length(tasks) == 1                                   # the reference method is not run
+            @test length(summary.ran) == 1 && isempty(summary.failed) && isempty(summary.empty)
             p = only(tasks)
             @test does_sim_data_exist(p)
             if does_sim_data_exist(p)
                 sim = load_sim_data(p, Val(:lagrangian))
                 @test sim.t[end] ≈ 0.1
+                # the runner's metadata comes back with the data, next to PDEStudioCore's provenance
+                md = sim.metadata
+                @test md[:hypercloudcore] == string(pkgversion(HyperCloudCore)) && md[:stopped_early] == false
+                @test md[:steps] > 0 && md[:t_final] ≈ 0.1 && md[:float_type] == "Float64"
+                @test md[:provenance][:solver_module] == "HyperCloud"
+                # a second run is cached
+                @test length(run_all_simulations(conf; calculate_stats = false).cached) == 1
                 exact = analytical_solution(p)
                 xs, us = sim.x[end], sim.u[end]
                 err = sum(i -> abs(exact(spacetime(xs[i], sim.t[end]))[1] - us[i][1]), eachindex(xs)) / length(xs)

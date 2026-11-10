@@ -19,6 +19,7 @@ All of them are `Ref`s, e.g. `HyperCloud.CONFIG_SEARCH_PATHS[] = ["my_cases"]`.
 @sim name
 @sim "name"
 @sim :name
+@sim name dry_run = true                  # options are passed on to run_all_simulations
 ```
 
 Runs the configuration returned by `name()`:
@@ -31,9 +32,21 @@ Runs the configuration returned by `name()`:
 
 If neither exists, `@sim` throws an `ErrorException`.
 
+`@sim` returns PDEStudioCore's `RunSummary`, which the REPL prints as a short report: what ran, what was taken from
+the cache, what produced nothing or failed (with the error message), and what was made with other code. Options
+after the name override the defaults `force_overwrite = false`, `calculate_stats = true`:
+
+- `dry_run = true` reports what would run and writes nothing;
+- `force_overwrite = true` recomputes every method;
+- `on_changed_sources = :recompute` recomputes cached results made with another HyperCloud version (`:warn`, the
+  default, keeps them with a warning; `:ignore` keeps them silently). PDEStudioCore compares the version of the
+  solver's own package only, so results made with another **HyperCloudCore** version are not detected; their
+  version is in `sim.metadata[:hypercloudcore]` (see [Simulation Engine](@ref)).
+
 !!! note "Failed runs do not abort a batch"
     The simulation runners catch exceptions, log them with `@error`, and return `nothing`.
-    A batch therefore continues past a failing method; check the log for errors.
+    A batch therefore continues past a failing method; the `RunSummary` lists such methods under
+    "produced nothing", and the log has the error.
 
 ## `@plot`
 
