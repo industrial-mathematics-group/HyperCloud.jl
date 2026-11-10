@@ -25,6 +25,12 @@ Both runners follow the same steps, sharing one `context` dictionary (see
 8. **Package** the snapshots into an `AbstractSimData` and add the statistics `Runtime`
    (wall-clock seconds), `k_step` (number of steps) and `final_particle_count`, plus
    `reserved_particles` and `reserved_bytes` with a [memory limit](@ref "Memory limit").
+   The dataset's `metadata` (PDEStudioCore ≥ 0.5: information about the run that is not data and is never
+   plotted) holds `:hypercloudcore` (the HyperCloudCore version), `:backend`, `:float_type`, `:steps`,
+   `:t_final` (the time reached) and `:stopped_early` (`true` if the run stopped before `tmax`, e.g. after a
+   blow-up: such a run is cached like any other, so check this flag before using it). The pipeline adds its
+   `:provenance` (PDEStudioCore, Julia and HyperCloud versions, host, threads, git commit, wall time).
+   `load_sim_data(params).metadata` returns all of it; PDEStudioCore's `sim_data_table()` lists the stored runs.
 
 The simulation precision is `params[:T]` (default `Float64`).
 
