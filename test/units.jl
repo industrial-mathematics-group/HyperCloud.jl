@@ -42,6 +42,11 @@
             @eval Main @sim :my_local_sim
             @eval Main @sim test_plugin
             @test_throws ErrorException @eval Main @sim missing_sim_config
+            # `@sim` returns PDEStudioCore's RunSummary and passes options on to run_all_simulations
+            @test (@eval Main @sim my_local_sim) isa RunSummary
+            s = @eval Main @sim my_local_sim dry_run = true
+            @test s isa RunSummary && s.dry_run
+            @test_throws ArgumentError macroexpand(Main, :(HyperCloud.@sim my_local_sim dry_run))
         end
 
         @testset "@backup" begin

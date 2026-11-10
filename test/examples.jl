@@ -32,7 +32,8 @@ enable_progress_bar!(false)
         @test !isempty(tasks)
         @test all(p -> haskey(p, :sim_func_name) && haskey(p, :Time_stepper), tasks)
 
-        run_all_simulations(conf; force_overwrite = true, calculate_stats = true)
+        summary = run_all_simulations(conf; force_overwrite = true, calculate_stats = true)
+        @test isempty(summary.failed) && isempty(summary.empty) && isempty(summary.stats_failed)   # nothing silently lost
 
         reference = conf.reference === nothing ? nothing : getfield(HyperCloud, conf.reference)
         for p in tasks

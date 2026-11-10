@@ -131,6 +131,27 @@ function _grid_fingerprint(pg::ParticleGrid)
             map(a -> collect(host_view(a, S)), (nb.indices, nb.weights, nb.distances)))
 end
 
+"""
+    run_metadata(context, k_step, t_final, tmax) -> Dict{Symbol, Any}
+
+What a runner stores in the dataset's `metadata` (PDEStudioCore ≥ 0.5; not data, so never plotted as a statistic):
+the HyperCloudCore version (PDEStudioCore's `:provenance` names only the solver's own package, HyperCloud), the
+execution backend, the float type, the number of steps, the time the run reached and whether it stopped before
+`tmax` (a blown-up run is stored like any other; `solve_equation` warns, and this flag keeps it findable later).
+"""
+function run_metadata(context::Dict, k_step::Integer, t_final::Real, tmax::Real)
+    T = get(context, :T, Float64)
+    return Dict{Symbol, Any}(
+        :hypercloudcore => string(pkgversion(HyperCloudCore)),
+        :backend        => string(nameof(typeof(get_backend()))),
+        :float_type     => string(T),
+        :steps          => Int(k_step),
+        :t_final        => Float64(t_final),
+        # the time loop ends within max(1e-12, 4 eps) tmax of tmax when it is not stopped
+        :stopped_early  => tmax - t_final > 2 * max(1e-12, 4 * eps(T)) * tmax,
+    )
+end
+
 "Logs the reservation of a run and records it in `sim_data`'s statistics (no-op without a memory limit)."
 function record_memory!(sim_data, context::Dict)
     haskey(context, :Memory) || return sim_data

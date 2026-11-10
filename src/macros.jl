@@ -133,13 +133,21 @@ end
 _normalize_macro_name(name) = name isa QuoteNode ? name.value : Symbol(name)
 
 """
-    @sim name
+    @sim name [key = value ...]
 
 Evaluates the configuration and runs the simulation. Checks the local module scope first; 
 if not found, dynamically loads the configuration from the user's configured search paths.
 Accepts strings (`"name"`), bare words (`name`), or symbols (`:name`).
+
+Returns PDEStudioCore's `RunSummary` (what ran, was cached, failed or was made with other code), which the REPL
+shows as a short report. Options after the name are passed to `run_all_simulations` and override the defaults
+`force_overwrite = false`, `calculate_stats = true`, e.g. `@sim euler_1d_sod dry_run = true` (report what would
+run, write nothing), `@sim euler_1d_sod on_changed_sources = :recompute` or `@sim euler_1d_sod force_overwrite = true`.
 """
-macro sim(name)
+macro sim(name, opts...)
+    all(o -> o isa Expr && o.head === :(=) && o.args[1] isa Symbol, opts) ||
+        throw(ArgumentError("@sim: options after the name must be `key = value`, got $(join(opts, ", "))"))
+    kw = Expr(:tuple, Expr(:parameters, (Expr(:kw, o.args[1], esc(o.args[2])) for o in opts)...))   # (; key = value, ...)
     mod = __module__
     raw_sym = _normalize_macro_name(name)
     name_sym = QuoteNode(raw_sym)
@@ -163,7 +171,8 @@ macro sim(name)
             end
         end
         
-        Base.invokelatest(() -> run_all_simulations(config; force_overwrite=false, calculate_stats=true))
+        opts = merge((force_overwrite = false, calculate_stats = true), $kw)
+        Base.invokelatest(() -> run_all_simulations(config; opts...))
     end
 end
 
