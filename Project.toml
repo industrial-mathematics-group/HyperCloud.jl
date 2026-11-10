@@ -1,6 +1,6 @@
 name = "HyperCloud"
 uuid = "46243fee-3493-4f45-a265-764054f6ddcc"
-version = "0.6.0"
+version = "0.7.0"
 authors = ["Pascal Jung <dev@blackslash.win>"]
 
 [deps]
@@ -17,7 +17,7 @@ StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 Dates = "1"
 HyperCloudCore = "0.8"
 LinearAlgebra = "1.12"
-PDEStudioCore = "0.4"
+PDEStudioCore = "0.5"
 ProgressMeter = "1"
 Random = "1"
 Reexport = "1"
