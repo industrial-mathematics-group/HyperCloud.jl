@@ -3,7 +3,7 @@ name: Sync CITATION.cff Version
 on:
   push:
     branches:
-      - main
+      - main_dev
     paths:
       - "Project.toml"
   workflow_dispatch:
