@@ -64,6 +64,7 @@ function run_bgk_simulation(params::ParamDict)::Union{AbstractSimData, Nothing}
 
         # 4. Geometry & Grid
         geom = build_domain(domain_conf, context)
+        _check_wall_ops(eq, geom)
         context[:Domain] = geom
         context[:WeightConf] = weight_conf
 

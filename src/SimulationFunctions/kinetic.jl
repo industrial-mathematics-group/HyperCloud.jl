@@ -54,6 +54,7 @@ function run_kinetic_simulation(params::ParamDict)::Union{AbstractSimData, Nothi
         
         # 4. Geometry & Grid
         geom = build_domain(domain_conf, context)
+        _check_wall_ops(eq_kin, geom)
         context[:Domain] = geom
         context[:WeightConf] = weight_conf
         

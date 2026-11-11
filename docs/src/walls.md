@@ -25,6 +25,14 @@ params[:Grid_bc]     = Dict(1 => slip_wall(), 2 => slip_wall())
 
 The canvas must reach beyond a moving face: a face on the end of the canvas shares its ghosts with the static wall there, and the grid refuses it. Keep the step below a quarter spacing per step for the piece (`|w| Δt ≤ Δx / 4`; the CFL number does not see the wall speed).
 
+**Caching.** The motion of a `Moving` piece is a function, and the parameter hash reduces functions to `"Closure"`: two runs that differ only in the motion of a shape instance share one cache file, and the second returns the first's result. Give the shape as a string of code instead, which the hash sees in full and in which `T` is the run's float type (so it works in Float32 too); [`euler_1d_piston`](@ref) does this:
+
+```julia
+params[:Grid_shape] = "intersect(Tagged(Cuboid((T(0),), (T(1.5),)), 1), Moving(Tagged(HalfSpace((T(1),), (T(1),)), 2), translating((-T(0.5),))))"
+```
+
+The runners check the wall operators before the first step: an operator without a method for the equation (`SlipWall` on linear advection, `DiffuseWall` on Euler) or a sliding velocity of the wrong length is an `ArgumentError` naming the boundary tag, not a `MethodError` from inside the kernel.
+
 ## What was measured
 
 - **Euler, shock reflection** (gas at `u = 1` against a slip wall, `MUSCL2 VK`, 200 particles, `t = 0.3`): the plateau behind the reflected shock is `ρ = 2.0774`, `p = 2.9267`, `u = 4·10⁻⁴` against the Rankine–Hugoniot state `2.0792`, `2.9266`, `0` (`p` within `10⁻⁴`, `ρ` within `2·10⁻³`).

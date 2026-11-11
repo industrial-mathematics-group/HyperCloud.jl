@@ -177,7 +177,7 @@ end
     # Unit-density discrete Maxwellian of the wall
     Uw = SVector{D + 2, T}(one(T), w..., T(0.5) * sum(abs2, w) + T(0.5) * (T(D) + eq.K) * θw)
     Mw, ok = equilibrium(eq, Uw)
-    ok || return f
+    ok || return f                     # no wall Maxwellian on the grid: the runners refuse such a wall before the run
     # Flux balance of the relative normal velocity: what the fluid sends into the wall comes back
     Φin, Φout = zero(T), zero(T)
     @inbounds for k in 1:NV
@@ -197,6 +197,40 @@ end
         c = sum((v - w) .* n)
         @inbounds c > zero(T) ? f[k] : α * ρw * Mw[k] + (one(T) - α) * spec[k]
     end)
+end
+
+# -------------------------------------------------------------------------
+# Host-side checks before a run
+# -------------------------------------------------------------------------
+# The operators run inside the ghost-fit kernel: an operator without a method for the equation was a MethodError at
+# the first ghost update (a compile error on a device), a sliding velocity of the wrong length too, and a wall
+# Maxwellian that does not exist on the velocity grid made the wall silently an even reflection (no wall at all).
+# The runners check the conditions of the domain once, before the first step.
+function _check_wall_ops(eq::HyperbolicPDE{D, M, T}, geom) where {D, M, T}
+    for (tag, bc) in geom.bc_map
+        bc isa MirrorBC && bc.op !== nothing && _check_wall_op(bc.op, eq, tag)
+    end
+    return nothing
+end
+
+function _check_wall_op(op, eq::HyperbolicPDE{D, M, T}, tag) where {D, M, T}
+    n = Space{D, T}(ntuple(d -> d == 1 ? one(T) : zero(T), Val(D)))
+    applicable(op, eq, zero(State{M, T}), WallPoint(zero(Space{D, T}), n, zero(T), zero(Space{D, T}))) ||
+        throw(ArgumentError("the wall operator $(nameof(typeof(op))) of boundary tag $tag has no method for $(nameof(typeof(eq))) " *
+                            "(SlipWall: Euler and BGK; DiffuseWall: BGK)"))
+    return nothing
+end
+
+function _check_wall_op(wd::DiffuseWall, eq::HyperbolicPDE{D, M, T}, tag) where {D, M, T}
+    wd.velocity === nothing || length(wd.velocity) == D ||
+        throw(ArgumentError("DiffuseWall of boundary tag $tag: the sliding velocity has length $(length(wd.velocity)), the run is $D-D"))
+    invoke(_check_wall_op, Tuple{Any, HyperbolicPDE{D, M, T}, Any}, wd, eq, tag)
+    w  = wd.velocity === nothing ? zero(Space{D, T}) : Space{D, T}(wd.velocity)
+    Uw = SVector{D + 2, T}(one(T), w..., T(0.5) * sum(abs2, w) + T(0.5) * (T(D) + eq.K) * T(wd.temperature))
+    equilibrium(eq, Uw)[2] ||
+        throw(ArgumentError("DiffuseWall of boundary tag $tag: no discrete Maxwellian at the wall temperature " *
+                            "$(wd.temperature) and velocity $(wd.velocity) (the wall would not act)"))
+    return nothing
 end
 
 # -------------------------------------------------------------------------

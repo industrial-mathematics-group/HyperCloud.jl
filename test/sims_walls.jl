@@ -67,6 +67,11 @@ end
         @test_throws ArgumentError DiffuseWall(0.0)
         @test_throws ArgumentError DiffuseWall(1.0; accommodation = 2)
         @test slip_wall() isa MirrorBC{1, SlipWall, true} && diffuse_wall(1.5; degree = 2) isa MirrorBC{2, <:DiffuseWall, true}
+        # the runners check the operators before the first step (inside the kernel a MethodError, or no wall at all)
+        box1 = get_rectangular_domain(Float64, (0.0,), (1.0,); bc_map = BCD(1 => slip_wall(), 2 => slip_wall()))
+        lin  = LinearAdvection(((1.0,),), Float64)
+        @test_throws ArgumentError HyperCloud._check_wall_ops(lin, box1)
+        @test HyperCloud._check_wall_ops(EulerEquation(Val(1), Float64), box1) === nothing
         # BGK: specular reflection flips the node index along the wall axis; the diffuse wall returns an
         # equilibrium at its own temperature into itself (exact discrete flux balance)
         nodes, weights = velocity_grid(:uniform, 8, 6.0)
@@ -79,6 +84,11 @@ end
         @test DiffuseWall(1.0)(bgk, feq, w1) ≈ feq atol = 1e-13
         @test DiffuseWall(1.0; accommodation = 0.3)(bgk, feq, w1) ≈ feq atol = 1e-13
         # a hotter wall emits a hotter half: the outgoing (v < 0, into the fluid at x < 1) components change
+        boxd(op) = get_rectangular_domain(Float64, (0.0,), (1.0,); bc_map = BCD(1 => MirrorBC(op), 2 => MirrorBC(op)))
+        @test HyperCloud._check_wall_ops(bgk, boxd(DiffuseWall(2.0))) === nothing
+        @test_throws ArgumentError HyperCloud._check_wall_ops(bgk, boxd(DiffuseWall(1.0; velocity = (0.1, 0.2))))
+        @test_throws ArgumentError HyperCloud._check_wall_ops(bgk, boxd(DiffuseWall(1.0; velocity = (NaN,))))   # no Maxwellian
+        @test_throws ArgumentError HyperCloud._check_wall_ops(EulerEquation(Val(1), Float64), boxd(DiffuseWall(1.0)))
         hot = DiffuseWall(2.0)(bgk, feq, w1)
         @test all(k -> (velocity_node(bgk, k)[1][1] > 0) == (hot[k] == feq[k]), 1:8)
         @test moments(bgk, hot)[1] > 0
@@ -150,6 +160,14 @@ end
         @test conf.reference == :exact_piston
         ex = exact_piston(conf.shared)
         @test ex(SVector(0.2, 0.3))[1] == 1.0 && ex(SVector(0.8, 0.3))[1] ≈ ρ₂
+        # its shape is a string, so the piston speed is in the parameter hash (a Moving instance's motion is a
+        # closure, which the hash does not see), and it builds in the run's float type
+        @test euler_1d_piston(speed = 0.4).shared[:Grid_shape] != conf.shared[:Grid_shape]
+        @test euler_1d_piston(speed = 0.4).shared[:piston_speed] == 0.4
+        p32 = merge(conf.shared, conf.methods[:RK2MUSCL2_VK], Dict{Symbol, Any}(:T => Float32, :Grid_Ns => (60,), :tmax => 0.05, :snapshots => 1))
+        sim32 = run_direct_simulation(p32)
+        @test sim32 !== nothing && eltype(sim32.u[end][1]) == Float32
+        @test HyperCloud.piston_state(1.0, 1.0, 50.0, 1.4)[2] > 1000      # a fast piston is bracketed (capped at 1000 p₁)
         # a piston face on the end of the canvas has no ghosts of its own: refused
         bad = intersect(Tagged(Cuboid((0.0,), (1.0,)), 1), piston)
         @test_throws ArgumentError ParticleGrid(GeometricDomain(bad; mins = (0.0,), maxs = (1.0,)), (0.01,), ExponentialWeightFunction(1.0, 0.025), 3)

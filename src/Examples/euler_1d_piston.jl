@@ -21,7 +21,10 @@ Rankine–Hugoniot state behind a piston moving at speed `w` into a gas `(ρ₁,
 """
 function piston_state(ρ₁::Real, p₁::Real, w::Real, γ::Real)
     g(p₂) = (p₂ - p₁) / sqrt(ρ₁ * ((γ + 1) / 2 * p₂ + (γ - 1) / 2 * p₁)) - w
-    lo, hi = p₁, 1000p₁
+    lo, hi = p₁, 2p₁
+    while g(hi) <= 0                      # g grows like √p₂: any piston speed is bracketed
+        lo, hi = hi, 2hi
+    end
     for _ in 1:200
         mid = (lo + hi) / 2
         g(mid) > 0 ? (hi = mid) : (lo = mid)
@@ -51,10 +54,24 @@ function exact_piston(params::Dict)
     return xt -> xt[1] < x_f - S * xt[2] ? U₁ : U₂
 end
 
-function euler_1d_piston()
-    w = PISTON_SPEED
-    piston = Moving(Tagged(HalfSpace((PISTON_FACE,), (1.0,)), 2), translating((-w,)))
-    tube   = intersect(Tagged(Cuboid((0.0,), (1.5,)), 1), piston)       # the canvas reaches beyond the face
+# The tube with the piston face at `face` moving at `-speed`, as a string of code in the run's float type `T`: the
+# parameter hash sees a string in full (the motion of a `Moving` instance is a closure, which it reduces to
+# "Closure", so runs at different piston speeds shared one cache file), and `T` makes it work in Float32
+piston_shape(speed::Real, face::Real) =
+    "intersect(Tagged(Cuboid((T(0),), (T(1.5),)), 1), Moving(Tagged(HalfSpace((T($face),), (T(1),)), 2), translating((-T($speed),))))"
+
+"""
+    euler_1d_piston(; speed = 0.5, face = 1.0) -> SimulationConfig
+
+A piston face starting at `face` and driven at `speed` into a gas at rest in the tube `[0, 1.5]` (the canvas
+reaches beyond the face), with the exact solution [`exact_piston`](@ref) as reference. The shape is given as a
+string (`:Grid_shape`), so the piston speed is part of the parameter hash and the run follows `:T`; the keys
+`:piston_speed` and `:piston_face` feed the reference. Change the speed through the keyword (shape and reference
+together), not by overriding `:piston_speed` alone.
+"""
+function euler_1d_piston(; speed::Real = PISTON_SPEED, face::Real = PISTON_FACE)
+    w = speed
+    0 < face < 1.5 || throw(ArgumentError("euler_1d_piston: the face must lie inside the canvas (0, 1.5), got $face"))
 
     shared = Dict{Symbol, Any}(
         :PDE_name => :euler,
@@ -65,10 +82,10 @@ function euler_1d_piston()
         :tmax => 0.3,
         :snapshots => 30,
         :piston_speed => w,
-        :piston_face => PISTON_FACE,
+        :piston_face => face,
 
         :Grid_domain => :shape,
-        :Grid_shape => tube,
+        :Grid_shape => piston_shape(w, face),
         :Grid_mins => (0.0,),
         :Grid_maxs => (1.5,),
         :Grid_Ns => (300,),

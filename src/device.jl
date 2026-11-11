@@ -146,7 +146,7 @@ function run_metadata(context::Dict, k_step::Integer, t_final::Real, tmax::Real;
     T = get(context, :T, Float64)
     return Dict{Symbol, Any}(
         :hypercloudcore => string(pkgversion(HyperCloudCore)),
-        :backend        => string(nameof(typeof(get_backend()))),
+        :backend        => _backend_name(get_backend()),
         :float_type     => string(T),
         :steps          => Int(k_step),
         :t_final        => Float64(t_final),
@@ -155,6 +155,10 @@ function run_metadata(context::Dict, k_step::Integer, t_final::Real, tmax::Real;
         :finite         => final_state === nothing || all(u -> all(isfinite, u), final_state),
     )
 end
+
+# The execution backend, with the KernelAbstractions device (`KABackend(CPU)` is the PoCL check, not a GPU run)
+_backend_name(b) = string(nameof(typeof(b)))
+_backend_name(b::KABackend) = "KABackend(" * string(nameof(typeof(b.backend))) * ")"
 
 "Logs the reservation of a run and records it in `sim_data`'s statistics (no-op without a memory limit)."
 function record_memory!(sim_data, context::Dict)
