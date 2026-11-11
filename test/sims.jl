@@ -85,7 +85,9 @@
         @test length(warnsb) == 2 && occursin("times larger than at t = 0", warnsb[1]) && occursin("stopped before tmax", warnsb[2])
         # ... also when the final slot is the only one after t = 0
         pb1 = merge(pb, Dict{Symbol, Any}(:snapshots => 1))
-        @test_logs (:warn, r"is not finite \(blown up\)") match_mode = :any run_direct_simulation(pb1)
+        simb1 = @test_logs (:warn, r"is not finite \(blown up\)") match_mode = :any run_direct_simulation(pb1)
+        # reaches tmax with a non-finite state: findable by :finite, not by :stopped_early
+        @test simb1 !== nothing && !simb1.metadata[:stopped_early] && !simb1.metadata[:finite]
         # A NaN state has an infinite CFL step (NaN wave speeds are skipped): it stops, it doesn't jump to tmax
         pnan = merge(burgers_1d_gauss(50), UPWIND1, Dict{Symbol, Any}(:IC_a => (NaN,), :snapshots => 1))
         logsnan, simnan = Test.collect_test_logs(() -> run_direct_simulation(pnan))
@@ -101,7 +103,8 @@
         pf = merge(sod1.shared, sod1.methods[:RK2MUSCL2_VK], Dict{Symbol, Any}(:Grid_Ns => (100,), :Time_dt => 0.05,
                    :Limiter_name => :none, :tmax => 0.2, :snapshots => 1))
         delete!(pf, :Time_CFL)
-        @test_logs (:warn, r"not finite") match_mode = :any run_direct_simulation(pf)
+        simf = @test_logs (:warn, r"not finite") match_mode = :any run_direct_simulation(pf)
+        @test simf !== nothing && !simf.metadata[:finite]
         # An infinite fixed step is not a step
         pinf = merge(linear_1d_gauss(50), UPWIND1, Dict{Symbol, Any}(:Time_dt => Inf))
         delete!(pinf, :Time_CFL)

@@ -84,7 +84,8 @@ function run_direct_simulation(params::ParamDict)::Union{AbstractSimData, Nothin
         # 9. Data Packaging
         valid_indices = findall(i -> isassigned(us_svector, i), 1:length(us_svector))
         sim_data = create_sim_data(xs_svector[valid_indices], us_svector[valid_indices], ts_full[valid_indices], params; xmins=Tuple(geom.mins), xmaxs=Tuple(geom.maxs), tmin=zero(T), tmax=tmax,
-                                   metadata = run_metadata(context, k_step, ts_full[last(valid_indices)], tmax))
+                                   metadata = run_metadata(context, k_step, ts_full[last(valid_indices)], tmax;
+                                                           final_state = us_svector[last(valid_indices)]))
         add_stat!(sim_data, :Runtime, elapsed_time, :none)
         add_stat!(sim_data, :k_step, Float64(k_step), :none)
         add_stat!(sim_data, :final_particle_count, Float64(pg.meta.N), :none)

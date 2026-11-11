@@ -132,14 +132,17 @@ function _grid_fingerprint(pg::ParticleGrid)
 end
 
 """
-    run_metadata(context, k_step, t_final, tmax) -> Dict{Symbol, Any}
+    run_metadata(context, k_step, t_final, tmax; final_state = nothing) -> Dict{Symbol, Any}
 
 What a runner stores in the dataset's `metadata` (PDEStudioCore ≥ 0.5; not data, so never plotted as a statistic):
 the HyperCloudCore version (PDEStudioCore's `:provenance` names only the solver's own package, HyperCloud), the
-execution backend, the float type, the number of steps, the time the run reached and whether it stopped before
-`tmax` (a blown-up run is stored like any other; `solve_equation` warns, and this flag keeps it findable later).
+execution backend, the float type, the number of steps, the time the run reached, whether it stopped before
+`tmax` (`:stopped_early`) and, given the last stored state, whether that state is finite (`:finite`). A blown-up
+run is stored like any other (`solve_equation` warns); these two flags keep it findable later. Both are needed: a
+blow-up the time step does not see (fixed `dt`, constant wave speeds) is only detected at stored snapshots, so with
+`snapshots = 1` the run reaches `tmax` with a non-finite state.
 """
-function run_metadata(context::Dict, k_step::Integer, t_final::Real, tmax::Real)
+function run_metadata(context::Dict, k_step::Integer, t_final::Real, tmax::Real; final_state = nothing)
     T = get(context, :T, Float64)
     return Dict{Symbol, Any}(
         :hypercloudcore => string(pkgversion(HyperCloudCore)),
@@ -149,6 +152,7 @@ function run_metadata(context::Dict, k_step::Integer, t_final::Real, tmax::Real)
         :t_final        => Float64(t_final),
         # the time loop ends within max(1e-12, 4 eps) tmax of tmax when it is not stopped
         :stopped_early  => tmax - t_final > 2 * max(1e-12, 4 * eps(T)) * tmax,
+        :finite         => final_state === nothing || all(u -> all(isfinite, u), final_state),
     )
 end
 
