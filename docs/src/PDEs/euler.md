@@ -53,6 +53,12 @@ solution is the left fan up to its tail ``u_L + 2c_L/(\gamma - 1)``, vacuum (``\
 momentum) up to ``u_R - 2c_R/(\gamma - 1)``, and the right fan beyond. Close to this limit ``p^*`` is
 floored at ``10^{-9}``. Initial states that are already vacuum (``\rho_{L/R} = 0``) are not handled.
 
+## Walls
+
+`slip_wall()` is the reflecting wall (`MirrorBC` with the `SlipWall` operator: density and pressure of the mirrored
+state, velocity reflected relative to the wall, which may move). See [Walls and Moving Boundaries](@ref) for the
+measured shock reflection and piston.
+
 ## API
 
 ```@docs

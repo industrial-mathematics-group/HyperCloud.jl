@@ -45,10 +45,11 @@ The equation representation is read from the same namespace by `parse_representa
 
 | Key | Default | Meaning |
 |:----|:--------|:--------|
-| `:domain` | — | `:rectangular`, `:spherical`, or a pre-built `GeometricDomain`. Required. |
-| `:mins`, `:maxs` | — | Bounding box (tuples of length `D`). A spherical domain uses their midpoint as center and half the first extent as radius. |
+| `:domain` | — | `:rectangular`, `:spherical`, `:shape`, or a pre-built `GeometricDomain`. Required. |
+| `:shape` | — | With `:domain => :shape`: an `AbstractShape` of HyperCloudCore (boxes, balls, half spaces, their combinations, `Moving` pieces; see [Geometric Domains](@extref HyperCloudCore Geometric-Domains) and [Walls and Moving Boundaries](@ref)), or a string of Julia code building one. |
+| `:mins`, `:maxs` | — | Bounding box (tuples of length `D`). A spherical domain uses their midpoint as center and half the first extent as radius; a shape needs them where it is unbounded (a piston's half space, a periodic axis). |
 | `:periodic` | `false` | `Bool` or `NTuple{D, Bool}`. |
-| `:bc` | none | Boundary conditions: `Dict(tag => bc)` where `bc` is an `AbstractBoundaryCondition`, `:outflow`, `:fixed_dirichlet`, or the name of a zero-argument constructor (looked up in HyperCloudCore, then in `Main`; see [`parse_bc`](@extref HyperCloudCore HyperCloudCore.parse_bc)). A string is parsed as Julia code. |
+| `:bc` | none | Boundary conditions: `Dict(tag => bc)` where `bc` is an `AbstractBoundaryCondition` (e.g. `slip_wall()`, `diffuse_wall(θ)`, see [Walls and Moving Boundaries](@ref)), `:outflow`, `:fixed_dirichlet`, or the name of a zero-argument constructor (looked up in HyperCloudCore, then in `Main`; see [`parse_bc`](@extref HyperCloudCore HyperCloudCore.parse_bc)). A string is parsed as Julia code. |
 | `:Ns` | — | Particles per direction (tuple). The nominal spacing is `(maxs - mins) ./ Ns`. |
 | `:randomness_factor` | — | Jitter per direction as a fraction of the spacing (tuple). |
 | `:seed` | `42` | RNG seed for the jitter. |

@@ -32,6 +32,7 @@ with `ka_cpu` too when a change touches anything that ends up in a kernel.
 |:-----|:---------|
 | `src/PDEs/` | Equations (`Conservative` form; `NCRepresentation` is only an extension point, no non-conservative form is implemented), `analytical_solution` |
 | `src/ICs/` | Initial condition functors and `build_ic` |
+| `src/BoundaryConditions/` | Wall operators for HyperCloudCore's `MirrorBC`: `SlipWall` (Euler, BGK specular), `DiffuseWall` (BGK), `slip_wall`/`diffuse_wall` |
 | `src/SourceTerms/` | Kinetic relaxation source terms |
 | `src/Builder/` | `build_equation`, kinetic system builder, reference solutions |
 | `src/SimulationFunctions/` | `run_direct_simulation`, `run_kinetic_simulation` |
