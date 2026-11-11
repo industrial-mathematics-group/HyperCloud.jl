@@ -30,8 +30,10 @@ Operator of a reflecting (slip, adiabatic) wall for [`MirrorBC`](@extref HyperCl
   (density and internal energy kept, velocity reflected as for Euler), which is exact, and the non-equilibrium
   rest of the distribution, interpolated (multilinearly on the tensor grid) at the reflected velocities. The
   components leaving the wall are then scaled so that the net mass flux through the wall vanishes, as for
-  [`DiffuseWall`](@ref). A gas in equilibrium (at rest next to a curved wall, or drifting along an oblique one)
-  is reflected exactly; the interpolation error of the non-equilibrium part is second order in the node spacing.
+  [`DiffuseWall`](@ref). A gas at rest next to a curved wall is reflected exactly, a drifting equilibrium at an
+  oblique wall up to the zero-flux scaling (2e-4 to 2e-3 in the moments, shrinking with the velocity grid); the
+  interpolated non-equilibrium part is clipped at zero (it made the ghost negative for strongly non-equilibrium
+  gases, -10 % of max f for two beams at an oblique wall), so the reflection stays non-negative.
 """
 struct SlipWall end
 
@@ -114,7 +116,7 @@ end
         kk = k > NV ? k - NV : k
         v, _ = velocity_node(eq, kk)
         c = sum((v - w) .* n)
-        (use_eq ? (@inbounds Mr[k]) : zero(T)) + _interp_f(eq, neq, v - (2c) * n, k > NV ? NV : 0)
+        max(zero(T), (use_eq ? (@inbounds Mr[k]) : zero(T)) + _interp_f(eq, neq, v - (2c) * n, k > NV ? NV : 0))
     end)
     # Mass flux through the wall: incident part of the interior (mirrored) state, emitted part of the reflection
     Φin, Φout = zero(T), zero(T)
@@ -227,9 +229,14 @@ function _check_wall_op(wd::DiffuseWall, eq::HyperbolicPDE{D, M, T}, tag) where 
     invoke(_check_wall_op, Tuple{Any, HyperbolicPDE{D, M, T}, Any}, wd, eq, tag)
     w  = wd.velocity === nothing ? zero(Space{D, T}) : Space{D, T}(wd.velocity)
     Uw = SVector{D + 2, T}(one(T), w..., T(0.5) * sum(abs2, w) + T(0.5) * (T(D) + eq.K) * T(wd.temperature))
-    equilibrium(eq, Uw)[2] ||
-        throw(ArgumentError("DiffuseWall of boundary tag $tag: no discrete Maxwellian at the wall temperature " *
-                            "$(wd.temperature) and velocity $(wd.velocity) (the wall would not act)"))
+    # `equilibrium` reports success also where the grid cannot carry the wall's Maxwellian (θ_w = 1e-4 on 8 nodes:
+    # density 0, the wall swallowed every incoming particle; 0.05: three times the temperature): compare its moments
+    Mw, ok = equilibrium(eq, Uw)
+    m  = moments(eq, Mw)
+    ok && m[1] > zero(T) && maximum(abs.(m ./ m[1] .- Uw)) <= T(1e-3) * max(one(T), maximum(abs, Uw)) ||
+        throw(ArgumentError("DiffuseWall of boundary tag $tag: the velocity grid has no discrete Maxwellian at the wall " *
+                            "temperature $(wd.temperature) and velocity $(wd.velocity) (moments per unit density $(m ./ m[1]), " *
+                            "wanted $Uw); refine or widen the velocity grid"))
     return nothing
 end
 

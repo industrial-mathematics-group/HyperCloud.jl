@@ -274,7 +274,7 @@
                 @test sim.t[end] ≈ 0.1
                 # the runner's metadata comes back with the data, next to PDEStudioCore's provenance
                 md = sim.metadata
-                @test md[:hypercloudcore] == string(pkgversion(HyperCloudCore)) && md[:stopped_early] == false
+                @test md[:hypercloudcore] == string(pkgversion(HyperCloudCore)) && md[:stopped_early] == false && md[:finite]
                 @test md[:steps] > 0 && md[:t_final] ≈ 0.1 && md[:float_type] == "Float64"
                 @test md[:provenance][:solver_module] == "HyperCloud"
                 # a second run is cached

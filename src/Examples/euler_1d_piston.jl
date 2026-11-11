@@ -71,7 +71,13 @@ together), not by overriding `:piston_speed` alone.
 """
 function euler_1d_piston(; speed::Real = PISTON_SPEED, face::Real = PISTON_FACE)
     w = speed
-    0 < face < 1.5 || throw(ArgumentError("euler_1d_piston: the face must lie inside the canvas (0, 1.5), got $face"))
+    # the exact solution is the shock of a piston moving into the gas (a receding piston drives a rarefaction), and
+    # the face must stay away from the left wall until tmax = 0.3 (the shock ahead of it reaches the wall first)
+    speed > 0 || throw(ArgumentError("euler_1d_piston: the piston must move into the gas (speed > 0), got $speed"))
+    face < 1.5 || throw(ArgumentError("euler_1d_piston: the face must lie inside the canvas (< 1.5), got $face"))
+    _, _, S = piston_state(1.0, 1.0, speed, 1.4)
+    face - S * 0.3 > 0.05 ||
+        throw(ArgumentError("euler_1d_piston: the shock reaches the left wall before tmax = 0.3 (face $face, shock speed $S); move the face right"))
 
     shared = Dict{Symbol, Any}(
         :PDE_name => :euler,

@@ -88,6 +88,7 @@ end
         @test HyperCloud._check_wall_ops(bgk, boxd(DiffuseWall(2.0))) === nothing
         @test_throws ArgumentError HyperCloud._check_wall_ops(bgk, boxd(DiffuseWall(1.0; velocity = (0.1, 0.2))))
         @test_throws ArgumentError HyperCloud._check_wall_ops(bgk, boxd(DiffuseWall(1.0; velocity = (NaN,))))   # no Maxwellian
+        @test_throws ArgumentError HyperCloud._check_wall_ops(bgk, boxd(DiffuseWall(1e-4)))    # too cold for 8 nodes: emits nothing
         @test_throws ArgumentError HyperCloud._check_wall_ops(EulerEquation(Val(1), Float64), boxd(DiffuseWall(1.0)))
         hot = DiffuseWall(2.0)(bgk, feq, w1)
         @test all(k -> (velocity_node(bgk, k)[1][1] > 0) == (hot[k] == feq[k]), 1:8)
@@ -164,6 +165,8 @@ end
         # closure, which the hash does not see), and it builds in the run's float type
         @test euler_1d_piston(speed = 0.4).shared[:Grid_shape] != conf.shared[:Grid_shape]
         @test euler_1d_piston(speed = 0.4).shared[:piston_speed] == 0.4
+        @test_throws ArgumentError euler_1d_piston(speed = -0.5)
+        @test_throws ArgumentError euler_1d_piston(face = 0.3)
         p32 = merge(conf.shared, conf.methods[:RK2MUSCL2_VK], Dict{Symbol, Any}(:T => Float32, :Grid_Ns => (60,), :tmax => 0.05, :snapshots => 1))
         sim32 = run_direct_simulation(p32)
         @test sim32 !== nothing && eltype(sim32.u[end][1]) == Float32
@@ -218,6 +221,16 @@ end
             t = sim.t[end]
             ρ, u, pr = plateau(sim, 1 - S * t + 0.06, 1 - w * t - 0.08)
             @test abs(ρ - ρ₂) / ρ₂ < 0.012 && abs(pr - p₂) / p₂ < 0.012 && abs(u + w) < 0.012   # measured 1.482 / 1.747 / -0.493
+        end
+        # the same with a specular face: a moving wall takes the reflection off the node grid inside the kernel (the
+        # nearest-node reflection was 9 % low in ρ and 13 % in p)
+        ps = merge(p, Dict{Symbol, Any}(:Grid_Ns => (200,), :Grid_bc => BCD(1 => slip_wall(), 2 => slip_wall())))
+        sims = run_bgk_simulation(ps)
+        @test sims !== nothing
+        if sims !== nothing
+            t = sims.t[end]
+            ρ, u, pr = plateau(sims, 1 - S * t + 0.06, 1 - w * t - 0.08)
+            @test abs(ρ - ρ₂) / ρ₂ < 0.02 && abs(pr - p₂) / p₂ < 0.02 && abs(u + w) < 0.02
         end
     end
 end

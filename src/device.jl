@@ -156,7 +156,8 @@ function run_metadata(context::Dict, k_step::Integer, t_final::Real, tmax::Real;
     )
 end
 
-# The execution backend, with the KernelAbstractions device (`KABackend(CPU)` is the PoCL check, not a GPU run)
+# The execution backend, with the KernelAbstractions device ("KABackend(POCLBackend)" is the CPU check through PoCL,
+# not a GPU run)
 _backend_name(b) = string(nameof(typeof(b)))
 _backend_name(b::KABackend) = "KABackend(" * string(nameof(typeof(b.backend))) * ")"
 
