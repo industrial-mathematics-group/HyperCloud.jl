@@ -1,0 +1,17 @@
+## env_rr
+4 kinetic tasks; run_kinetic_simulation
+kinetic Burgers with slip_wall: sim === nothing: true
+  [Error] Error during Kinetic Simulation!
+    exception => ArgumentError: the wall operator SlipWall of boundary tag 2 has no method for LinearAdvection (SlipWall: Euler and BGK; DiffuseWall: BGK)
+DiffuseWall(0.0001) ghost finite: true  ghost θ of the emitted half: NaN
+DiffuseWall(0.01) ghost finite: true  ghost θ of the emitted half: 0.008000000000000012
+## env
+4 kinetic tasks; run_kinetic_simulation
+kinetic Burgers with slip_wall: sim === nothing: true
+  [Error] Error during Kinetic Simulation!
+    exception => MethodError: no method matching (::SlipWall)(::LinearAdvection{1, 2, Float64, 4}, ::SVector{2, Float64}, ::WallPoint{1, Float64})
+The object of type `SlipWall` exists, but no method is defined for this combination of argument types when trying to treat it as a callable object.
+
+Closest candidates ar
+DiffuseWall(0.0001) ghost finite: true  ghost θ of the emitted half: NaN
+DiffuseWall(0.01) ghost finite: true  ghost θ of the emitted half: 0.008000000000000012

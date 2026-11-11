@@ -1,0 +1,6 @@
+hot diffuse 1/2 N=50: Δtrapezoid 1.152e-02  θ at x=1 1.8318
+hot diffuse 1/2 N=100: Δtrapezoid 7.105e-03  θ at x=1 1.8556
+hot diffuse 1/2 N=200: Δtrapezoid 4.209e-03  θ at x=1 1.8714
+slip/slip, jump IC N=50: Δtrapezoid -1.499e-04  θ at x=1 1.0347
+slip/slip, jump IC N=100: Δtrapezoid -3.922e-05  θ at x=1 1.0363
+slip/slip, jump IC N=200: Δtrapezoid -1.021e-05  θ at x=1 1.0369

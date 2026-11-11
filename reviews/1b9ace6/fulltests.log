@@ -1,0 +1,40 @@
+[ Info: Testing with PolyesterBackend() on 6 threads
+Running 7 test groups in up to 7 processes (1 thread(s) each)
+
+============================== test group `units`: passed in 29.2 s
+Test Summary: | Pass  Total   Time
+units         |  841    841  27.0s
+test group `units`: peak memory 1027 MiB
+
+============================== test group `walls`: passed in 51.3 s
+Test Summary: | Pass  Total   Time
+walls         |   57     57  48.9s
+test group `walls`: peak memory 1258 MiB
+
+============================== test group `sims-bgk`: passed in 52.9 s
+Test Summary: | Pass  Total   Time
+sims-bgk      |   28     28  50.6s
+test group `sims-bgk`: peak memory 1259 MiB
+
+============================== test group `sweep-a`: passed in 64.9 s
+Test Summary: | Pass  Total     Time
+sweep-a       |   50     50  1m02.6s
+test group `sweep-a`: peak memory 1223 MiB
+
+============================== test group `sweep-b`: passed in 72.0 s
+Test Summary: | Pass  Total     Time
+sweep-b       |   48     48  1m09.6s
+test group `sweep-b`: peak memory 1205 MiB
+
+============================== test group `examples`: passed in 75.0 s
+Test Summary: | Pass  Total     Time
+examples      |   92     92  1m12.7s
+test group `examples`: peak memory 1282 MiB
+
+============================== test group `sims`: passed in 77.0 s
+Test Summary: | Pass  Total     Time
+sims          |  136    136  1m14.5s
+test group `sims`: peak memory 1275 MiB
+Test Summary:    | Pass  Total  Time
+HyperCloud Tests |    7      7  0.0s
+exit 0
