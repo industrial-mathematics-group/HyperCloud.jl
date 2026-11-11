@@ -11,6 +11,7 @@ const EXAMPLE_CHECKS = [
     (burgers_kinetic, 0.5,  Dict{Symbol, Any}(),                     0.003),
     (euler_1d_sod,    0.05, Dict{Symbol, Any}(),                     0.025),
     (bgk_1d_sod,      0.05, Dict{Symbol, Any}(:Grid_Ns => (165,)),   0.03),
+    (euler_1d_piston, 0.1,  Dict{Symbol, Any}(:Grid_Ns => (150,)),   0.03),   # the shock is smeared over a few particles
 ]
 
 "Mean absolute error of component 1 of the last stored snapshot against `exact`."

@@ -216,6 +216,7 @@ const TEST_GROUPS = [
     "sweep-a"  => ["sims_sweep.jl"],
     "sweep-b"  => ["sims_sweep.jl"],
     "sims"     => ["sims.jl"],
+    "walls"    => ["sims_walls.jl"],
     "examples" => ["examples.jl"],
 ]
 const TEST_GROUP = get(ENV, "HYPERCLOUD_TEST_GROUP", "")

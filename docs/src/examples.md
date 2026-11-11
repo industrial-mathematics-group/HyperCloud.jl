@@ -25,6 +25,13 @@ using HyperCloud
 
 ## Available benchmarks
 
+### 1D piston (`euler_1d_piston`)
+
+A wall driven at speed 0.5 into a gas at rest, a `Moving` half space with a slip wall: the shock it drives and the
+Rankine–Hugoniot plateau behind it, against the exact `exact_piston` (reference method `:exact_piston`).
+300 particles over `[0, 1.5]`, `tmax = 0.3`, MUSCL2 with the VK limiter and MUSCL3 with MOOD U2. See
+[Walls and Moving Boundaries](@ref).
+
 ### 1D Sod shock tube (`euler_1d_sod`)
 
 The classic Riemann problem for the Euler equations with ``\gamma = 1.4``.
