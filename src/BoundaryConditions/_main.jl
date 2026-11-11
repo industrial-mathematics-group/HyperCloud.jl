@@ -22,10 +22,16 @@ Operator of a reflecting (slip, adiabatic) wall for [`MirrorBC`](@extref HyperCl
 - **Euler:** the mirrored state keeps its density and pressure; its velocity is reflected relative to the wall,
   `u' = u - 2 ((u - w) ⋅ n) n` with the wall velocity `w` (zero for a static wall), so the normal velocity at the
   wall equals the wall's and the tangential one is kept.
-- **BGK:** specular reflection of the distribution, `f'(v) = f(v - 2 (v ⋅ n) n)`. Exact on the tensor velocity
-  grid for a wall normal along an axis (the node index is flipped; the grids of [`velocity_grid`](@ref) are
-  symmetric); for any other normal, and for a moving wall (`v' = v - 2 ((v - w) ⋅ n) n` is not a node), every
-  component takes the node nearest to its reflected velocity. Use [`DiffuseWall`](@ref) for moving kinetic walls.
+- **BGK:** specular reflection of the distribution, `f'(v) = f(v - 2 ((v - w) ⋅ n) n)`. Exact on the tensor
+  velocity grid when the reflection maps the grid onto itself: a wall normal along an axis whose normal wall
+  velocity equals the grid centre on that axis (`:PDE_vcenter`; a static wall on a grid centred at 0), where the
+  node index is flipped. Otherwise (oblique or curved walls, moving walls, a shifted grid) the reflected velocity
+  is not a node: the reflection is split into the discrete equilibrium of the reflected macroscopic state
+  (density and internal energy kept, velocity reflected as for Euler), which is exact, and the non-equilibrium
+  rest of the distribution, interpolated (multilinearly on the tensor grid) at the reflected velocities. The
+  components leaving the wall are then scaled so that the net mass flux through the wall vanishes, as for
+  [`DiffuseWall`](@ref). A gas in equilibrium (at rest next to a curved wall, or drifting along an oblique one)
+  is reflected exactly; the interpolation error of the non-equilibrium part is second order in the node spacing.
 """
 struct SlipWall end
 
@@ -53,28 +59,75 @@ end
     return k + (NV1 + 1 - 2 * idx) * NV1^(d - 1)
 end
 
-# Component (of the f block) whose velocity is nearest to `v`
-@inline function _nearest_node(eq::BGKEquation{D, M, T, NV1, NV}, v::Space{D, T}) where {D, M, T, NV1, NV}
-    best, kb = T(Inf), 1
-    @inbounds for k in 1:NV
-        vk, _ = velocity_node(eq, k)
-        d2 = sum(abs2, vk - v)
-        d2 < best && (best = d2; kb = k)
+# Bracketing node index `i` (nodes[i] ≤ x ≤ nodes[i+1], clamped to the grid) and the linear weight of node i + 1
+@inline function _bracket(nodes::SVector{NV1, T}, x::T) where {NV1, T}
+    i = 1
+    @inbounds while i < NV1 - 1 && nodes[i + 1] < x
+        i += 1
     end
-    return kb
+    @inbounds t = clamp((x - nodes[i]) / (nodes[i + 1] - nodes[i]), zero(T), one(T))
+    return i, t
+end
+
+# f (block starting at `off`: 0 for f, NV for h) interpolated multilinearly at the velocity `v` on the tensor grid
+@inline function _interp_f(eq::BGKEquation{D, M, T, NV1, NV}, f::State{M, T}, v::Space{D, T}, off::Int) where {D, M, T, NV1, NV}
+    br = ntuple(d -> _bracket(eq.nodes, v[d] - eq.center[d]), Val(D))
+    acc = zero(T)
+    @inbounds for corner in 0:(2^D - 1)
+        k, wt = 1, one(T)
+        for d in 1:D
+            hi = (corner >> (d - 1)) & 1 == 1
+            i, t = br[d]
+            k  += (hi ? i : i - 1) * NV1^(d - 1)
+            wt *= hi ? t : one(T) - t
+        end
+        acc += wt * f[off + k]
+    end
+    return acc
 end
 
 @inline function _specular(eq::BGKEquation{D, M, T, NV1, NV}, f::State{M, T}, n::Space{D, T}, w::Space{D, T}) where {D, M, T, NV1, NV}
     ax = _axis_of(n)
-    if ax > 0 && iszero(w)
+    # Exact node flip: along an axis the reflection v_ax -> 2 w_ax - v_ax maps the (symmetric) grid onto itself if
+    # the grid is centred at the wall's normal velocity (it used to be taken for any static wall, which reflected
+    # about the grid centre: with :PDE_vcenter != 0 the wall was penetrable)
+    if ax > 0 && eq.center[ax] == w[ax]
         return State{M, T}(ntuple(k -> (@inbounds f[_flipped_index(eq, k, ax)]), Val(M)))
     end
+    # Otherwise the components leaving the wall ((v - w)⋅n < 0) take the reflection of f at their reflected velocity:
+    # the discrete equilibrium of the reflected macroscopic state (density and internal energy kept, velocity
+    # reflected relative to the wall) plus the non-equilibrium part of f interpolated (multilinearly) at the reflected
+    # velocity, then scaled so that the mass flux through the wall vanishes. The equilibrium part is reflected
+    # exactly, so a gas in equilibrium (at rest next to a curved wall, or drifting) is reflected into the correct
+    # equilibrium; the nearest node, used before, lost or gained mass (a gas at rest next to a disc drifted by 9 % in
+    # t = 0.1). If a discrete equilibrium does not exist, the whole of f is interpolated.
+    U  = moments(eq, f)
+    ρ  = U[1]
+    u  = Space{D, T}(ntuple(d -> U[1 + d], Val(D))) / ρ
+    ur = u - (2 * sum((u - w) .* n)) * n
+    Ur = SVector{D + 2, T}(ρ, (ρ * ur)..., U[D + 2] + T(0.5) * ρ * (sum(abs2, ur) - sum(abs2, u)))
+    Mf, ok1 = equilibrium(eq, U)
+    Mr, ok2 = equilibrium(eq, Ur)
+    use_eq  = ok1 && ok2
+    neq = use_eq ? f - Mf : f
+    raw = State{M, T}(ntuple(Val(M)) do k
+        kk = k > NV ? k - NV : k
+        v, _ = velocity_node(eq, kk)
+        c = sum((v - w) .* n)
+        (use_eq ? (@inbounds Mr[k]) : zero(T)) + _interp_f(eq, neq, v - (2c) * n, k > NV ? NV : 0)
+    end)
+    # Mass flux through the wall: incident part of the interior (mirrored) state, emitted part of the reflection
+    Φin, Φout = zero(T), zero(T)
+    @inbounds for k in 1:NV
+        v, wk = velocity_node(eq, k)
+        c = sum((v - w) .* n)
+        c > zero(T) ? (Φin += wk * c * f[k]) : (Φout += wk * c * raw[k])
+    end
+    s = Φout < zero(T) ? max(Φin, zero(T)) / (-Φout) : one(T)
     return State{M, T}(ntuple(Val(M)) do k
         kk = k > NV ? k - NV : k
         v, _ = velocity_node(eq, kk)
-        vr = v - (2 * sum((v - w) .* n)) * n
-        kr = _nearest_node(eq, vr)
-        @inbounds f[k > NV ? kr + NV : kr]
+        @inbounds sum((v - w) .* n) < zero(T) ? s * raw[k] : raw[k]
     end)
 end
 
