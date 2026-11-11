@@ -1,0 +1,12 @@
+BGK slip/slip N=50: mean ρ change 1.576e-03
+BGK slip/slip N=100: mean ρ change 8.937e-04
+BGK slip/slip N=200: mean ρ change 4.729e-04
+BGK diffuse1/diffuse1 N=50: mean ρ change 2.053e-03
+BGK diffuse1/diffuse1 N=100: mean ρ change 1.247e-03
+BGK diffuse1/diffuse1 N=200: mean ρ change 7.014e-04
+BGK diffuse1/diffuse2 N=50: mean ρ change 5.062e-03
+BGK diffuse1/diffuse2 N=100: mean ρ change 3.330e-03
+BGK diffuse1/diffuse2 N=200: mean ρ change 2.073e-03
+Euler slip/slip N=50: mean ρ change 1.213e-03
+Euler slip/slip N=100: mean ρ change 6.897e-04
+Euler slip/slip N=200: mean ρ change 3.830e-04

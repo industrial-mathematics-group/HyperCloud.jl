@@ -1,0 +1,13 @@
+D=1 Float64 allocs slip/slip-moving/diffuse α=.5/diffuse moving = (0, 0, 0, 0); slip oblique 0.0 µs per ghost (M=16)
+D=2 Float64 allocs slip/slip-moving/diffuse α=.5/diffuse moving = (0, 0, 0, 0); slip oblique 5.0 µs per ghost (M=128)
+D=1 Float32 allocs slip/slip-moving/diffuse α=.5/diffuse moving = (0, 0, 0, 0); slip oblique 0.0 µs per ghost (M=16)
+D=2 Float32 allocs slip/slip-moving/diffuse α=.5/diffuse moving = (0, 0, 0, 0); slip oblique 4.9 µs per ghost (M=128)
+2-D disk, gas at rest, diffuse
+  dev from rest equilibrium 1.776e-15, mean ρ-1 2.220e-16, wall 36.4 s (incl. compile), steps 92
+  dev from rest equilibrium 1.776e-15, mean ρ-1 2.220e-16, wall 1.2 s (incl. compile), steps 92
+2-D disk, gas at rest, slip
+  dev from rest equilibrium 9.147e-02, mean ρ-1 1.782e-03, wall 16.4 s (incl. compile), steps 92
+  dev from rest equilibrium 9.147e-02, mean ρ-1 1.782e-03, wall 1.4 s (incl. compile), steps 92
+2-D disk, gas at rest, diffuse α=0.5
+  dev from rest equilibrium 5.187e-02, mean ρ-1 8.929e-04, wall 1.4 s (incl. compile), steps 92
+  dev from rest equilibrium 5.187e-02, mean ρ-1 8.929e-04, wall 1.4 s (incl. compile), steps 92

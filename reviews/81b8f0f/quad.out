@@ -1,0 +1,8 @@
+hot diffuse 1/2, uniform IC N=50 (n=51, dx=0.02, ends 0 1): Δmean 7.436e-03  Δtrapezoid 1.152e-02
+hot diffuse 1/2, uniform IC N=100 (n=101, dx=0.01, ends 0 1): Δmean 5.017e-03  Δtrapezoid 7.105e-03
+hot diffuse 1/2, uniform IC N=200 (n=201, dx=0.005, ends 0 1): Δmean 3.154e-03  Δtrapezoid 4.209e-03
+hot diffuse 1/2, uniform IC N=400 (n=401, dx=0.0025, ends 0 1): Δmean 1.873e-03  Δtrapezoid 2.404e-03
+slip/slip, jump IC N=50 (n=51, dx=0.02, ends 0 1): Δmean 1.576e-03  Δtrapezoid -1.499e-04
+slip/slip, jump IC N=100 (n=101, dx=0.01, ends 0 1): Δmean 8.937e-04  Δtrapezoid -3.922e-05
+slip/slip, jump IC N=200 (n=201, dx=0.005, ends 0 1): Δmean 4.729e-04  Δtrapezoid -1.021e-05
+slip/slip, jump IC N=400 (n=401, dx=0.0025, ends 0 1): Δmean 2.429e-04  Δtrapezoid -2.703e-06

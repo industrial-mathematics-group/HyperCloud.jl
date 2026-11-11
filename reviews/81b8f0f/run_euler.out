@@ -1,0 +1,27 @@
+RH reflect: ρ2=2.079156 p2=2.926650 S=1.926650
+reflect plateau: (2.07736, 3.0e-5, 2.92674) (t=0.3000)
+RH piston: ρ2=1.489881 p2=1.760328 S=1.520656
+piston Float64 N=150: plateau (1.48856, -0.49984, 1.75991), max x - face = -1.0000e-02 (dx=1.0000e-02), L1ρ=9.0141e-03, mass≈0.99758 (exact 1.00000) md=false
+piston Float64 N=300: plateau (1.48953, -0.49995, 1.76023), max x - face = -5.0000e-03 (dx=5.0000e-03), L1ρ=4.4298e-03, mass≈0.99880 (exact 1.00000) md=false
+piston Float64 N=600: plateau (1.48982, -0.49999, 1.76032), max x - face = -2.5000e-03 (dx=2.5000e-03), L1ρ=2.2251e-03, mass≈0.99940 (exact 1.00000) md=false
+┌ Error: Error during Direct Simulation!
+│   exception =
+│    Domain :shape: the shape has element type Float64, the run uses Float32; build the shape in Float32
+│    Stacktrace:
+│     [1] error(s::String)
+│       @ Base ./error.jl:44
+│     [2] build_domain(::Val{:shape}, domain_conf::Dict{Symbol, Any}, context::Dict{Symbol, Any})
+│       @ HyperCloudCore /workspace/julia/HyperCloudDev/HyperCloudCore.jl/.claude/worktrees/review-mb/src/Builders/domains.jl:116
+│     [3] build_domain(domain_conf::Dict{Symbol, Any}, context::Dict{Symbol, Any})
+│       @ HyperCloudCore /workspace/julia/HyperCloudDev/HyperCloudCore.jl/.claude/worktrees/review-mb/src/Builders/domains.jl:79
+│     [4] run_direct_simulation(params::Dict{Symbol, Any})
+│       @ HyperCloud /workspace/julia/HyperCloudDev/HyperCloud.jl/.claude/worktrees/review-walls/src/SimulationFunctions/direct.jl:46
+│     [5] top-level scope
+│       @ /tmp/brev3/r3/probes/runs.jl:26
+│     [6] include(mod::Module, _path::String)
+│       @ Base ./Base.jl:309
+│     [7] exec_options(opts::Base.JLOptions)
+│       @ Base ./client.jl:344
+│     [8] _start()
+│       @ Base ./client.jl:577
+piston Float32 300 failed

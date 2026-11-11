@@ -1,0 +1,9 @@
+equilibrium DiffuseWall{Float64, Nothing}: 2.220e-16
+equilibrium SlipWall: 2.220e-16
+equilibrium DiffuseWall{Float64, Nothing}: 2.220e-16
+hot wall N=50: θ near hot 1.8318, cold 0.9998, mass drift 7.436e-03  x range [0.0000, 1.0000]  mom sum -7.263e-02
+hot wall N=100: θ near hot 1.8556, cold 1.0000, mass drift 5.017e-03  x range [0.0000, 1.0000]  mom sum -6.673e-02
+hot wall N=200: θ near hot 1.8714, cold 1.0000, mass drift 3.154e-03  x range [0.0000, 1.0000]  mom sum -6.332e-02
+hot wall N=400: θ near hot 1.8825, cold 1.0000, mass drift 1.873e-03  x range [0.0000, 1.0000]  mom sum -6.134e-02
+BGK piston diffuse: ρ=1.4821 (-0.52%) u=-0.4929 p=1.7470 (-0.75%)
+BGK piston slip(nearest): ρ=1.3545 (-9.08%) u=-0.3741 p=1.5344 (-12.83%)
