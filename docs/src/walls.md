@@ -4,15 +4,15 @@ HyperCloudCore treats a boundary through ghost particles: a [`MirrorBC`](@extref
 
 | Condition | Equation | Ghost state |
 |:--|:--|:--|
-| `slip_wall()` (`MirrorBC(SlipWall())`) | Euler | density and pressure of the mirrored state, velocity reflected relative to the wall: `u' = u − 2 ((u − w)·n) n` |
+| `slip_wall()` (`MirrorBC(SlipWall())`) | Euler | density of the mirrored state, velocity reflected relative to the wall: `u' = u − 2 ((u − w)·n) n`, pressure with the gradient of an accelerating wall: `p' = p − 2 d ρ (n·a)` |
 | `slip_wall()` | BGK | specular reflection `f'(v) = f(v − 2 ((v − w)·n) n)`: an exact node flip for a wall along an axis whose normal velocity is the grid centre; otherwise the equilibrium of the reflected state plus the interpolated non-equilibrium part, with zero mass flux through the wall |
 | `diffuse_wall(θ_w; velocity, accommodation)` (`MirrorBC(DiffuseWall(…))`) | BGK | velocities out of the wall: the discrete Maxwellian at `θ_w` and the wall velocity, with the density that returns the incident mass flux; velocities into the wall: the mirrored interior values. `accommodation < 1` mixes in the specular reflection |
 
-All of them need a shape-based domain (`:Grid_domain => :rectangular`, `:spherical` or `:shape`); the walls of a box are tagged `2d − 1` / `2d` per axis, so `:Grid_bc => Dict(1 => FixedDirichlet(), 2 => slip_wall())` is a tube with an inflow on the left and a wall on the right. `degree` and `bounded` of the underlying `MirrorBC` are keyword arguments of both constructors.
+Ghosts behind the corners and edges of a box are reflected in the face whose tag they carry (HyperCloudCore's ghost geometry), so a uniform flow along slip walls survives the corners with an inflow and an outflow exactly. All of them need a shape-based domain (`:Grid_domain => :rectangular`, `:spherical` or `:shape`); the walls of a box are tagged `2d − 1` / `2d` per axis, so `:Grid_bc => Dict(1 => FixedDirichlet(), 2 => slip_wall())` is a tube with an inflow on the left and a wall on the right. `degree` and `bounded` of the underlying `MirrorBC` are keyword arguments of both constructors.
 
 ## Moving walls
 
-A `Moving` piece of the shape carries its ghosts along and the cloud makes way for it (HyperCloudCore places the ghosts at every stage time and sweeps the interior after every step). The wall velocity reaches the operators through the `WallPoint`: the slip wall reflects relative to it, the diffuse wall emits at it. A piston driven into a gas at rest:
+A `Moving` piece of the shape carries its ghosts along and the cloud makes way for it (HyperCloudCore places the ghosts at every stage time and sweeps the interior after every step). The wall velocity and acceleration reach the operators through the `WallPoint`: the slip wall reflects relative to the velocity and gives the mirrored pressure the normal gradient of an accelerating wall, `p' = p − 2 d ρ (n·a)` (the even mirror, `∂p/∂n = 0`, left a first-order error next to an oscillating piston: 3.3 / 2.0 / 0.8 % of the wave amplitude for 300 / 600 / 1200 particles, 0.3 / 0.7 / 0.1 % with the term); the diffuse wall emits at the wall velocity. A piston driven into a gas at rest:
 
 ```julia
 piston = Moving(Tagged(HalfSpace((1.0,), (1.0,)), 2), translating((-0.5,)))   # face at x = 1 − 0.5 t

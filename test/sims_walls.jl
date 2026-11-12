@@ -64,6 +64,9 @@ end
         moving = WallPoint(SVector(0.0, 0.0), SVector(0.0, 1.0), 0.1, SVector(0.0, 0.2))
         V = cons2prim(eq, SlipWall()(eq, U, moving))
         @test V ≈ State{4, Float64}(2.0, 0.3, 0.8, 1.5)                        # relative to the wall: -0.4 - 0.2 -> +0.6, plus 0.2
+        accel = WallPoint(SVector(0.0, 0.0), SVector(0.0, 1.0), 0.1, SVector(0.0, 0.2), SVector(0.5, -1.0))
+        V = cons2prim(eq, SlipWall()(eq, U, accel))
+        @test V ≈ State{4, Float64}(2.0, 0.3, 0.8, 1.5 + 2 * 0.1 * 2.0 * 1.0)  # p' = p - 2 d ρ n⋅a, n⋅a = -1
         @test_throws ArgumentError DiffuseWall(0.0)
         @test_throws ArgumentError DiffuseWall(1.0; accommodation = 2)
         @test slip_wall() isa MirrorBC{1, SlipWall, true} && diffuse_wall(1.5; degree = 2) isa MirrorBC{2, <:DiffuseWall, true}
@@ -119,6 +122,56 @@ end
         f2, _ = equilibrium(bgk2, SVector(1.0, 0.2, -0.1, 2.5 + 0.5 * 0.05))
         for θ in (0.3, π / 4)                                                # oblique; the diagonal is a node permutation
             check_reflection(bgk2, f2, SVector(cos(θ), sin(θ)), SVector(0.0, 0.0))
+        end
+    end
+
+    @testset "Euler: an oscillating piston radiates the acoustic wave (wall acceleration in the ghost pressure)" begin
+        # A face at x_f - a (1 - cos ωt) with a ω ≪ c₀ and a ≪ h on a gas at rest radiates u(x, t) = v_p(t - (x_f - x)/c₀)
+        # (linear acoustics). With the even pressure mirror the error next to the face was first order (3.3 / 2.0 / 0.8 %
+        # of the amplitude for 300 / 600 / 1200 particles); with ∂p/∂n = -ρ n⋅a in the ghost pressure 0.3 / 0.7 / 0.1 %.
+        γ = 1.4; c₀ = sqrt(γ); ω = 8π; a = 1e-4 * c₀ / ω
+        I1, Z1 = SMatrix{1, 1, Float64, 1}(1.0), zero(SMatrix{1, 1, Float64, 1})
+        osc(t) = RigidMotion(SVector(-a * (1 - cos(ω * t))), I1, SVector(-a * ω * sin(ω * t)), Z1)
+        tube = intersect(Tagged(Cuboid((0.0,), (1.5,)), 1), Moving(Tagged(HalfSpace((1.0,), (1.0,)), 2), osc))
+        p = merge(euler_wall_base(; Ns = 300, tmax = 0.5), Dict{Symbol, Any}(:Grid_domain => :shape, :Grid_shape => tube, :Grid_mins => (0.0,), :Grid_maxs => (1.5,),
+                  :Grid_bc => BCD(1 => slip_wall(), 2 => slip_wall()), :Scheme_order => 3, :Limiter_name => :none,
+                  :IC_name => :riemann, :IC_uL => (1.0, 0.0, 2.5), :IC_uR => (1.0, 0.0, 2.5), :IC_p0 => (0.5,), :IC_n => (1.0,)))
+        sim = run_direct_simulation(p)
+        @test sim !== nothing
+        if sim !== nothing
+            t = sim.t[end]; h = 1.5 / 300
+            face = 1 - a * (1 - cos(ω * t))
+            err_near, err_bulk = 0.0, 0.0
+            for (x, U) in zip(sim.x[end], sim.u[end])
+                x[1] < face || continue                                            # (the ghosts of the face)
+                τ = t - (1 - x[1]) / c₀
+                ue = τ > 0 ? -a * ω * sin(ω * τ) : 0.0
+                e = abs(U[2] / U[1] - ue) / (a * ω)
+                face - x[1] < 3h ? (err_near = max(err_near, e)) : (err_bulk = max(err_bulk, e))
+            end
+            @test err_near < 0.01                                                  # measured 0.0032 (even mirror 0.033)
+            @test err_bulk < 0.15                                                  # measured 0.097 (the scheme's dispersion)
+        end
+    end
+
+    @testset "Euler: a uniform flow along slip walls, with an inflow and an outflow, stays uniform" begin
+        # The ghosts behind the corners of the box carried the diagonal normal to the corner, and SlipWall reflected the
+        # velocity about it: a flow along the floor became a jet into it at the inflow corner, and the free stream broke
+        # down (2-D 100 x 25, t = 0.5: density off by 3.2 everywhere, blow-up at 400 x 100). They now carry their own
+        # face's normal (HyperCloudCore's ghost geometry).
+        E = 1 / 0.4 + 0.5
+        p = merge(euler_wall_base(), Dict{Symbol, Any}(:PDE_D => 2, :Grid_domain => :rectangular, :Grid_mins => (0.0, 0.0), :Grid_maxs => (1.0, 0.25),
+                  :Grid_Ns => (60, 15), :Grid_randomness_factor => (0.2, 0.2), :Grid_seed => 7, :tmax => 0.3,
+                  :Grid_bc => BCD(1 => FixedDirichlet(), 2 => ExtrapolationBC(1), 3 => slip_wall(), 4 => slip_wall()),
+                  :IC_name => :riemann, :IC_uL => (1.0, 1.0, 0.0, E), :IC_uR => (1.0, 1.0, 0.0, E), :IC_p0 => (0.0, 0.0), :IC_n => (1.0, 0.0)))
+        sim = run_direct_simulation(p)
+        @test sim !== nothing
+        if sim !== nothing
+            us = sim.u[end]
+            pr(U) = 0.4 * (U[4] - 0.5 * (U[2]^2 + U[3]^2) / U[1])
+            @test maximum(abs(U[1] - 1) for U in us) < 1e-6
+            @test maximum(abs(pr(U) - 1) for U in us) < 1e-6
+            @test maximum(abs(U[3]) for U in us) < 1e-6
         end
     end
 
