@@ -1,0 +1,5 @@
+kinetic Burgers with slip_wall: sim === nothing: true
+  [Error] Error during Kinetic Simulation!
+    exception => Kinetic simulation requested, but no ':velocities' found in the Kinetic configuration namespace.
+  [Error] Error during Kinetic Simulation!
+    exception => Kinetic simulation requested, but no ':velocities' found in the Kinetic configuration namespace.

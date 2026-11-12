@@ -1,0 +1,54 @@
+### disk rr
+2-D disk, gas at rest, diffuse
+  dev 2.500e+00, Δmean ρ 0.000e+00, Δmean E -4.235e-22, mean ρu 1.394e-10 1.268e-08 (t0 1.394e-10), 36.2 s, steps 92, M=128
+2-D disk, gas at rest, slip
+  dev 2.500e+00, Δmean ρ -1.679e-25, Δmean E -4.765e-22, mean ρu 1.394e-10 1.268e-08 (t0 1.394e-10), 16.0 s, steps 92, M=128
+2-D disk, gas at rest, diffuse α=0.5
+  dev 2.500e+00, Δmean ρ 3.571e-25, Δmean E -4.235e-22, mean ρu 1.394e-10 1.268e-08 (t0 1.394e-10), 1.5 s, steps 92, M=128
+2-D disk, gas drifting u=(0.3,0.1), τ=1e-2, t=0.5, slip
+  dev 2.550e+00, Δmean ρ 7.259e-11, Δmean E 1.421e-07, mean ρu 4.573e-10 2.394e-08 (t0 2.605e-11), 6.5 s, steps 456, M=128
+2-D disk, Riemann (ρ,p)=(1,1)|(0.25,0.1) rarefied τ=1, t=0.5, slip
+  dev NaN, Δmean ρ 5.487e-09, Δmean E 3.468e-07, mean ρu -1.370e-08 4.296e-08 (t0 6.614e-11), 6.8 s, steps 456, M=128
+2-D disk, Riemann τ=1e-3, t=0.5, slip
+  dev NaN, Δmean ρ 2.731e-14, Δmean E -3.968e-08, mean ρu 1.433e-11 1.536e-09 (t0 6.614e-11), 6.9 s, steps 456, M=128
+2-D disk, gas drifting u=(0.3,0.1), τ=1e-2, t=0.5, diffuse α=0.5
+  dev 2.550e+00, Δmean ρ 1.765e-10, Δmean E 9.776e-08, mean ρu 3.952e-10 1.711e-08 (t0 2.605e-11), 7.1 s, steps 456, M=128
+2-D disk, Riemann (ρ,p)=(1,1)|(0.25,0.1) rarefied τ=1, t=0.5, diffuse α=0.5
+  dev NaN, Δmean ρ 2.708e-08, Δmean E 3.228e-07, mean ρu 2.653e-08 1.030e-07 (t0 6.614e-11), 7.7 s, steps 456, M=128
+2-D disk, Riemann τ=1e-3, t=0.5, diffuse α=0.5
+  dev NaN, Δmean ρ 1.459e-13, Δmean E -3.878e-08, mean ρu 1.491e-11 1.590e-09 (t0 6.614e-11), 7.6 s, steps 456, M=128
+### disk parent
+2-D disk, gas at rest, diffuse
+  dev 2.500e+00, Δmean ρ 0.000e+00, Δmean E -4.235e-22, mean ρu 1.394e-10 1.268e-08 (t0 1.394e-10), 33.5 s, steps 92, M=128
+2-D disk, gas at rest, slip
+  dev 2.500e+00, Δmean ρ 1.058e-10, Δmean E 2.440e-08, mean ρu 6.499e-10 1.459e-08 (t0 1.394e-10), 15.2 s, steps 92, M=128
+2-D disk, gas at rest, diffuse α=0.5
+  dev 2.500e+00, Δmean ρ 8.397e-10, Δmean E 1.731e-08, mean ρu 9.617e-10 1.402e-08 (t0 1.394e-10), 1.4 s, steps 92, M=128
+2-D disk, gas drifting u=(0.3,0.1), τ=1e-2, t=0.5, slip
+  dev 2.550e+00, Δmean ρ 4.173e-09, Δmean E 2.867e-07, mean ρu 5.308e-09 4.348e-08 (t0 2.605e-11), 5.8 s, steps 456, M=128
+2-D disk, Riemann (ρ,p)=(1,1)|(0.25,0.1) rarefied τ=1, t=0.5, slip
+  dev NaN, Δmean ρ -2.937e-08, Δmean E 6.339e-07, mean ρu 1.630e-08 1.803e-07 (t0 6.614e-11), 6.0 s, steps 456, M=128
+2-D disk, Riemann τ=1e-3, t=0.5, slip
+  dev NaN, Δmean ρ -5.870e-12, Δmean E -3.176e-08, mean ρu 2.832e-11 2.320e-09 (t0 6.614e-11), 6.1 s, steps 456, M=128
+2-D disk, gas drifting u=(0.3,0.1), τ=1e-2, t=0.5, diffuse α=0.5
+  dev 2.550e+00, Δmean ρ 2.720e-09, Δmean E 1.474e-07, mean ρu 2.810e-09 2.274e-08 (t0 2.605e-11), 6.6 s, steps 456, M=128
+2-D disk, Riemann (ρ,p)=(1,1)|(0.25,0.1) rarefied τ=1, t=0.5, diffuse α=0.5
+  dev NaN, Δmean ρ 3.440e-08, Δmean E 3.177e-07, mean ρu 3.154e-08 4.710e-08 (t0 6.614e-11), 6.7 s, steps 456, M=128
+2-D disk, Riemann τ=1e-3, t=0.5, diffuse α=0.5
+  dev NaN, Δmean ρ 1.478e-12, Δmean E -3.505e-08, mean ρu 2.139e-11 1.915e-09 (t0 6.614e-11), 7.1 s, steps 456, M=128
+### vcenter rr
+vcenter=0.0 u0=0.0 slip walls: max dev from rest eq 8.882e-16, mean ρ-1 -1.110e-16, mean ρu 1.213e-18, mean E-E0 -4.441e-16
+vcenter=0.5 u0=0.0 slip walls: max dev from rest eq 1.199e-14, mean ρ-1 5.107e-15, mean ρu 8.026e-18, mean E-E0 1.332e-14
+vcenter=0.3 u0=0.3 slip walls: max dev from rest eq 1.041e+00, mean ρ-1 5.286e-04, mean ρu -5.540e-02, mean E-E0 1.618e-03
+### vcenter parent
+vcenter=0.0 u0=0.0 slip walls: max dev from rest eq 8.882e-16, mean ρ-1 -1.110e-16, mean ρu 1.213e-18, mean E-E0 -4.441e-16
+vcenter=0.5 u0=0.0 slip walls: max dev from rest eq 2.089e+00, mean ρ-1 2.074e-01, mean ρu 7.033e-01, mean E-E0 1.055e+00
+vcenter=0.3 u0=0.3 slip walls: max dev from rest eq 3.000e-01, mean ρ-1 2.220e-16, mean ρu 3.000e-01, mean E-E0 2.220e-15
+### bgkpiston rr
+BGK piston diffuse: ρ=1.4821 (-0.52%) u=-0.4929 p=1.7470 (-0.75%)
+BGK piston slip: ρ=1.4897 (-0.01%) u=-0.4999 p=1.7601 (-0.01%)
+BGK piston slip, vcenter=-0.5 (flip): ρ=1.4897 (-0.01%) u=-0.4999 p=1.7601 (-0.01%)
+### bgkpiston parent
+BGK piston diffuse: ρ=1.4821 (-0.52%) u=-0.4929 p=1.7470 (-0.75%)
+BGK piston slip: ρ=1.3545 (-9.08%) u=-0.3741 p=1.5344 (-12.83%)
+BGK piston slip, vcenter=-0.5 (flip): ρ=1.4897 (-0.01%) u=-0.4999 p=1.7601 (-0.01%)

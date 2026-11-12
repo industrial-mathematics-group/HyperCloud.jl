@@ -47,6 +47,7 @@
             s = @eval Main @sim my_local_sim dry_run = true
             @test s isa RunSummary && s.dry_run
             @test_throws ArgumentError macroexpand(Main, :(HyperCloud.@sim my_local_sim dry_run))
+            @test_throws ArgumentError macroexpand(Main, :(HyperCloud.@sim my_local_sim dry_run = true dry_run = false))
         end
 
         @testset "@backup" begin

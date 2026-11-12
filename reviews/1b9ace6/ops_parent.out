@@ -1,0 +1,60 @@
+== Equilibrium states (drifting)
+1D static on-axis (flip)                       mass flux -7.34e-18 | central  1.62e-17 | tang mom flux  0.00e+00 | energy flux -5.91e-17 | ghost vs exact refl.: dρ  2.2e-16 du  1.1e-16 de_int/e  2.2e-16 | min g/max f  1.19e-08
+1D moving w=0.5                                mass flux -1.18e-01 | central -1.25e-01 | tang mom flux  0.00e+00 | energy flux  3.27e-02 | ghost vs exact refl.: dρ  2.0e-07 du  2.5e-01 de_int/e  1.4e-06 | min g/max f  3.49e-07
+1D moving w=0.2                                mass flux  1.65e-01 | central  1.75e-01 | tang mom flux  0.00e+00 | energy flux  7.51e-01 | ghost vs exact refl.: dρ  2.0e-07 du  3.5e-01 de_int/e  1.4e-06 | min g/max f  3.49e-07
+1D moving w=0.375                              mass flux -1.25e-06 | central -6.46e-07 | tang mom flux  0.00e+00 | energy flux  3.32e-01 | ghost vs exact refl.: dρ  2.0e-07 du  1.3e-06 de_int/e  1.4e-06 | min g/max f  3.49e-07
+1D moving w=1.0e-12                            mass flux -1.24e-12 | central -1.00e-12 | tang mom flux  0.00e+00 | energy flux -3.27e-12 | ghost vs exact refl.: dρ  2.2e-16 du  2.0e-12 de_int/e  0.0e+00 | min g/max f  1.19e-08
+1D moving w=-0.5, n=-1                         mass flux -6.50e-02 | central -1.25e-01 | tang mom flux  0.00e+00 | energy flux -4.18e-02 | ghost vs exact refl.: dρ -2.0e-07 du  2.5e-01 de_int/e -1.1e-06 | min g/max f  1.19e-08
+1D vcenter=0.5 gas at rest static              mass flux  3.16e-01 | central  5.00e-01 | tang mom flux  0.00e+00 | energy flux  9.85e-01 | ghost vs exact refl.: dρ  1.1e-16 du  1.0e+00 de_int/e  2.2e-16 | min g/max f  3.60e-09
+1D vcenter=0.5 wall moving at 0.5 (flip)       mass flux -4.83e-18 | central -3.58e-17 | tang mom flux  0.00e+00 | energy flux  2.10e-01 | ghost vs exact refl.: dρ  1.1e-16 du  1.1e-16 de_int/e  4.4e-16 | min g/max f  3.60e-09
+1D vcenter=0.3 gas at rest static              mass flux  2.28e-01 | central  3.00e-01 | tang mom flux  0.00e+00 | energy flux  7.37e-01 | ghost vs exact refl.: dρ -2.2e-16 du  6.0e-01 de_int/e  6.7e-16 | min g/max f  1.19e-08
+1D vcenter=0.3 wall moving at 0.3 (flip)       mass flux -9.57e-19 | central -2.54e-17 | tang mom flux  0.00e+00 | energy flux  1.81e-01 | ghost vs exact refl.: dρ -2.2e-16 du  0.0e+00 de_int/e  4.4e-16 | min g/max f  1.19e-08
+1D vcenter=0.5, Nv=64, drift 0.2               mass flux  3.87e-01 | central  5.00e-01 | tang mom flux  0.00e+00 | energy flux  1.27e+00 | ghost vs exact refl.: dρ -3.3e-16 du  1.0e+00 de_int/e  6.7e-16 | min g/max f  2.16e-09
+1D Gauss-Hermite 16 moving w=0.5               mass flux -1.34e-01 | central -1.40e-01 | tang mom flux  0.00e+00 | energy flux -5.65e-03 | ghost vs exact refl.: dρ  8.7e-04 du  2.8e-01 de_int/e  5.3e-04 | min g/max f  4.41e-08
+2D Nv=12 oblique θ=0.000                       mass flux  1.15e-18 | central  1.23e-17 | tang mom flux  2.82e-18 | energy flux  1.17e-16 | ghost vs exact refl.: dρ  2.2e-16 du  1.7e-16 de_int/e -2.2e-16 | min g/max f  1.03e-14
+2D Nv=12 oblique θ=0.393                       mass flux  3.16e-02 | central  1.11e-02 | tang mom flux  2.68e-03 | energy flux  7.11e-02 | ghost vs exact refl.: dρ -2.9e-02 du  1.9e-02 de_int/e -1.1e-02 | min g/max f  2.27e-09
+2D Nv=12 oblique θ=0.524                       mass flux  3.93e-02 | central  8.62e-03 | tang mom flux  6.77e-03 | energy flux -5.40e-03 | ghost vs exact refl.: dρ -9.8e-02 du  1.5e-02 de_int/e  3.1e-02 | min g/max f  1.25e-10
+2D Nv=12 oblique θ=0.300                       mass flux -2.24e-02 | central -2.37e-03 | tang mom flux  6.34e-03 | energy flux -1.66e-01 | ghost vs exact refl.: dρ  1.6e-02 du  3.5e-03 de_int/e  3.7e-02 | min g/max f  1.02e-10
+2D Nv=12 oblique θ=0.785                       mass flux  1.02e-16 | central  5.96e-17 | tang mom flux  2.22e-16 | energy flux -1.29e-16 | ghost vs exact refl.: dρ -2.2e-16 du  2.7e-16 de_int/e  4.4e-16 | min g/max f  1.03e-14
+2D Nv=12 oblique θ=1.000                       mass flux -3.01e-02 | central -8.51e-04 | tang mom flux  1.40e-02 | energy flux -2.28e-01 | ghost vs exact refl.: dρ  8.4e-03 du  1.3e-02 de_int/e  6.9e-02 | min g/max f  1.02e-10
+2D Nv=12 θ=0.3 moving w=(0.2,0.1)              mass flux -3.60e-02 | central -1.64e-02 | tang mom flux  9.92e-03 | energy flux  8.19e-02 | ghost vs exact refl.: dρ -1.2e-02 du  6.3e-02 de_int/e  5.5e-02 | min g/max f  5.06e-10
+2D Nv=24 oblique θ=0.3                         mass flux -1.15e-02 | central -1.17e-03 | tang mom flux  1.05e-03 | energy flux -5.80e-02 | ghost vs exact refl.: dρ  1.5e-02 du  3.1e-04 de_int/e  1.1e-02 | min g/max f  5.07e-11
+2D GH Nv=12 oblique θ=0.3                      mass flux -7.93e-03 | central  2.56e-03 | tang mom flux  8.42e-03 | energy flux -1.04e-01 | ghost vs exact refl.: dρ  1.2e-03 du  6.7e-03 de_int/e  2.8e-02 | min g/max f  4.86e-12
+3D Nv=8 γ=5/3 oblique                          mass flux  2.98e-03 | central  5.51e-03 | tang mom flux  5.40e-02 | energy flux -6.25e-02 | ghost vs exact refl.: dρ -2.5e-03 du  2.9e-02 de_int/e  6.4e-02 | min g/max f  5.23e-16
+2D Float32 oblique θ=0.3                       mass flux -2.24e-02 | central -2.37e-03 | tang mom flux  6.34e-03 | energy flux -1.66e-01 | ghost vs exact refl.: dρ  1.6e-02 du  3.5e-03 de_int/e  3.7e-02 | min g/max f  1.02e-10
+2D Nv=12 fast drift u=3.5 θ=0.3                mass flux -4.40e-01 | central -2.20e-01 | tang mom flux  1.06e+00 | energy flux -1.09e+01 | ghost vs exact refl.: dρ  8.2e-02 du  1.6e-01 de_int/e  1.5e-01 | min g/max f  5.37e-21
+
+== Non-equilibrium states
+1D two-beam static flip                        mass flux -2.30e-17 | central -8.63e-19 | tang mom flux  0.00e+00 | energy flux  1.35e-17 | ghost vs exact refl.: dρ  0.0e+00 du  1.9e-18 de_int/e  0.0e+00 | min g/max f  1.70e-42
+1D two-beam moving w=0.2                       mass flux  1.75e-01 | central  1.75e-01 | tang mom flux  0.00e+00 | energy flux  6.95e-01 | ghost vs exact refl.: dρ  0.0e+00 du  3.5e-01 de_int/e  0.0e+00 | min g/max f  1.70e-42
+1D two-beam vcenter=0.5 static                 mass flux  4.89e-01 | central  5.00e-01 | tang mom flux  0.00e+00 | energy flux  9.82e-01 | ghost vs exact refl.: dρ  0.0e+00 du  1.0e+00 de_int/e  0.0e+00 | min g/max f  4.43e-48
+1D hot/cold half-Maxwellian moving w=0.2       mass flux  1.39e-01 | central  1.75e-01 | tang mom flux  0.00e+00 | energy flux  1.15e+00 | ghost vs exact refl.: dρ  7.8e-05 du  3.5e-01 de_int/e  4.9e-04 | min g/max f  2.47e-11
+1D hot/cold half-Maxwellian moving w=0.5       mass flux -9.99e-02 | central -1.25e-01 | tang mom flux  0.00e+00 | energy flux -1.32e-02 | ghost vs exact refl.: dρ  7.8e-05 du  2.5e-01 de_int/e  4.9e-04 | min g/max f  2.47e-11
+2D two-beam oblique θ=0.300                    mass flux -2.63e-02 | central -1.51e-02 | tang mom flux  7.53e-03 | energy flux -8.80e-02 | ghost vs exact refl.: dρ  1.5e-02 du  1.7e-01 de_int/e  9.0e-02 | min g/max f  2.39e-83
+2D two-beam oblique θ=0.524                    mass flux  4.11e-01 | central  2.06e-01 | tang mom flux  1.57e-03 | energy flux  5.42e-01 | ghost vs exact refl.: dρ -4.5e-01 du  2.1e-01 de_int/e  1.5e-02 | min g/max f  1.54e-84
+2D hot/cold half oblique θ=0.3                 mass flux -2.17e-02 | central -6.93e-03 | tang mom flux  9.05e-03 | energy flux -2.34e-01 | ghost vs exact refl.: dρ  1.2e-02 du  3.0e-02 de_int/e  2.7e-02 | min g/max f  3.82e-19
+2D single-node f oblique θ=0.3                 mass flux -2.96e+00 | central -1.48e+00 | tang mom flux  1.60e-15 | energy flux -3.69e+00 | ghost vs exact refl.: dρ  1.8e-15 du  4.2e-01 de_int/e -2.2e-16 | min g/max f  1.00e-09
+2D f = -feq (equilibrium fails: fallback)      mass flux  2.24e-02 | central  2.37e-03 | tang mom flux  6.34e-03 | energy flux  1.66e-01 | ghost vs exact refl.: dρ -1.6e-02 du  3.5e-03 de_int/e  3.7e-02 | min g/max f  9.70e+13
+
+== DiffuseWall α < 1 off-axis (specular part)
+2D diffuse α=0.0 θ=0.3 drifting eq             mass flux -2.24e-02 | central  6.96e-02 | tang mom flux  6.34e-03 | energy flux -1.66e-01 | ghost vs exact refl.: dρ  1.4e-01 du  1.4e-01 de_int/e  4.2e-02 | min g/max f  9.31e-14
+1D diffuse α=0.0 moving w=0.5 vcenter 0        mass flux -1.18e-01 | central -1.59e-01 | tang mom flux  0.00e+00 | energy flux  3.27e-02 | ghost vs exact refl.: dρ -5.7e-02 du  3.3e-01 de_int/e -1.2e-02 | min g/max f  3.49e-07
+2D diffuse α=0.5 θ=0.3 drifting eq             mass flux -1.12e-02 | central  7.52e-02 | tang mom flux  3.31e-02 | energy flux -5.25e-02 | ghost vs exact refl.: dρ  1.6e-01 du  1.6e-01 de_int/e  2.8e-02 | min g/max f  9.31e-14
+1D diffuse α=0.5 moving w=0.5 vcenter 0        mass flux -5.89e-02 | central -1.29e-01 | tang mom flux  0.00e+00 | energy flux  1.85e-01 | ghost vs exact refl.: dρ -1.4e-01 du  2.7e-01 de_int/e -1.1e-02 | min g/max f  1.76e-07
+2D diffuse α=1.0 θ=0.3 drifting eq             mass flux -1.67e-16 | central  8.08e-02 | tang mom flux  7.25e-02 | energy flux  6.08e-02 | ghost vs exact refl.: dρ  1.8e-01 du  1.9e-01 de_int/e  1.3e-02 | min g/max f  6.68e-14
+1D diffuse α=1.0 moving w=0.5 vcenter 0        mass flux  6.38e-17 | central -1.00e-01 | tang mom flux  0.00e+00 | energy flux  3.37e-01 | ghost vs exact refl.: dρ -2.2e-01 du  2.0e-01 de_int/e -1.0e-02 | min g/max f  2.74e-09
+
+== Continuity of the switch (w → grid centre)
+w=0: max |g - g(w=0)| = 0.000e+00
+w=1e-14: max |g - g(w=0)| = 0.000e+00
+w=1e-08: max |g - g(w=0)| = 0.000e+00
+w=0.0001: max |g - g(w=0)| = 0.000e+00
+
+== Allocation and cost per ghost
+1D Nv=16 flip                            M=  32 alloc 0 B, 0.0 µs per ghost
+1D Nv=16 moving                          M=  32 alloc 0 B, 0.0 µs per ghost
+2D Nv=12 oblique                         M= 288 alloc 0 B, 24.1 µs per ghost
+2D Nv=24 oblique                         M=1152 alloc 0 B, 392.6 µs per ghost
+3D Nv=8 oblique                          M= 512 alloc 0 B, 192.3 µs per ghost
+2D Float32 oblique                       M= 288 alloc 0 B, 24.0 µs per ghost
+one equilibrium() 2D Nv=24: 58.1 µs

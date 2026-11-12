@@ -1,0 +1,3 @@
+F32 piston plateau (1.4894f0, -0.49996f0, 1.76023) eltype Float32
+┌ Error: Error during Direct Simulation!
+example with :T => Float32: fails

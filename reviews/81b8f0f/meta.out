@@ -1,0 +1,13 @@
+pb1 (blows up, snapshots=1): t_end=100.0 finite=false md=Dict{Symbol, Any}(:stopped_early => false, :steps => 302, :float_type => "Float64", :t_final => 100.0, :backend => "PolyesterBackend", :hypercloudcore => "0.8.0")
+pf (fixed dt blow-up): t_end=0.2 finite=false stopped_early=false
+Float32 normal: t_end=0.3 md=Dict{Symbol, Any}(:stopped_early => false, :steps => 23, :float_type => "Float32", :t_final => 0.30000001192092896, :backend => "PolyesterBackend", :hypercloudcore => "0.8.0")
+tmax=1e-13: t_end=1.0e-13 stopped_early=false
+#= /tmp/brev3/r3/probes/meta.jl:25 =# HyperCloud.@sim my_cfg dry_run = true dry_run = false -> ERROR ErrorException: syntax: field name "dry_run" repeated in named tuple around /workspace/julia/HyperCloudDev/HyperCloud.jl/.claude/worktrees/review-walls/src/macros.jl:174
+#= /tmp/brev3/r3/probes/meta.jl:25 =# HyperCloud.@sim my_cfg calculate_stats = false dry_run = true -> RunSummary true
+#= /tmp/brev3/r3/probes/meta.jl:26 =# HyperCloud.@sim my_cfg bogus_option = 1 -> ERROR MethodError: MethodError: no method matching run_all_simulations(::SimulationConfig; force_overwrite::Bool, calculate_stats::Bool, bogus_option::Int64)
+This method does not support all of the given keyword arguments (and may not support any).
+
+Closest candidates 
+#= /tmp/brev3/r3/probes/meta.jl:26 =# HyperCloud.@sim my_cfg dry_run = true -> RunSummary true
+#= /tmp/brev3/r3/probes/meta.jl:26 =# HyperCloud.@sim my_cfg dry_run => true -> ERROR LoadError: LoadError: ArgumentError: @sim: options after the name must be `key = value`, got dry_run => true
+in expression starting at /tmp/brev3/r3/probes/meta.jl:26

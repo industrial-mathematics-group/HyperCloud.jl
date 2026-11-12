@@ -1,0 +1,4 @@
+equilibrium test with MirrorBC: 2.220e-16
+equilibrium test with ExtrapolationBC: 4.441e-16
+equilibrium test with OutflowBC: 2.220e-16
+hot wall with α = 0: θ near hot wall 1.0000

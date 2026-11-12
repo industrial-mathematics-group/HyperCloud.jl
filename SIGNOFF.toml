@@ -51,7 +51,7 @@ AI-Reviewed-by = "Claude Opus 5.5 (Anthropic), new sessions without the generati
 # Changed by Claude agents to address the A2 reviews in reviews/ (and reviewed again there).
 # Human-Review: to be filled in by the responsible person (e.g. `aidecl annotate ... -H H1 --reviewed-by ...`).
 [[annotations]]
-path = ["CLAUDE.md", "docs/make.jl", "docs/src/PDEs/advection.md", "docs/src/PDEs/bgk.md", "docs/src/PDEs/burgers.md", "docs/src/PDEs/euler.md", "docs/src/PDEs/main.md", "docs/src/configuration.md", "docs/src/examples.md", "docs/src/time_integration.md", "docs/src/walls.md", "docs/src/wrappers.md", "src/BoundaryConditions/_main.jl", "src/Examples/_main.jl", "src/Examples/euler_1d_piston.jl", "src/HyperCloud.jl", "test/sims_walls.jl", "src/Builder/kinetic.jl", "src/Examples/burgers_kinetic.jl", "src/ICs/quadrant_riemann.jl", "src/PDEs/_main.jl", "src/PDEs/bgk.jl", "src/PDEs/burgers.jl", "src/PDEs/euler.jl", "src/PDEs/linear_advection.jl", "src/SimulationFunctions/bgk.jl", "src/SourceTerms/bgk.jl", "src/inbuilt_methods.jl", "src/time_integration.jl", "test/examples.jl", "test/gpu/runtests.jl", "test/runtests.jl", "test/sims.jl", "test/sims_bgk.jl", "test/units.jl"]
+path = ["CLAUDE.md", "docs/make.jl", "docs/src/PDEs/advection.md", "docs/src/PDEs/bgk.md", "docs/src/PDEs/burgers.md", "docs/src/PDEs/euler.md", "docs/src/PDEs/main.md", "docs/src/configuration.md", "docs/src/examples.md", "docs/src/time_integration.md", "docs/src/walls.md", "docs/src/wrappers.md", "src/BoundaryConditions/_main.jl", "src/Examples/_main.jl", "src/Examples/euler_1d_piston.jl", "src/HyperCloud.jl", "test/sims_walls.jl", "docs/src/simulation.md", "src/SimulationFunctions/direct.jl", "src/SimulationFunctions/kinetic.jl", "src/device.jl", "src/macros.jl", "src/Builder/kinetic.jl", "src/Examples/burgers_kinetic.jl", "src/ICs/quadrant_riemann.jl", "src/PDEs/_main.jl", "src/PDEs/bgk.jl", "src/PDEs/burgers.jl", "src/PDEs/euler.jl", "src/PDEs/linear_advection.jl", "src/SimulationFunctions/bgk.jl", "src/SourceTerms/bgk.jl", "src/inbuilt_methods.jl", "src/time_integration.jl", "test/examples.jl", "test/gpu/runtests.jl", "test/runtests.jl", "test/sims.jl", "test/sims_bgk.jl", "test/units.jl"]
 AI-Generation = "G3"
 Human-Review = "H0"
 AI-Review = "A2"
@@ -68,12 +68,13 @@ AI-Reviewed-by = "Claude Opus 5.5 (Anthropic), same session"
 Human-Review = "H1"
 Reviewed-by = ["blhackslash <dev@blackslash.win>"]
 
-# PDEStudioCore 0.5 features (claude/pdestudiocore-05): run metadata, @sim options; not reviewed by a fresh session yet.
+# PDEStudioCore 0.5 features (claude/pdestudiocore-05): run metadata, @sim options; reviewed in reviews/81b8f0f.md
+# (the files changed by its fixes moved to the block above).
 [[annotations]]
-path = ["docs/src/macros.md", "docs/src/simulation.md", "src/SimulationFunctions/direct.jl", "src/SimulationFunctions/kinetic.jl", "src/device.jl", "src/macros.jl"]
+path = ["docs/src/macros.md"]
 AI-Generation = "G3"
 Assisted-by = "Claude Opus 5.5 (Anthropic)"
-AI-Review = "A1"
-AI-Reviewed-by = "Claude Opus 5.5 (Anthropic), same session"
+AI-Review = "A2"
+AI-Reviewed-by = "Claude Opus 5.5 (Anthropic), new sessions without the generating conversation (reviews/)"
 Human-Review = "H1"
 Reviewed-by = ["blhackslash <dev@blackslash.win>"]

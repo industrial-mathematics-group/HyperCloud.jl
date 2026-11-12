@@ -29,8 +29,9 @@ using HyperCloud
 
 A wall driven at speed 0.5 into a gas at rest, a `Moving` half space with a slip wall: the shock it drives and the
 Rankine–Hugoniot plateau behind it, against the exact `exact_piston` (reference method `:exact_piston`).
-300 particles over `[0, 1.5]`, `tmax = 0.3`, MUSCL2 with the VK limiter and MUSCL3 with MOOD U2. See
-[Walls and Moving Boundaries](@ref).
+300 particles over `[0, 1.5]`, `tmax = 0.3`, MUSCL2 with the VK limiter and MUSCL3 with MOOD U2. Other piston
+speeds and face positions: `euler_1d_piston(speed = 0.8, face = 1.2)` (shape and reference together; the shape is a
+string, so the speed is part of the parameter hash). See [Walls and Moving Boundaries](@ref).
 
 ### 1D Sod shock tube (`euler_1d_sod`)
 

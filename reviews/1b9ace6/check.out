@@ -1,0 +1,17 @@
+user function op on Euler -> nothing
+user struct op on Euler -> nothing
+user struct op on Burgers -> ArgumentError: ArgumentError: the wall operator MyOp of boundary tag 2 has no method for BurgersEquation (SlipWall: Euler and BGK; DiffuseWall: BGK)
+MirrorBC() (no op) -> nothing
+SlipWall Euler Float32 domain -> nothing
+DiffuseWall(0.0001) Nv=8 -> nothing
+    equilibrium ok=true, moments rel err 1.00e+00 (θ requested 0.0001, got NaN)
+DiffuseWall(0.01) Nv=8 -> nothing
+    equilibrium ok=true, moments rel err 1.00e+00 (θ requested 0.01, got 0.1205)
+DiffuseWall(50.0) Nv=8 -> nothing
+    equilibrium ok=true, moments rel err 1.11e+14 (θ requested 50, got 50)
+DiffuseWall(Inf) Nv=8 -> ArgumentError: ArgumentError: DiffuseWall of boundary tag 2: no discrete Maxwellian at the wall temperature Inf and velocity nothing (the wall would not act)
+DiffuseWall velocity (5.9,) Nv=8 vmax 6 -> nothing
+kinetic Burgers with slip_wall: sim === nothing: true
+  [Error] Error during Kinetic Simulation!
+    exception => Kinetic simulation requested, but no ':velocities' found in the Kinetic configuration namespace.
+@sim dup: ArgumentError: @sim: option(s) given twice: dry_run, calculate_stats

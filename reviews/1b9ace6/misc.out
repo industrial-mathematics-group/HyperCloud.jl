@@ -1,0 +1,17 @@
+hash speed 0.5 vs 0.4 differ: true
+hash speed 0.5 vs 1//2 equal: false  shape: intersect(Tagged(Cuboid((T(0),), (T(1.5),)), 1), Moving(Tagged(HalfSpace((T(1.0),), (T(1),)), 2), translating((-T(1//2),))))
+hash default vs speed=0.5f0 equal: true
+shape string: intersect(Tagged(Cuboid((T(0),), (T(1.5),)), 1), Moving(Tagged(HalfSpace((T(1.0),), (T(1),)), 2), translating((-T(0.5),))))
+speed=-0.5 face=1: ran to t=0.300, L1ρ vs exact_piston 1.283e-01, ρ range [0.639, 1.000], max x 1.1400, piston_state (1.0, 1.0, -Inf), warnings 0
+speed=0 face=1: ran to t=0.300, L1ρ vs exact_piston 0.000e+00, ρ range [1.000, 1.000], max x 0.9900, piston_state (1.0, 1.0, NaN), warnings 0
+speed=0.5 face=0.1: run failed: Error during Direct Simulation! (ErrorException("Remap produced no volume at [0.0]; increase samples_per_dx."), Union{Ptr{Nothing}, Base.InterpreterIP}[Ptr{Nothing}(0x00007f0fd97ceb7e), Ptr{Nothing}(0x00007f0f77177250), Ptr{Nothing}(0x00007f0f77187f64), Ptr{Nothing}(0x00007f0f7717a88e), Ptr{Nothing}
+speed=0.5 face=1.49: ran to t=0.300, L1ρ vs exact_piston 5.759e-03, ρ range [1.000, 1.490], max x 1.3300, piston_state (1.4899, 1.7603, 1.5207), warnings 0
+speed=0.5 face=1.5: ArgumentError: ArgumentError: euler_1d_piston: the face must lie inside the canvas (0, 1.5), got 1.5
+speed 0.8 face 1.2 N=300: L1ρ 6.179e-03, plateau (1.8354, -0.7999, 2.4054) vs (1.8361, -0.8, 2.4055), face 0.9600 max x 0.9550
+speed 0.8 face 1.2 N=600: L1ρ 3.227e-03, plateau (1.836, -0.8, 2.4055) vs (1.8361, -0.8, 2.4055), face 0.9600 max x 0.9575
+Float32 example: eltype Float32, plateau (1.4897f0, -0.4999f0, 1.7602), metadata Dict{Symbol, Any}(:stopped_early => false, :finite => true, :steps => 364, :float_type => "Float32", :t_final => 0.30000001192092896, :backend => "PolyesterBackend", :hypercloudcore => "0.8.0")
+Float64 example plateau (1.4897, -0.4999, 1.7602)
+piston_state bracket: [(1.0, 1.0, 1.18322), (2.07916, 2.92665, 1.92665), (5.98837, 3002.17, 60.0233), (5.99997, 1.2e6, 1200.0)]
+w=0.5: p2 1.760328 vs 1+2γ/(γ+1)(M²-1) = 1.760328; ρ2 1.489881 vs (γ+1)M²/((γ-1)M²+2) = 1.489881; mass ρ2 (S - w) = 1.520656 vs S = 1.520656
+w=0.8: p2 2.405497 vs 1+2γ/(γ+1)(M²-1) = 2.405497; ρ2 1.836058 vs (γ+1)M²/((γ-1)M²+2) = 1.836058; mass ρ2 (S - w) = 1.756871 vs S = 1.756871
+w=5: p2 32.124515 vs 1+2γ/(γ+1)(M²-1) = 32.124515; ρ2 5.081956 vs (γ+1)M²/((γ-1)M²+2) = 5.081956; mass ρ2 (S - w) = 6.224903 vs S = 6.224903

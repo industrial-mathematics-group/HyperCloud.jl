@@ -1,0 +1,77 @@
+[ Info: Testing with KABackend{KernelAbstractions.POCL.POCLKernels.POCLBackend}(KernelAbstractions.POCL.POCLKernels.POCLBackend(), 256) on 6 threads
+[ Info: --- Running Direct N-Dimensional Simulation ---
+[ Info: Using KABackend for parallel runs!
+Running Simulation...   0%|▏                            |  ETA: 0:23:10[KRunning Simulation... 100%|█████████████████████████████| Time: 0:00:03[K
+[ Info: Direct Simulation (D=1) finished in3.44 seconds.
+[ Info: Added custom stat 'Runtime' keeping dimensions: none
+[ Info: Added custom stat 'k_step' keeping dimensions: none
+[ Info: Added custom stat 'final_particle_count' keeping dimensions: none
+[ Info: --- Running Direct N-Dimensional Simulation ---
+[ Info: Using KABackend for parallel runs!
+[ Info: Direct Simulation (D=1) finished in0.72 seconds.
+[ Info: Added custom stat 'Runtime' keeping dimensions: none
+[ Info: Added custom stat 'k_step' keeping dimensions: none
+[ Info: Added custom stat 'final_particle_count' keeping dimensions: none
+[ Info: --- Running Direct N-Dimensional Simulation ---
+[ Info: Using KABackend for parallel runs!
+Running Simulation...  11%|███▎                         |  ETA: 0:00:26[KRunning Simulation... 100%|█████████████████████████████| Time: 0:00:03[K
+[ Info: Direct Simulation (D=1) finished in3.41 seconds.
+[ Info: Added custom stat 'Runtime' keeping dimensions: none
+[ Info: Added custom stat 'k_step' keeping dimensions: none
+[ Info: Added custom stat 'final_particle_count' keeping dimensions: none
+[ Info: --- Running BGK Simulation ---
+[ Info: BGK: D = 1, 16 velocities, 32 equations, γ = 1.4, collision: implicit
+[ Info: Using KABackend for parallel runs!
+Running Simulation...   1%|▏                            |  ETA: 0:14:17[KRunning Simulation... 100%|█████████████████████████████| Time: 0:00:04[K
+[ Info: BGK Simulation (D=1) finished in 4.94 seconds.
+[ Info: Added custom stat 'Runtime' keeping dimensions: none
+[ Info: Added custom stat 'k_step' keeping dimensions: none
+[ Info: Added custom stat 'final_particle_count' keeping dimensions: none
+[ Info: --- Running BGK Simulation ---
+[ Info: BGK: D = 1, 16 velocities, 32 equations, γ = 1.4, collision: implicit
+[ Info: Using KABackend for parallel runs!
+Running Simulation...   1%|▏                            |  ETA: 0:04:59[KRunning Simulation... 100%|█████████████████████████████| Time: 0:00:01[K
+[ Info: BGK Simulation (D=1) finished in 1.72 seconds.
+[ Info: Added custom stat 'Runtime' keeping dimensions: none
+[ Info: Added custom stat 'k_step' keeping dimensions: none
+[ Info: Added custom stat 'final_particle_count' keeping dimensions: none
+[ Info: --- Running BGK Simulation ---
+[ Info: BGK: D = 1, 16 velocities, 32 equations, γ = 1.4, collision: implicit
+[ Info: Using KABackend for parallel runs!
+[ Info: BGK Simulation (D=1) finished in 0.03 seconds.
+[ Info: Added custom stat 'Runtime' keeping dimensions: none
+[ Info: Added custom stat 'k_step' keeping dimensions: none
+[ Info: Added custom stat 'final_particle_count' keeping dimensions: none
+[ Info: --- Running BGK Simulation ---
+[ Info: BGK: D = 1, 16 velocities, 32 equations, γ = 1.4, collision: implicit
+[ Info: Using KABackend for parallel runs!
+[ Info: BGK Simulation (D=1) finished in 0.25 seconds.
+[ Info: Added custom stat 'Runtime' keeping dimensions: none
+[ Info: Added custom stat 'k_step' keeping dimensions: none
+[ Info: Added custom stat 'final_particle_count' keeping dimensions: none
+[ Info: --- Running BGK Simulation ---
+[ Info: BGK: D = 1, 16 velocities, 32 equations, γ = 1.4, collision: implicit
+[ Info: Using KABackend for parallel runs!
+[ Info: BGK Simulation (D=1) finished in 0.08 seconds.
+[ Info: Added custom stat 'Runtime' keeping dimensions: none
+[ Info: Added custom stat 'k_step' keeping dimensions: none
+[ Info: Added custom stat 'final_particle_count' keeping dimensions: none
+[ Info: --- Running BGK Simulation ---
+[ Info: BGK: D = 1, 16 velocities, 32 equations, γ = 1.4, collision: implicit
+[ Info: Using KABackend for parallel runs!
+[ Info: BGK Simulation (D=1) finished in 0.26 seconds.
+[ Info: Added custom stat 'Runtime' keeping dimensions: none
+[ Info: Added custom stat 'k_step' keeping dimensions: none
+[ Info: Added custom stat 'final_particle_count' keeping dimensions: none
+[ Info: --- Running BGK Simulation ---
+[ Info: BGK: D = 1, 16 velocities, 32 equations, γ = 1.4, collision: implicit
+[ Info: Using KABackend for parallel runs!
+Running Simulation...   0%|                             |  ETA: 0:24:42[KRunning Simulation... 100%|█████████████████████████████| Time: 0:00:02[K
+[ Info: BGK Simulation (D=1) finished in 2.41 seconds.
+[ Info: Added custom stat 'Runtime' keeping dimensions: none
+[ Info: Added custom stat 'k_step' keeping dimensions: none
+[ Info: Added custom stat 'final_particle_count' keeping dimensions: none
+Test Summary: | Pass  Total     Time
+walls         |   57     57  1m05.3s
+test group `walls`: peak memory 1371 MiB
+exit 0

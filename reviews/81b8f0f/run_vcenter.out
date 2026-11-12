@@ -1,0 +1,47 @@
+┌ Warning: Assignment to `piston` in soft scope is ambiguous because a global variable by the same name exists: `piston` will be treated as a new local. Disambiguate by using `local piston` to suppress this warning or `global piston` to assign to the existing global variable.
+└ @ /tmp/brev3/r3/probes/runs.jl:21
+┌ Warning: Assignment to `tube` in soft scope is ambiguous because a global variable by the same name exists: `tube` will be treated as a new local. Disambiguate by using `local tube` to suppress this warning or `global tube` to assign to the existing global variable.
+└ @ /tmp/brev3/r3/probes/runs.jl:22
+┌ Warning: Assignment to `p` in soft scope is ambiguous because a global variable by the same name exists: `p` will be treated as a new local. Disambiguate by using `local p` to suppress this warning or `global p` to assign to the existing global variable.
+└ @ /tmp/brev3/r3/probes/runs.jl:23
+┌ Warning: Assignment to `sim` in soft scope is ambiguous because a global variable by the same name exists: `sim` will be treated as a new local. Disambiguate by using `local sim` to suppress this warning or `global sim` to assign to the existing global variable.
+└ @ /tmp/brev3/r3/probes/runs.jl:26
+┌ Warning: Assignment to `t` in soft scope is ambiguous because a global variable by the same name exists: `t` will be treated as a new local. Disambiguate by using `local t` to suppress this warning or `global t` to assign to the existing global variable.
+└ @ /tmp/brev3/r3/probes/runs.jl:28
+┌ Warning: Assignment to `sim` in soft scope is ambiguous because a global variable by the same name exists: `sim` will be treated as a new local. Disambiguate by using `local sim` to suppress this warning or `global sim` to assign to the existing global variable.
+└ @ /tmp/brev3/r3/probes/runs.jl:43
+┌ Warning: Assignment to `t` in soft scope is ambiguous because a global variable by the same name exists: `t` will be treated as a new local. Disambiguate by using `local t` to suppress this warning or `global t` to assign to the existing global variable.
+└ @ /tmp/brev3/r3/probes/runs.jl:44
+┌ Warning: Assignment to `sim` in soft scope is ambiguous because a global variable by the same name exists: `sim` will be treated as a new local. Disambiguate by using `local sim` to suppress this warning or `global sim` to assign to the existing global variable.
+└ @ /tmp/brev3/r3/probes/runs.jl:53
+┌ Warning: Assignment to `sim` in soft scope is ambiguous because a global variable by the same name exists: `sim` will be treated as a new local. Disambiguate by using `local sim` to suppress this warning or `global sim` to assign to the existing global variable.
+└ @ /tmp/brev3/r3/probes/runs.jl:58
+┌ Warning: Assignment to `p` in soft scope is ambiguous because a global variable by the same name exists: `p` will be treated as a new local. Disambiguate by using `local p` to suppress this warning or `global p` to assign to the existing global variable.
+└ @ /tmp/brev3/r3/probes/runs.jl:70
+┌ Warning: Assignment to `sim` in soft scope is ambiguous because a global variable by the same name exists: `sim` will be treated as a new local. Disambiguate by using `local sim` to suppress this warning or `global sim` to assign to the existing global variable.
+└ @ /tmp/brev3/r3/probes/runs.jl:73
+┌ Warning: Assignment to `t` in soft scope is ambiguous because a global variable by the same name exists: `t` will be treated as a new local. Disambiguate by using `local t` to suppress this warning or `global t` to assign to the existing global variable.
+└ @ /tmp/brev3/r3/probes/runs.jl:75
+┌ Warning: Assignment to `sim` in soft scope is ambiguous because a global variable by the same name exists: `sim` will be treated as a new local. Disambiguate by using `local sim` to suppress this warning or `global sim` to assign to the existing global variable.
+└ @ /tmp/brev3/r3/probes/runs.jl:81
+┌ Warning: Assignment to `p` in soft scope is ambiguous because a global variable by the same name exists: `p` will be treated as a new local. Disambiguate by using `local p` to suppress this warning or `global p` to assign to the existing global variable.
+└ @ /tmp/brev3/r3/probes/runs.jl:87
+┌ Warning: Assignment to `sim` in soft scope is ambiguous because a global variable by the same name exists: `sim` will be treated as a new local. Disambiguate by using `local sim` to suppress this warning or `global sim` to assign to the existing global variable.
+└ @ /tmp/brev3/r3/probes/runs.jl:93
+[ Info: --- Running BGK Simulation ---
+[ Info: BGK: D = 1, 16 velocities, 32 equations, γ = 1.4, collision: implicit
+[ Info: Using PolyesterBackend for parallel runs!
+[ Info: Simulation Progress: 0.2% | ETA: 00:16:28
+[ Info: BGK Simulation (D=1) finished in 2.22 seconds.
+[ Info: Added custom stat 'Runtime' keeping dimensions: none
+[ Info: Added custom stat 'k_step' keeping dimensions: none
+[ Info: Added custom stat 'final_particle_count' keeping dimensions: none
+[ Info: --- Running BGK Simulation ---
+[ Info: BGK: D = 1, 16 velocities, 32 equations, γ = 1.4, collision: implicit
+[ Info: Using PolyesterBackend for parallel runs!
+[ Info: BGK Simulation (D=1) finished in 0.04 seconds.
+[ Info: Added custom stat 'Runtime' keeping dimensions: none
+[ Info: Added custom stat 'k_step' keeping dimensions: none
+[ Info: Added custom stat 'final_particle_count' keeping dimensions: none
+vcenter=0.0 slip walls equilibrium at rest: max dev 8.882e-16, mean ρ-1 -1.110e-16, mean ρu 1.213e-18
+vcenter=0.5 slip walls equilibrium at rest: max dev 2.089e+00, mean ρ-1 2.074e-01, mean ρu 7.033e-01

@@ -22,6 +22,27 @@ bgk_wall_base(; Ns = 50, tau = 1e-2, tmax = 0.2) = Dict{Symbol, Any}(
     :Time_CFL => 0.2, :Time_stepper => :ARS222,
     :Scheme_name => :MUSCL, :Scheme_order => 2, :Flux_name => :Rusanov, :Limiter_name => :none, :MOOD_criterion => :none)
 
+# Net mass flux through a wall (normal n into the wall, velocity w) of a BGK ghost state g for the mirrored interior
+# state f: the incident half (c > 0) from f, the emitted half from g. Zero for a wall that holds the gas.
+function wall_mass_flux(eq, f, g, n, w)
+    Φ = 0.0
+    for k in 1:HyperCloud.num_velocities(eq)
+        v, wk = velocity_node(eq, k)
+        c = sum((v - w) .* n)
+        Φ += wk * c * (c > 0 ? f[k] : g[k])
+    end
+    return Φ
+end
+
+# Mass of the final state minus the initial mass (trapezoid rule over the sorted 1-D cloud: the mean of the point
+# values is not the mass, the wall particles at both ends count half)
+function mass_change(sim)
+    xs = [x[1] for x in sim.x[end]]
+    o = sortperm(xs)
+    trap(us) = sum((us[o[i]][1] + us[o[i + 1]][1]) / 2 * (xs[o[i + 1]] - xs[o[i]]) for i in 1:length(o) - 1)
+    return trap(sim.u[end]) - trap(sim.u[1])
+end
+
 # Mean of (ρ, u, p) over the particles with x in (lo, hi)
 function plateau(sim, lo, hi)
     xs, us = [x[1] for x in sim.x[end]], sim.u[end]
@@ -46,6 +67,11 @@ end
         @test_throws ArgumentError DiffuseWall(0.0)
         @test_throws ArgumentError DiffuseWall(1.0; accommodation = 2)
         @test slip_wall() isa MirrorBC{1, SlipWall, true} && diffuse_wall(1.5; degree = 2) isa MirrorBC{2, <:DiffuseWall, true}
+        # the runners check the operators before the first step (inside the kernel a MethodError, or no wall at all)
+        box1 = get_rectangular_domain(Float64, (0.0,), (1.0,); bc_map = BCD(1 => slip_wall(), 2 => slip_wall()))
+        lin  = LinearAdvection(((1.0,),), Float64)
+        @test_throws ArgumentError HyperCloud._check_wall_ops(lin, box1)
+        @test HyperCloud._check_wall_ops(EulerEquation(Val(1), Float64), box1) === nothing
         # BGK: specular reflection flips the node index along the wall axis; the diffuse wall returns an
         # equilibrium at its own temperature into itself (exact discrete flux balance)
         nodes, weights = velocity_grid(:uniform, 8, 6.0)
@@ -58,9 +84,42 @@ end
         @test DiffuseWall(1.0)(bgk, feq, w1) ≈ feq atol = 1e-13
         @test DiffuseWall(1.0; accommodation = 0.3)(bgk, feq, w1) ≈ feq atol = 1e-13
         # a hotter wall emits a hotter half: the outgoing (v < 0, into the fluid at x < 1) components change
+        boxd(op) = get_rectangular_domain(Float64, (0.0,), (1.0,); bc_map = BCD(1 => MirrorBC(op), 2 => MirrorBC(op)))
+        @test HyperCloud._check_wall_ops(bgk, boxd(DiffuseWall(2.0))) === nothing
+        @test_throws ArgumentError HyperCloud._check_wall_ops(bgk, boxd(DiffuseWall(1.0; velocity = (0.1, 0.2))))
+        @test_throws ArgumentError HyperCloud._check_wall_ops(bgk, boxd(DiffuseWall(1.0; velocity = (NaN,))))   # no Maxwellian
+        @test_throws ArgumentError HyperCloud._check_wall_ops(bgk, boxd(DiffuseWall(1e-4)))    # too cold for 8 nodes: emits nothing
+        @test_throws ArgumentError HyperCloud._check_wall_ops(EulerEquation(Val(1), Float64), boxd(DiffuseWall(1.0)))
         hot = DiffuseWall(2.0)(bgk, feq, w1)
         @test all(k -> (velocity_node(bgk, k)[1][1] > 0) == (hot[k] == feq[k]), 1:8)
         @test moments(bgk, hot)[1] > 0
+        # Off the node grid (a shifted grid, an oblique normal, a moving wall) the specular reflection keeps the mass
+        # flux through the wall at zero and reflects an equilibrium into the equilibrium of the reflected state.
+        # A drifting gas, so that the identity or an even reflection would fail.
+        reflected(eq, f, n, w) = (U = moments(eq, f); u = SVector(U[2:end-1]...) / U[1];
+                                  ur = u - 2 * sum((u - w) .* n) * n; (U[1], ur, U[end] - 0.5 * U[1] * sum(abs2, u)))
+        function check_reflection(eq, f, n, w; tol = 1e-3)
+            g = SlipWall()(eq, f, WallPoint(zero(n), n, 0.05, w))
+            @test abs(wall_mass_flux(eq, f, g, n, w)) < 1e-13
+            ρ, ur, ei = reflected(eq, f, n, w)
+            G = moments(eq, g)
+            @test abs(G[1] - ρ) < tol && maximum(abs.(SVector(G[2:end-1]...) / G[1] - ur)) < tol &&
+                  abs(G[end] - 0.5 * G[1] * sum(abs2, SVector(G[2:end-1]...) / G[1]) - ei) < tol
+        end
+        nodes16, weights16 = velocity_grid(:uniform, 16, 6.0)
+        shifted = BGKEquation(Val(1), nodes16, weights16, 1.4, ConstantRelaxationTime(1e-2); center = (0.5,))
+        fs, _ = equilibrium(shifted, SVector(1.0, 0.2, 2.5 + 0.5 * 0.04))
+        # (16 nodes: the scaled emitted half is off by 2e-3 in 1-D, 2e-5 with 64 nodes)
+        check_reflection(shifted, fs, SVector(1.0), SVector(0.0); tol = 5e-3)   # used to reflect about the grid centre 0.5
+        bgk16 = BGKEquation(Val(1), nodes16, weights16, 1.4, ConstantRelaxationTime(1e-2))
+        f16, _ = equilibrium(bgk16, SVector(1.0, 0.3, 2.5 + 0.5 * 0.09))
+        check_reflection(bgk16, f16, SVector(1.0), SVector(0.5); tol = 5e-3)    # moving wall: u' = 2w - u = 0.7
+        nodes12, weights12 = velocity_grid(:uniform, 12, 6.0)
+        bgk2 = BGKEquation(Val(2), nodes12, weights12, 1.4, ConstantRelaxationTime(1e-2))
+        f2, _ = equilibrium(bgk2, SVector(1.0, 0.2, -0.1, 2.5 + 0.5 * 0.05))
+        for θ in (0.3, π / 4)                                                # oblique; the diagonal is a node permutation
+            check_reflection(bgk2, f2, SVector(cos(θ), sin(θ)), SVector(0.0, 0.0))
+        end
     end
 
     @testset "Euler: a gas at u = 1 reflected by a slip wall reaches the Rankine–Hugoniot state" begin
@@ -102,11 +161,23 @@ end
         @test conf.reference == :exact_piston
         ex = exact_piston(conf.shared)
         @test ex(SVector(0.2, 0.3))[1] == 1.0 && ex(SVector(0.8, 0.3))[1] ≈ ρ₂
+        # its shape is a string, so the piston speed is in the parameter hash (a Moving instance's motion is a
+        # closure, which the hash does not see), and it builds in the run's float type
+        @test euler_1d_piston(speed = 0.4).shared[:Grid_shape] != conf.shared[:Grid_shape]
+        @test euler_1d_piston(speed = 0.4).shared[:piston_speed] == 0.4
+        @test_throws ArgumentError euler_1d_piston(speed = -0.5)
+        @test_throws ArgumentError euler_1d_piston(face = 0.3)
+        p32 = merge(conf.shared, conf.methods[:RK2MUSCL2_VK], Dict{Symbol, Any}(:T => Float32, :Grid_Ns => (60,), :tmax => 0.05, :snapshots => 1))
+        sim32 = run_direct_simulation(p32)
+        @test sim32 !== nothing && eltype(sim32.u[end][1]) == Float32
+        @test HyperCloud.piston_state(1.0, 1.0, 50.0, 1.4)[2] > 1000      # a fast piston is bracketed (capped at 1000 p₁)
         # a piston face on the end of the canvas has no ghosts of its own: refused
         bad = intersect(Tagged(Cuboid((0.0,), (1.0,)), 1), piston)
         @test_throws ArgumentError ParticleGrid(GeometricDomain(bad; mins = (0.0,), maxs = (1.0,)), (0.01,), ExponentialWeightFunction(1.0, 0.025), 3)
     end
 
+    # (a smoke test of the runs: an equilibrium at rest is even in v, so any even reflection keeps it; the operator
+    # checks above discriminate)
     @testset "BGK: an equilibrium gas between walls at its temperature stays in equilibrium" begin
         for bc in (diffuse_wall(1.0), slip_wall(), diffuse_wall(1.0; accommodation = 0.5))
             sim = run_bgk_simulation(merge(bgk_wall_base(), Dict{Symbol, Any}(:Grid_bc => BCD(1 => bc, 2 => bc))))
@@ -116,6 +187,12 @@ end
     end
 
     @testset "BGK: a hot diffuse wall heats the gas, the mass error shrinks with the resolution" begin
+        # control: specular walls with a pressure jump in the gas conserve the mass to second order (measured
+        # -3.9e-5 at N = 100), so the drift below is the diffuse wall's
+        simc = run_bgk_simulation(merge(bgk_wall_base(; Ns = 100, tmax = 0.5), Dict{Symbol, Any}(:Grid_bc => BCD(1 => slip_wall(), 2 => slip_wall()),
+                                  :IC_uR => (0.5, 0.0, 1.0))))
+        @test simc !== nothing
+        simc !== nothing && @test abs(mass_change(simc)) < 2e-4
         θ(u) = 2 * (u[3] - 0.5 * u[2]^2 / u[1]) / (5 * u[1])                  # D + K = 5 for γ = 1.4 in 1-D
         drift = Float64[]
         for N in (50, 100)
@@ -125,9 +202,9 @@ end
             us = sim.u[end]
             @test 1.7 < θ(us[end]) < 2.0 && abs(θ(us[1]) - 1) < 0.01            # measured 1.83 / 1.86 next to the hot wall
             @test all(x -> 0.99 < x < 2.0, θ.(us)) && θ(us[end - 5]) > θ(us[5])    # (the profile is not strictly monotone: 1e-3 ripples at the cold wall)
-            push!(drift, abs(sum(u[1] for u in us) / length(us) - 1))
+            push!(drift, abs(mass_change(sim)))
         end
-        length(drift) == 2 && @test drift[2] < 0.8 * drift[1] && drift[2] < 0.01   # measured 7.4e-3 / 5.0e-3 / 3.2e-3 (N = 50 / 100 / 200)
+        length(drift) == 2 && @test drift[2] < 0.8 * drift[1] && drift[2] < 0.01   # measured 1.15e-2 / 7.1e-3 / 4.2e-3 (N = 50 / 100 / 200)
     end
 
     @testset "BGK: a piston (τ = 1e-4, isothermal diffuse wall) reproduces the Euler plateau within 1 %" begin
@@ -144,6 +221,16 @@ end
             t = sim.t[end]
             ρ, u, pr = plateau(sim, 1 - S * t + 0.06, 1 - w * t - 0.08)
             @test abs(ρ - ρ₂) / ρ₂ < 0.012 && abs(pr - p₂) / p₂ < 0.012 && abs(u + w) < 0.012   # measured 1.482 / 1.747 / -0.493
+        end
+        # the same with a specular face: a moving wall takes the reflection off the node grid inside the kernel (the
+        # nearest-node reflection was 9 % low in ρ and 13 % in p)
+        ps = merge(p, Dict{Symbol, Any}(:Grid_Ns => (200,), :Grid_bc => BCD(1 => slip_wall(), 2 => slip_wall())))
+        sims = run_bgk_simulation(ps)
+        @test sims !== nothing
+        if sims !== nothing
+            t = sims.t[end]
+            ρ, u, pr = plateau(sims, 1 - S * t + 0.06, 1 - w * t - 0.08)
+            @test abs(ρ - ρ₂) / ρ₂ < 0.02 && abs(pr - p₂) / p₂ < 0.02 && abs(u + w) < 0.02
         end
     end
 end

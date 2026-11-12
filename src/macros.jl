@@ -147,6 +147,8 @@ run, write nothing), `@sim euler_1d_sod on_changed_sources = :recompute` or `@si
 macro sim(name, opts...)
     all(o -> o isa Expr && o.head === :(=) && o.args[1] isa Symbol, opts) ||
         throw(ArgumentError("@sim: options after the name must be `key = value`, got $(join(opts, ", "))"))
+    keys_ = [o.args[1] for o in opts]
+    allunique(keys_) || throw(ArgumentError("@sim: option(s) given twice: $(join(unique(filter(k -> count(==(k), keys_) > 1, keys_)), ", "))"))
     kw = Expr(:tuple, Expr(:parameters, (Expr(:kw, o.args[1], esc(o.args[2])) for o in opts)...))   # (; key = value, ...)
     mod = __module__
     raw_sym = _normalize_macro_name(name)
