@@ -66,7 +66,28 @@ end
         @test V ≈ State{4, Float64}(2.0, 0.3, 0.8, 1.5)                        # relative to the wall: -0.4 - 0.2 -> +0.6, plus 0.2
         accel = WallPoint(SVector(0.0, 0.0), SVector(0.0, 1.0), 0.1, SVector(0.0, 0.2), SVector(0.5, -1.0))
         V = cons2prim(eq, SlipWall()(eq, U, accel))
-        @test V ≈ State{4, Float64}(2.0, 0.3, 0.8, 1.5 + 2 * 0.1 * 2.0 * 1.0)  # p' = p - 2 d ρ n⋅a, n⋅a = -1
+        p2 = 1.5 + 2 * 0.1 * 2.0 * 1.0                                           # p' = p - 2 d ρ n⋅a, n⋅a = -1
+        ρ2 = 2.0 * (p2 / 1.5)^(1 / 1.4)                                          # isentropic
+        @test V[4] ≈ p2 && V[1] ≈ ρ2 && V[3] ≈ 0.8                               # normal velocity as before
+        @test V[2] ≈ 0.3                                                         # a flat wall: the tangential speed stays
+        # a disc spinning about its centre (ω = 2, r = 0.15) in a gas at rest: acceleration, spin and curvature cancel,
+        # the ghost is the gas at rest (the acceleration alone stirred it)
+        ω, r = 2.0, 0.15
+        Ω = SMatrix{2, 2}(0.0, ω, -ω, 0.0)
+        xw, nw = SVector(r, 0.0), SVector(-1.0, 0.0)                              # outward of the gas: into the disc
+        spin = WallPoint{2, Float64, 4}(xw, nw, 0.02, Ω * xw, Ω * Ω * xw, Ω, -(I - SVector(1.0, 0.0) * SVector(1.0, 0.0)') / r)
+        rest = prim2cons(eq, State{4, Float64}(1.0, 0.0, 0.0, 1.0))
+        @test SlipWall()(eq, rest, spin) ≈ rest atol = 1e-14
+        # ... also when round-off leaves a pressure term (the curvature correction acts on the lab-frame velocity,
+        # irrotational here, not on the velocity relative to the spinning wall)
+        spin2 = WallPoint{2, Float64, 4}(xw, nw, 0.02, Ω * xw, Ω * Ω * xw * (1 + 1e-6), Ω, spin.hessian)
+        @test SlipWall()(eq, rest, spin2) ≈ rest atol = 1e-6
+        # a vortex along a static concave wall (inside the circle r = 1): ∂p/∂n = ρ u_t² / r, the pressure grows outward
+        conc = WallPoint{2, Float64, 4}(SVector(1.0, 0.0), SVector(1.0, 0.0), 0.05, zero(SVector{2}), zero(SVector{2}),
+                                        zero(SMatrix{2, 2}), SMatrix{2, 2}(0.0, 0.0, 0.0, 1.0))
+        Vc = cons2prim(eq, SlipWall()(eq, prim2cons(eq, State{4, Float64}(1.0, 0.0, 0.5, 1.0)), conc))
+        @test Vc[4] ≈ 1.0 + 2 * 0.05 * 0.25 && abs(Vc[2]) < 1e-15
+        @test Vc[3] ≈ 0.5 * sqrt(1 - 4 * 0.05)                                   # the irrotational vortex slows outward
         @test_throws ArgumentError DiffuseWall(0.0)
         @test_throws ArgumentError DiffuseWall(1.0; accommodation = 2)
         @test slip_wall() isa MirrorBC{1, SlipWall, true} && diffuse_wall(1.5; degree = 2) isa MirrorBC{2, <:DiffuseWall, true}
