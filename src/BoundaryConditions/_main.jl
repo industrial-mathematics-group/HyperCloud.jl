@@ -25,10 +25,10 @@ Operator of a reflecting (slip, adiabatic) wall for [`MirrorBC`](@extref HyperCl
   accelerating, rotating or curved wall the even mirror (`∂p/∂n = 0`) is first order; the ghost's pressure then takes
   the normal momentum of the fluid along the wall, `p' = p + 2 d ∂p/∂n` with the ghost's wall distance `d` and
   `∂p/∂n = -ρ (n ⋅ a + 2 n ⋅ Ω (u - w) - u_t ⋅ H u_t)` (the `WallPoint`'s acceleration `a`, spin `Ω` and
-  curvature `H`, `u_t` the tangential velocity relative to the wall), its density follows isentropically and its
-  tangential velocity that of a flow along the curved wall that is irrotational in the lab frame,
-  `|v_t'| = |v_t| √(1 - 4 d v_t ⋅ H v_t / |v_t|²)` for the lab-frame tangential velocity `v_t` (Dadone & Grossman's
-  curvature-corrected symmetry). Measured: an
+  curvature `H`, `u_t` the tangential velocity relative to the wall), extrapolated log-linearly (always positive;
+  the exponent `2 d ∂p/∂n / p` bounded to ±1/2), its density follows isentropically and its tangential velocity that
+  of a flow along the curved wall that is irrotational in the lab frame, `u_t' = u_t - 2 d (H u_t - P_t(Ωᵀ n))`
+  relative to the wall (Dadone & Grossman's curvature-corrected symmetry, Galilean invariant). Measured: an
   oscillating piston 0.18 % of the wave amplitude at 2400 particles (first order with the even mirror); a disc
   spinning in a gas at rest keeps it at rest to 1e-15 (the material acceleration alone stirred it by 1 %); the
   potential vortex between static circles, L1 error of ρ 1.9e-3 / 6.8e-4 / 2.0e-4 for N = 50 / 100 / 200 (order
@@ -56,19 +56,22 @@ struct SlipWall end
     ur = u - wall.velocity                       # relative to the wall
     un = sum(ur .* n)
     ut = ur - un * n
+    d, H, Ω = wall.distance, wall.hessian, wall.spin
     # Normal momentum of the fluid along the wall: acceleration and rotation of the wall, and its curvature
-    κt = sum(ut .* (wall.hessian * ut))          # u_t ⋅ H u_t: the curvature along the flow times |u_t|²
-    dpdn = -ρ * (sum(wall.acceleration .* n) + 2 * sum(n .* (wall.spin * ur)) - κt)
-    p2 = max(p + 2 * wall.distance * dpdn, T(0.01) * p)   # (a violent acceleration cannot make it negative)
-    p2 == p && return prim2cons(eq, State{M, T}(ρ, (u - (2 * un) * n)..., p))   # flat, static or uniformly moving
-    # Isentropic ghost density, and the tangential velocity of a flow along the curved wall that is irrotational in the
-    # lab frame (Dadone & Grossman's curvature-corrected symmetry: ∂|u_t|/∂n = κ|u_t|). In the lab frame, not relative
-    # to the wall: a gas at rest around a spinning disc is irrotational, relative to the disc it is not.
+    dpdn = -ρ * (sum(wall.acceleration .* n) + 2 * sum(n .* (Ω * ur)) - sum(ut .* (H * ut)))
+    # Tangential velocity of a flow that is irrotational in the lab frame, relative to the wall (Galilean invariant):
+    # ∂u_t/∂n = -H (u - w)_t + P_t(Ωᵀ n), P_t the projection onto the tangent plane (Dadone & Grossman's
+    # curvature-corrected symmetry for a moving wall; in vector form, so 3-D flows oblique to the principal directions
+    # are covered). For a disc spinning in a gas at rest both corrections vanish.
+    ωn  = Ω' * n
+    dut = -2d * (H * ut - (ωn - sum(ωn .* n) * n))
+    (iszero(dpdn) && iszero(dut)) && return prim2cons(eq, State{M, T}(ρ, (u - (2 * un) * n)..., p))   # flat, static, uniform motion
+    # Log-linear pressure (second order like p + 2d ∂p/∂n, always positive), the exponent bounded to ±1/2: beyond that
+    # the linearisation is meaningless (behind a cylinder in Mach 2 flow the linear form reached the old 1 % clamp
+    # and the run lost positivity); the density follows isentropically
+    p2 = p * exp(clamp(2d * dpdn / p, -T(0.5), T(0.5)))
     ρ2 = ρ * (p2 / p)^(1 / eq.gamma)
-    vt = u - sum(u .* n) * n
-    q2 = sum(abs2, vt)
-    s  = q2 > zero(T) ? sqrt(max(zero(T), one(T) - 4 * wall.distance * sum(vt .* (wall.hessian * vt)) / q2)) : one(T)
-    return prim2cons(eq, State{M, T}(ρ2, (s * vt + (2 * sum(wall.velocity .* n) - sum(u .* n)) * n)..., p2))
+    return prim2cons(eq, State{M, T}(ρ2, (wall.velocity + ut + dut - un * n)..., p2))
 end
 
 # The axis a unit normal is aligned with, 0 if none

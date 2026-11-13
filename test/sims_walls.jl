@@ -66,7 +66,7 @@ end
         @test V ≈ State{4, Float64}(2.0, 0.3, 0.8, 1.5)                        # relative to the wall: -0.4 - 0.2 -> +0.6, plus 0.2
         accel = WallPoint(SVector(0.0, 0.0), SVector(0.0, 1.0), 0.1, SVector(0.0, 0.2), SVector(0.5, -1.0))
         V = cons2prim(eq, SlipWall()(eq, U, accel))
-        p2 = 1.5 + 2 * 0.1 * 2.0 * 1.0                                           # p' = p - 2 d ρ n⋅a, n⋅a = -1
+        p2 = 1.5 * exp(2 * 0.1 * 2.0 * 1.0 / 1.5)                                # p' = p exp(-2 d ρ n⋅a / p), n⋅a = -1
         ρ2 = 2.0 * (p2 / 1.5)^(1 / 1.4)                                          # isentropic
         @test V[4] ≈ p2 && V[1] ≈ ρ2 && V[3] ≈ 0.8                               # normal velocity as before
         @test V[2] ≈ 0.3                                                         # a flat wall: the tangential speed stays
@@ -86,8 +86,19 @@ end
         conc = WallPoint{2, Float64, 4}(SVector(1.0, 0.0), SVector(1.0, 0.0), 0.05, zero(SVector{2}), zero(SVector{2}),
                                         zero(SMatrix{2, 2}), SMatrix{2, 2}(0.0, 0.0, 0.0, 1.0))
         Vc = cons2prim(eq, SlipWall()(eq, prim2cons(eq, State{4, Float64}(1.0, 0.0, 0.5, 1.0)), conc))
-        @test Vc[4] ≈ 1.0 + 2 * 0.05 * 0.25 && abs(Vc[2]) < 1e-15
-        @test Vc[3] ≈ 0.5 * sqrt(1 - 4 * 0.05)                                   # the irrotational vortex slows outward
+        @test Vc[4] ≈ exp(2 * 0.05 * 0.25) && abs(Vc[2]) < 1e-15
+        @test Vc[3] ≈ 0.5 * (1 - 2 * 0.05)                                       # the irrotational vortex slows outward
+        # Galilean invariance: the same wall and flow seen from a frame moving at V (the wall moves at V) give the same
+        # ghost relative to the wall (the lab-frame correction of the tangential velocity was not invariant)
+        V0 = SVector(0.3, 0.2)
+        convV = WallPoint{2, Float64, 4}(conc.position, conc.normal, conc.distance, V0, zero(SVector{2}), zero(SMatrix{2, 2}), conc.hessian)
+        Vv = cons2prim(eq, SlipWall()(eq, prim2cons(eq, State{4, Float64}(1.0, V0[1], 0.5 + V0[2], 1.0)), convV))
+        @test Vv ≈ State{4, Float64}(Vc[1], Vc[2] + V0[1], Vc[3] + V0[2], Vc[4])
+        # a supersonic flow along a convex wall: the ghost pressure stays positive (log-linear, bounded)
+        cvx = WallPoint{2, Float64, 4}(SVector(0.15, 0.0), SVector(-1.0, 0.0), 0.04, zero(SVector{2}), zero(SVector{2}),
+                                       zero(SMatrix{2, 2}), SMatrix{2, 2}(0.0, 0.0, 0.0, -1 / 0.15))
+        Vs = cons2prim(eq, SlipWall()(eq, prim2cons(eq, State{4, Float64}(1.0, 0.0, 4.0, 1.0)), cvx))
+        @test Vs[4] ≈ exp(-0.5) && Vs[1] > 0
         @test_throws ArgumentError DiffuseWall(0.0)
         @test_throws ArgumentError DiffuseWall(1.0; accommodation = 2)
         @test slip_wall() isa MirrorBC{1, SlipWall, true} && diffuse_wall(1.5; degree = 2) isa MirrorBC{2, <:DiffuseWall, true}

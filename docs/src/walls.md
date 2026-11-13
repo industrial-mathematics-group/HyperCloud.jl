@@ -12,7 +12,7 @@ Ghosts behind the corners and edges of a box are reflected in the face whose tag
 
 ## Moving walls
 
-A `Moving` piece of the shape carries its ghosts along and the cloud makes way for it (HyperCloudCore places the ghosts at every stage time and sweeps the interior after every step). The wall velocity and acceleration reach the operators through the `WallPoint`: the slip wall reflects relative to the velocity and gives the mirrored pressure the normal gradient of an accelerating wall, `p' = p − 2 d ρ (n·a)` (the even mirror, `∂p/∂n = 0`, left a first-order error next to an oscillating piston: 3.3 / 2.0 / 0.8 % of the wave amplitude for 300 / 600 / 1200 particles, 0.3 / 0.7 / 0.1 % with the term); the diffuse wall emits at the wall velocity. A piston driven into a gas at rest:
+A `Moving` piece of the shape carries its ghosts along and the cloud makes way for it (HyperCloudCore places the ghosts at every stage time and sweeps the interior after every step). The wall velocity, acceleration, spin and curvature reach the operators through the `WallPoint`: the slip wall reflects the normal velocity relative to the wall, and at an accelerating, rotating or curved wall gives the mirrored state the normal momentum of the fluid along the wall, `∂p/∂n = −ρ (n·a + 2 n·Ω(u − w) − u_t·H u_t)`, with the tangential velocity of an irrotational flow (see [`SlipWall`](@ref); the even mirror, `∂p/∂n = 0`, left a first-order error next to an oscillating piston and at static curved walls, and the material acceleration alone stirred a gas at rest around a spinning disc); the diffuse wall emits at the wall velocity. A piston driven into a gas at rest:
 
 ```julia
 piston = Moving(Tagged(HalfSpace((1.0,), (1.0,)), 2), translating((-0.5,)))   # face at x = 1 − 0.5 t
