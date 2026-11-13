@@ -31,8 +31,9 @@ Operator of a reflecting (slip, adiabatic) wall for [`MirrorBC`](@extref HyperCl
   relative to the wall (Dadone & Grossman's curvature-corrected symmetry, Galilean invariant). Measured: an
   oscillating piston 0.18 % of the wave amplitude at 2400 particles (first order with the even mirror); a disc
   spinning in a gas at rest keeps it at rest to 1e-15 (the material acceleration alone stirred it by 1 %); the
-  potential vortex between static circles, L1 error of ρ 1.9e-3 / 6.8e-4 / 2.0e-4 for N = 50 / 100 / 200 (order
-  1.5–1.8; 1.2e-2 / 6.2e-3 / 3.5e-3 with the even mirror) and the near-wall velocity error four times smaller.
+  potential vortex between static circles, L1 error of ρ 1.6e-3 / 6.8e-4 / 2.1e-4 for N = 50 / 100 / 200 (order
+  1.3–1.7; 1.2e-2 / 6.2e-3 / 3.5e-3 with the even mirror) and the near-wall velocity error eight times smaller. The
+  tangential correction is bounded by half the relative tangential speed, like the pressure exponent.
 - **BGK:** specular reflection of the distribution, `f'(v) = f(v - 2 ((v - w) ⋅ n) n)`. Exact on the tensor
   velocity grid when the reflection maps the grid onto itself: a wall normal along an axis whose normal wall
   velocity equals the grid centre on that axis (`:PDE_vcenter`; a static wall on a grid centred at 0), where the
@@ -65,6 +66,10 @@ struct SlipWall end
     # are covered). For a disc spinning in a gas at rest both corrections vanish.
     ωn  = Ω' * n
     dut = -2d * (H * ut - (ωn - sum(ωn .* n) * n))
+    # bounded like the pressure: at most half the relative tangential speed (a wall of radius below 2d reversed the
+    # ghost's tangential velocity, a convex one amplified it without limit; zero for the spinning disc, untouched)
+    qd, qt = sum(abs2, dut), sum(abs2, ut)
+    qd > qt / 4 && (dut = dut * sqrt(qt / (4qd)))
     (iszero(dpdn) && iszero(dut)) && return prim2cons(eq, State{M, T}(ρ, (u - (2 * un) * n)..., p))   # flat, static, uniform motion
     # Log-linear pressure (second order like p + 2d ∂p/∂n, always positive), the exponent bounded to ±1/2: beyond that
     # the linearisation is meaningless (behind a cylinder in Mach 2 flow the linear form reached the old 1 % clamp

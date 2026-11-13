@@ -99,6 +99,12 @@ end
                                        zero(SMatrix{2, 2}), SMatrix{2, 2}(0.0, 0.0, 0.0, -1 / 0.15))
         Vs = cons2prim(eq, SlipWall()(eq, prim2cons(eq, State{4, Float64}(1.0, 0.0, 4.0, 1.0)), cvx))
         @test Vs[4] ≈ exp(-0.5) && Vs[1] > 0
+        @test 4.0 < Vs[3] <= 6.0 + 1e-12                                         # the tangential correction is bounded too
+        # a concave wall of radius below 2d: the tangential velocity keeps its direction
+        tight = WallPoint{2, Float64, 4}(SVector(0.05, 0.0), SVector(1.0, 0.0), 0.04, zero(SVector{2}), zero(SVector{2}),
+                                         zero(SMatrix{2, 2}), SMatrix{2, 2}(0.0, 0.0, 0.0, 1 / 0.05))
+        Vt = cons2prim(eq, SlipWall()(eq, prim2cons(eq, State{4, Float64}(1.0, 0.0, 0.5, 1.0)), tight))
+        @test 0.25 - 1e-12 <= Vt[3] < 0.5
         @test_throws ArgumentError DiffuseWall(0.0)
         @test_throws ArgumentError DiffuseWall(1.0; accommodation = 2)
         @test slip_wall() isa MirrorBC{1, SlipWall, true} && diffuse_wall(1.5; degree = 2) isa MirrorBC{2, <:DiffuseWall, true}
