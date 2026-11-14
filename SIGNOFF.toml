@@ -1,7 +1,15 @@
-# AI declarations of the files, checked by aisignoff (migrated from aidecl and from format version 1).
+# AI declarations, checked by aisignoff: file-level annotations below, line-level declarations from [history].
 # Scheme: https://github.com/industrial-mathematics-group/.github/blob/main/.github/CONTRIBUTING.md#ai-assisted-contributions
 version = 3
 exclude = ["reviews/**"]   # committed AI reviews (CONTRIBUTING.md) need no declaration
+
+# Line by line: the commit that landed a line on main declares it. For a pull request into main that is its
+# merge commit, whose message is the PR description with the ticked AI declaration of the template; main_dev
+# lands through the "Main dev" pull requests on GitHub. Lines whose commit declares nothing keep the
+# file-level declarations of the annotations below.
+[history]
+default-branch = "main"
+merge-method = "merge"
 
 [[annotations]]
 path = "**"
@@ -48,6 +56,10 @@ Reviewed-by = "blhackslash <dev@blackslash.win>"
 AI-Review = "A2"
 AI-Reviewed-by = "Claude Opus 5.5 (Anthropic), new sessions without the generating conversation (reviews/)"
 
+# The file lists below stay until SIGNOFF.snapshot.json holds the levels they give: `aisignoff freeze` on main
+# after the next "Main dev" merge, then the lists are deleted. Their review levels are already the
+# attestations at the end of this file; generation, and reviews below the folder defaults, can't be attested.
+
 # Changed by Claude agents to address the A2 reviews in reviews/ (and reviewed again there).
 # Human-Review: to be filled in by the responsible person (e.g. `aidecl annotate ... -H H1 --reviewed-by ...`).
 [[annotations]]
@@ -78,3 +90,294 @@ AI-Review = "A2"
 AI-Reviewed-by = "Claude Opus 5.5 (Anthropic), new sessions without the generating conversation (reviews/)"
 Human-Review = "H1"
 Reviewed-by = ["blhackslash <dev@blackslash.win>"]
+
+# Reviews of whole files, as of the content that was checked (`aisignoff attest`): lines changed afterwards fall
+# back to the commit that changed them. Taken from the file lists above, with their Human-Review (H1 and up) and
+# AI-Review, for the content each file had at the commit that last set its list.
+[[attestations]]
+path = "CLAUDE.md"
+blob = "a85f40e26ca4e9405cef2e895921e1e90a18db0d"
+AI-Review = "A2"
+AI-Reviewed-by = ["Claude Opus 5.5 (Anthropic), new sessions without the generating conversation (reviews/)"]
+
+[[attestations]]
+path = "docs/make.jl"
+blob = "ad20ef4d463f1bdfc744055a787d897b5abed198"
+AI-Review = "A2"
+AI-Reviewed-by = ["Claude Opus 5.5 (Anthropic), new sessions without the generating conversation (reviews/)"]
+
+[[attestations]]
+path = "docs/src/PDEs/advection.md"
+blob = "6b736953f02282e88c7ee3b1b7a05aed190ff154"
+AI-Review = "A2"
+AI-Reviewed-by = ["Claude Opus 5.5 (Anthropic), new sessions without the generating conversation (reviews/)"]
+
+[[attestations]]
+path = "docs/src/PDEs/bgk.md"
+blob = "f93bf7e6c8006e7c9ed120e78449bae608223c3d"
+AI-Review = "A2"
+AI-Reviewed-by = ["Claude Opus 5.5 (Anthropic), new sessions without the generating conversation (reviews/)"]
+
+[[attestations]]
+path = "docs/src/PDEs/burgers.md"
+blob = "03328ddd17d419939206280b5d9a3638c3b2ad1f"
+AI-Review = "A2"
+AI-Reviewed-by = ["Claude Opus 5.5 (Anthropic), new sessions without the generating conversation (reviews/)"]
+
+[[attestations]]
+path = "docs/src/PDEs/euler.md"
+blob = "62d17206fa7971572c61f7a1f6edb262cc427fa3"
+AI-Review = "A2"
+AI-Reviewed-by = ["Claude Opus 5.5 (Anthropic), new sessions without the generating conversation (reviews/)"]
+
+[[attestations]]
+path = "docs/src/PDEs/main.md"
+blob = "e34c051ff63461d94dfd374ec4b6eb1b86fe2ad2"
+AI-Review = "A2"
+AI-Reviewed-by = ["Claude Opus 5.5 (Anthropic), new sessions without the generating conversation (reviews/)"]
+
+[[attestations]]
+path = "docs/src/configuration.md"
+blob = "e49316d61837757e4a0f6905c48b0f48d2479fc6"
+AI-Review = "A2"
+AI-Reviewed-by = ["Claude Opus 5.5 (Anthropic), new sessions without the generating conversation (reviews/)"]
+
+[[attestations]]
+path = "docs/src/examples.md"
+blob = "e0923a3ff7c2fac941be84f8da916ec5f647aef8"
+AI-Review = "A2"
+AI-Reviewed-by = ["Claude Opus 5.5 (Anthropic), new sessions without the generating conversation (reviews/)"]
+
+[[attestations]]
+path = "docs/src/time_integration.md"
+blob = "dd7068add9bb62cf432a93161ac3d4ab59b123dd"
+AI-Review = "A2"
+AI-Reviewed-by = ["Claude Opus 5.5 (Anthropic), new sessions without the generating conversation (reviews/)"]
+
+[[attestations]]
+path = "docs/src/walls.md"
+blob = "de8c9f89016fc1157b0ec6b10283465303a173c3"
+AI-Review = "A2"
+AI-Reviewed-by = ["Claude Opus 5.5 (Anthropic), new sessions without the generating conversation (reviews/)"]
+
+[[attestations]]
+path = "docs/src/wrappers.md"
+blob = "27a4021632743634485471b5da37e4b5f789c0b8"
+AI-Review = "A2"
+AI-Reviewed-by = ["Claude Opus 5.5 (Anthropic), new sessions without the generating conversation (reviews/)"]
+
+[[attestations]]
+path = "src/BoundaryConditions/_main.jl"
+blob = "383158171df9f5ffd629ac474db1a81bdc3a9608"
+AI-Review = "A2"
+AI-Reviewed-by = ["Claude Opus 5.5 (Anthropic), new sessions without the generating conversation (reviews/)"]
+
+[[attestations]]
+path = "src/Examples/_main.jl"
+blob = "44a5a6fccd12d964f1a27495a1e2b6e43474cdb6"
+AI-Review = "A2"
+AI-Reviewed-by = ["Claude Opus 5.5 (Anthropic), new sessions without the generating conversation (reviews/)"]
+
+[[attestations]]
+path = "src/Examples/euler_1d_piston.jl"
+blob = "bc582e3007b39df96f67048f604b92f8accbc4e2"
+AI-Review = "A2"
+AI-Reviewed-by = ["Claude Opus 5.5 (Anthropic), new sessions without the generating conversation (reviews/)"]
+
+[[attestations]]
+path = "src/HyperCloud.jl"
+blob = "910700ec8730942f957c137857e3900c04f34240"
+AI-Review = "A2"
+AI-Reviewed-by = ["Claude Opus 5.5 (Anthropic), new sessions without the generating conversation (reviews/)"]
+
+[[attestations]]
+path = "test/sims_walls.jl"
+blob = "cb501f5f4794809d6b28dbe44e2012a92bce0dea"
+AI-Review = "A2"
+AI-Reviewed-by = ["Claude Opus 5.5 (Anthropic), new sessions without the generating conversation (reviews/)"]
+
+[[attestations]]
+path = "docs/src/simulation.md"
+blob = "d4f5feb1183abe664e266598136160c631c0ea82"
+AI-Review = "A2"
+AI-Reviewed-by = ["Claude Opus 5.5 (Anthropic), new sessions without the generating conversation (reviews/)"]
+
+[[attestations]]
+path = "src/SimulationFunctions/direct.jl"
+blob = "0eb60f90c5b703b3437f4c40f0802e6b1e9748d9"
+AI-Review = "A2"
+AI-Reviewed-by = ["Claude Opus 5.5 (Anthropic), new sessions without the generating conversation (reviews/)"]
+
+[[attestations]]
+path = "src/SimulationFunctions/kinetic.jl"
+blob = "51677320546194b1dc99c0ccf8583afc2ccddc99"
+AI-Review = "A2"
+AI-Reviewed-by = ["Claude Opus 5.5 (Anthropic), new sessions without the generating conversation (reviews/)"]
+
+[[attestations]]
+path = "src/device.jl"
+blob = "e4ca34e1cddb70378cc5a68110fbf17dd6f03efb"
+AI-Review = "A2"
+AI-Reviewed-by = ["Claude Opus 5.5 (Anthropic), new sessions without the generating conversation (reviews/)"]
+
+[[attestations]]
+path = "src/macros.jl"
+blob = "180ea8b82c9165e8bf2c33d2ee48dd5280213ca9"
+AI-Review = "A2"
+AI-Reviewed-by = ["Claude Opus 5.5 (Anthropic), new sessions without the generating conversation (reviews/)"]
+
+[[attestations]]
+path = "src/Builder/kinetic.jl"
+blob = "4f4a65786e7023526efcbb5d7be43f2401b81f58"
+AI-Review = "A2"
+AI-Reviewed-by = ["Claude Opus 5.5 (Anthropic), new sessions without the generating conversation (reviews/)"]
+
+[[attestations]]
+path = "src/Examples/burgers_kinetic.jl"
+blob = "c82689e723d391e579852b6b7436b61e308f8d51"
+AI-Review = "A2"
+AI-Reviewed-by = ["Claude Opus 5.5 (Anthropic), new sessions without the generating conversation (reviews/)"]
+
+[[attestations]]
+path = "src/ICs/quadrant_riemann.jl"
+blob = "a382a1d909a4e64b431f4c3b60a278c465c0e9f0"
+AI-Review = "A2"
+AI-Reviewed-by = ["Claude Opus 5.5 (Anthropic), new sessions without the generating conversation (reviews/)"]
+
+[[attestations]]
+path = "src/PDEs/_main.jl"
+blob = "3acdcb87747cf128073b088ed37f96a82657e4aa"
+AI-Review = "A2"
+AI-Reviewed-by = ["Claude Opus 5.5 (Anthropic), new sessions without the generating conversation (reviews/)"]
+
+[[attestations]]
+path = "src/PDEs/bgk.jl"
+blob = "08c2557d835351c5cc68527fbf11d00b8aca9661"
+AI-Review = "A2"
+AI-Reviewed-by = ["Claude Opus 5.5 (Anthropic), new sessions without the generating conversation (reviews/)"]
+
+[[attestations]]
+path = "src/PDEs/burgers.jl"
+blob = "3a67520e00fc0d4c81766fdbdea24afbf5102a85"
+AI-Review = "A2"
+AI-Reviewed-by = ["Claude Opus 5.5 (Anthropic), new sessions without the generating conversation (reviews/)"]
+
+[[attestations]]
+path = "src/PDEs/euler.jl"
+blob = "119b2cb171987cfe12a4f456f14f44a14f8ef63c"
+AI-Review = "A2"
+AI-Reviewed-by = ["Claude Opus 5.5 (Anthropic), new sessions without the generating conversation (reviews/)"]
+
+[[attestations]]
+path = "src/PDEs/linear_advection.jl"
+blob = "685c54cab6a0d5b5ae7a91cadd5b185eef326e10"
+AI-Review = "A2"
+AI-Reviewed-by = ["Claude Opus 5.5 (Anthropic), new sessions without the generating conversation (reviews/)"]
+
+[[attestations]]
+path = "src/SimulationFunctions/bgk.jl"
+blob = "618d37c436bb42e324d22343b2792d0c573fd11e"
+AI-Review = "A2"
+AI-Reviewed-by = ["Claude Opus 5.5 (Anthropic), new sessions without the generating conversation (reviews/)"]
+
+[[attestations]]
+path = "src/SourceTerms/bgk.jl"
+blob = "ba37f79008feaf5f57cb7dae9acc8f2ebb7f3f6d"
+AI-Review = "A2"
+AI-Reviewed-by = ["Claude Opus 5.5 (Anthropic), new sessions without the generating conversation (reviews/)"]
+
+[[attestations]]
+path = "src/inbuilt_methods.jl"
+blob = "83e36e022c8aeee4492674e962be9714fa03c9c0"
+AI-Review = "A2"
+AI-Reviewed-by = ["Claude Opus 5.5 (Anthropic), new sessions without the generating conversation (reviews/)"]
+
+[[attestations]]
+path = "src/time_integration.jl"
+blob = "586a383f4fa44535c9c1e30d44c4a43c127f92cc"
+AI-Review = "A2"
+AI-Reviewed-by = ["Claude Opus 5.5 (Anthropic), new sessions without the generating conversation (reviews/)"]
+
+[[attestations]]
+path = "test/examples.jl"
+blob = "3cf0b92fde8976cca3941c7502f0a23fcf8c39d1"
+AI-Review = "A2"
+AI-Reviewed-by = ["Claude Opus 5.5 (Anthropic), new sessions without the generating conversation (reviews/)"]
+
+[[attestations]]
+path = "test/gpu/runtests.jl"
+blob = "1a501b62b996b392df50e7665214d1c470da62ae"
+AI-Review = "A2"
+AI-Reviewed-by = ["Claude Opus 5.5 (Anthropic), new sessions without the generating conversation (reviews/)"]
+
+[[attestations]]
+path = "test/runtests.jl"
+blob = "b9c1ded317642e85a0cdff00db8bab8e3eb7ed11"
+AI-Review = "A2"
+AI-Reviewed-by = ["Claude Opus 5.5 (Anthropic), new sessions without the generating conversation (reviews/)"]
+
+[[attestations]]
+path = "test/sims.jl"
+blob = "f73806fad035a2a394b1f430126f75051a3a9036"
+AI-Review = "A2"
+AI-Reviewed-by = ["Claude Opus 5.5 (Anthropic), new sessions without the generating conversation (reviews/)"]
+
+[[attestations]]
+path = "test/sims_bgk.jl"
+blob = "38886c08d6adb09b1c1394f5b85230d72670b4dd"
+AI-Review = "A2"
+AI-Reviewed-by = ["Claude Opus 5.5 (Anthropic), new sessions without the generating conversation (reviews/)"]
+
+[[attestations]]
+path = "test/units.jl"
+blob = "8d028aeab635f13885ba5de39244a0d349190b67"
+AI-Review = "A2"
+AI-Reviewed-by = ["Claude Opus 5.5 (Anthropic), new sessions without the generating conversation (reviews/)"]
+
+[[attestations]]
+path = ".github/workflows/CI.yml"
+blob = "20a02b317008f4a9a2da735d3a3f348b3fd082c5"
+Human-Review = "H1"
+AI-Review = "A1"
+Reviewed-by = ["blhackslash <dev@blackslash.win>"]
+AI-Reviewed-by = ["Claude Opus 5.5 (Anthropic), same session"]
+
+[[attestations]]
+path = ".github/workflows/TagBot.yml"
+blob = "199a9f07965aa98d65453c36a6555f3289bc668f"
+Human-Review = "H1"
+AI-Review = "A1"
+Reviewed-by = ["blhackslash <dev@blackslash.win>"]
+AI-Reviewed-by = ["Claude Opus 5.5 (Anthropic), same session"]
+
+[[attestations]]
+path = ".github/workflows/file-signoff.yml"
+blob = "f7192628ae1080e1bed28d94f1596613face206e"
+Human-Review = "H1"
+AI-Review = "A1"
+Reviewed-by = ["blhackslash <dev@blackslash.win>"]
+AI-Reviewed-by = ["Claude Opus 5.5 (Anthropic), same session"]
+
+[[attestations]]
+path = ".github/workflows/pr-signoff.yml"
+blob = "ab2dcedb2970f8817b72ef54a2e03952a475bf34"
+Human-Review = "H1"
+AI-Review = "A1"
+Reviewed-by = ["blhackslash <dev@blackslash.win>"]
+AI-Reviewed-by = ["Claude Opus 5.5 (Anthropic), same session"]
+
+[[attestations]]
+path = ".github/workflows/signoff-badges.yml"
+blob = "4337b163b254e1e6eed94eed6866d089cd594a2b"
+Human-Review = "H1"
+AI-Review = "A1"
+Reviewed-by = ["blhackslash <dev@blackslash.win>"]
+AI-Reviewed-by = ["Claude Opus 5.5 (Anthropic), same session"]
+
+[[attestations]]
+path = "docs/src/macros.md"
+blob = "8ce21824766fcfb8cdbc0fd807a239e2773e5d03"
+Human-Review = "H1"
+AI-Review = "A2"
+Reviewed-by = ["blhackslash <dev@blackslash.win>"]
+AI-Reviewed-by = ["Claude Opus 5.5 (Anthropic), new sessions without the generating conversation (reviews/)"]
