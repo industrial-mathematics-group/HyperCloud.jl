@@ -19,14 +19,21 @@ export SlipWall, DiffuseWall, slip_wall, diffuse_wall
 Operator of a reflecting (slip, adiabatic) wall for [`MirrorBC`](@extref HyperCloudCore HyperCloudCore.MirrorBC):
 [`slip_wall`](@ref) builds the condition.
 
-- **Euler:** the mirrored state keeps its density; its velocity is reflected relative to the wall,
-  `u' = u - 2 ((u - w) ⋅ n) n` with the wall velocity `w` (zero for a static wall), so the normal velocity at the
-  wall equals the wall's and the tangential one is kept; its pressure takes the normal gradient of an accelerating
-  wall, `p' = p - 2 d ρ (n ⋅ a)` with the ghost's wall distance `d` and the wall acceleration `a` of the
-  `WallPoint` (the momentum equation of the fluid moving with the wall: `∂p/∂n = -ρ n ⋅ a`; an even mirror imposes
-  `∂p/∂n = 0` and left a first-order error next to an oscillating piston: 3.3 / 2.0 / 0.8 % of the wave
-  amplitude for 300 / 600 / 1200 particles, 0.3 / 0.7 / 0.1 % with the term). Uniformly moving and static walls
-  have `a = 0`.
+- **Euler:** the normal velocity relative to the wall is reflected, `u' ⋅ n = 2 w ⋅ n - u ⋅ n` with the wall
+  velocity `w` (zero for a static wall), so the normal velocity at the wall equals the wall's. At a flat, static or
+  uniformly moving wall that is all (density, pressure and tangential velocity are mirrored evenly). At an
+  accelerating, rotating or curved wall the even mirror (`∂p/∂n = 0`) is first order; the ghost's pressure then takes
+  the normal momentum of the fluid along the wall, `p' = p + 2 d ∂p/∂n` with the ghost's wall distance `d` and
+  `∂p/∂n = -ρ (n ⋅ a + 2 n ⋅ Ω (u - w) - u_t ⋅ H u_t)` (the `WallPoint`'s acceleration `a`, spin `Ω` and
+  curvature `H`, `u_t` the tangential velocity relative to the wall), extrapolated log-linearly (always positive;
+  the exponent `2 d ∂p/∂n / p` bounded to ±1/2), its density follows isentropically and its tangential velocity that
+  of a flow along the curved wall that is irrotational in the lab frame, `u_t' = u_t - 2 d (H u_t - P_t(Ωᵀ n))`
+  relative to the wall (Dadone & Grossman's curvature-corrected symmetry, Galilean invariant). Measured: an
+  oscillating piston 0.18 % of the wave amplitude at 2400 particles (first order with the even mirror); a disc
+  spinning in a gas at rest keeps it at rest to 1e-15 (the material acceleration alone stirred it by 1 %); the
+  potential vortex between static circles, L1 error of ρ 1.6e-3 / 6.8e-4 / 2.1e-4 for N = 50 / 100 / 200 (order
+  1.3–1.7; 1.2e-2 / 6.2e-3 / 3.5e-3 with the even mirror) and the near-wall velocity error eight times smaller. The
+  tangential correction is bounded by half the relative tangential speed, like the pressure exponent.
 - **BGK:** specular reflection of the distribution, `f'(v) = f(v - 2 ((v - w) ⋅ n) n)`. Exact on the tensor
   velocity grid when the reflection maps the grid onto itself: a wall normal along an axis whose normal wall
   velocity equals the grid centre on that axis (`:PDE_vcenter`; a static wall on a grid centred at 0), where the
@@ -44,13 +51,32 @@ struct SlipWall end
 
 @inline function (::SlipWall)(eq::EulerEquation{D, M, T, <:Conservative}, U::State{M, T}, wall::WallPoint{D, T}) where {D, M, T}
     V  = cons2prim(eq, U)
+    ρ, p = V[1], V[M]
     u  = Space{D, T}(ntuple(d -> V[1 + d], Val(D)))
     n  = wall.normal
-    un = sum((u - wall.velocity) .* n)
-    u2 = u - (2 * un) * n
-    p2 = V[M] - 2 * wall.distance * V[1] * sum(wall.acceleration .* n)
-    p2 = max(p2, T(0.01) * V[M])                 # (a violent acceleration cannot make the ghost's pressure negative)
-    return prim2cons(eq, State{M, T}(V[1], u2..., p2))
+    ur = u - wall.velocity                       # relative to the wall
+    un = sum(ur .* n)
+    ut = ur - un * n
+    d, H, Ω = wall.distance, wall.hessian, wall.spin
+    # Normal momentum of the fluid along the wall: acceleration and rotation of the wall, and its curvature
+    dpdn = -ρ * (sum(wall.acceleration .* n) + 2 * sum(n .* (Ω * ur)) - sum(ut .* (H * ut)))
+    # Tangential velocity of a flow that is irrotational in the lab frame, relative to the wall (Galilean invariant):
+    # ∂u_t/∂n = -H (u - w)_t + P_t(Ωᵀ n), P_t the projection onto the tangent plane (Dadone & Grossman's
+    # curvature-corrected symmetry for a moving wall; in vector form, so 3-D flows oblique to the principal directions
+    # are covered). For a disc spinning in a gas at rest both corrections vanish.
+    ωn  = Ω' * n
+    dut = -2d * (H * ut - (ωn - sum(ωn .* n) * n))
+    # bounded like the pressure: at most half the relative tangential speed (a wall of radius below 2d reversed the
+    # ghost's tangential velocity, a convex one amplified it without limit; zero for the spinning disc, untouched)
+    qd, qt = sum(abs2, dut), sum(abs2, ut)
+    qd > qt / 4 && (dut = dut * sqrt(qt / (4qd)))
+    (iszero(dpdn) && iszero(dut)) && return prim2cons(eq, State{M, T}(ρ, (u - (2 * un) * n)..., p))   # flat, static, uniform motion
+    # Log-linear pressure (second order like p + 2d ∂p/∂n, always positive), the exponent bounded to ±1/2: beyond that
+    # the linearisation is meaningless (behind a cylinder in Mach 2 flow the linear form reached the old 1 % clamp
+    # and the run lost positivity); the density follows isentropically
+    p2 = p * exp(clamp(2d * dpdn / p, -T(0.5), T(0.5)))
+    ρ2 = ρ * (p2 / p)^(1 / eq.gamma)
+    return prim2cons(eq, State{M, T}(ρ2, (wall.velocity + ut + dut - un * n)..., p2))
 end
 
 # The axis a unit normal is aligned with, 0 if none

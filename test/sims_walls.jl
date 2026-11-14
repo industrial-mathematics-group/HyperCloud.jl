@@ -66,7 +66,45 @@ end
         @test V ≈ State{4, Float64}(2.0, 0.3, 0.8, 1.5)                        # relative to the wall: -0.4 - 0.2 -> +0.6, plus 0.2
         accel = WallPoint(SVector(0.0, 0.0), SVector(0.0, 1.0), 0.1, SVector(0.0, 0.2), SVector(0.5, -1.0))
         V = cons2prim(eq, SlipWall()(eq, U, accel))
-        @test V ≈ State{4, Float64}(2.0, 0.3, 0.8, 1.5 + 2 * 0.1 * 2.0 * 1.0)  # p' = p - 2 d ρ n⋅a, n⋅a = -1
+        p2 = 1.5 * exp(2 * 0.1 * 2.0 * 1.0 / 1.5)                                # p' = p exp(-2 d ρ n⋅a / p), n⋅a = -1
+        ρ2 = 2.0 * (p2 / 1.5)^(1 / 1.4)                                          # isentropic
+        @test V[4] ≈ p2 && V[1] ≈ ρ2 && V[3] ≈ 0.8                               # normal velocity as before
+        @test V[2] ≈ 0.3                                                         # a flat wall: the tangential speed stays
+        # a disc spinning about its centre (ω = 2, r = 0.15) in a gas at rest: acceleration, spin and curvature cancel,
+        # the ghost is the gas at rest (the acceleration alone stirred it)
+        ω, r = 2.0, 0.15
+        Ω = SMatrix{2, 2}(0.0, ω, -ω, 0.0)
+        xw, nw = SVector(r, 0.0), SVector(-1.0, 0.0)                              # outward of the gas: into the disc
+        spin = WallPoint{2, Float64, 4}(xw, nw, 0.02, Ω * xw, Ω * Ω * xw, Ω, -(I - SVector(1.0, 0.0) * SVector(1.0, 0.0)') / r)
+        rest = prim2cons(eq, State{4, Float64}(1.0, 0.0, 0.0, 1.0))
+        @test SlipWall()(eq, rest, spin) ≈ rest atol = 1e-14
+        # ... also when round-off leaves a pressure term (the curvature correction acts on the lab-frame velocity,
+        # irrotational here, not on the velocity relative to the spinning wall)
+        spin2 = WallPoint{2, Float64, 4}(xw, nw, 0.02, Ω * xw, Ω * Ω * xw * (1 + 1e-6), Ω, spin.hessian)
+        @test SlipWall()(eq, rest, spin2) ≈ rest atol = 1e-6
+        # a vortex along a static concave wall (inside the circle r = 1): ∂p/∂n = ρ u_t² / r, the pressure grows outward
+        conc = WallPoint{2, Float64, 4}(SVector(1.0, 0.0), SVector(1.0, 0.0), 0.05, zero(SVector{2}), zero(SVector{2}),
+                                        zero(SMatrix{2, 2}), SMatrix{2, 2}(0.0, 0.0, 0.0, 1.0))
+        Vc = cons2prim(eq, SlipWall()(eq, prim2cons(eq, State{4, Float64}(1.0, 0.0, 0.5, 1.0)), conc))
+        @test Vc[4] ≈ exp(2 * 0.05 * 0.25) && abs(Vc[2]) < 1e-15
+        @test Vc[3] ≈ 0.5 * (1 - 2 * 0.05)                                       # the irrotational vortex slows outward
+        # Galilean invariance: the same wall and flow seen from a frame moving at V (the wall moves at V) give the same
+        # ghost relative to the wall (the lab-frame correction of the tangential velocity was not invariant)
+        V0 = SVector(0.3, 0.2)
+        convV = WallPoint{2, Float64, 4}(conc.position, conc.normal, conc.distance, V0, zero(SVector{2}), zero(SMatrix{2, 2}), conc.hessian)
+        Vv = cons2prim(eq, SlipWall()(eq, prim2cons(eq, State{4, Float64}(1.0, V0[1], 0.5 + V0[2], 1.0)), convV))
+        @test Vv ≈ State{4, Float64}(Vc[1], Vc[2] + V0[1], Vc[3] + V0[2], Vc[4])
+        # a supersonic flow along a convex wall: the ghost pressure stays positive (log-linear, bounded)
+        cvx = WallPoint{2, Float64, 4}(SVector(0.15, 0.0), SVector(-1.0, 0.0), 0.04, zero(SVector{2}), zero(SVector{2}),
+                                       zero(SMatrix{2, 2}), SMatrix{2, 2}(0.0, 0.0, 0.0, -1 / 0.15))
+        Vs = cons2prim(eq, SlipWall()(eq, prim2cons(eq, State{4, Float64}(1.0, 0.0, 4.0, 1.0)), cvx))
+        @test Vs[4] ≈ exp(-0.5) && Vs[1] > 0
+        @test 4.0 < Vs[3] <= 6.0 + 1e-12                                         # the tangential correction is bounded too
+        # a concave wall of radius below 2d: the tangential velocity keeps its direction
+        tight = WallPoint{2, Float64, 4}(SVector(0.05, 0.0), SVector(1.0, 0.0), 0.04, zero(SVector{2}), zero(SVector{2}),
+                                         zero(SMatrix{2, 2}), SMatrix{2, 2}(0.0, 0.0, 0.0, 1 / 0.05))
+        Vt = cons2prim(eq, SlipWall()(eq, prim2cons(eq, State{4, Float64}(1.0, 0.0, 0.5, 1.0)), tight))
+        @test 0.25 - 1e-12 <= Vt[3] < 0.5
         @test_throws ArgumentError DiffuseWall(0.0)
         @test_throws ArgumentError DiffuseWall(1.0; accommodation = 2)
         @test slip_wall() isa MirrorBC{1, SlipWall, true} && diffuse_wall(1.5; degree = 2) isa MirrorBC{2, <:DiffuseWall, true}
