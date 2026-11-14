@@ -1,7 +1,15 @@
-# AI declarations of the files, checked by aisignoff (migrated from aidecl and from format version 1).
+# AI declarations, checked by aisignoff: file-level annotations below, line-level declarations from [history].
 # Scheme: https://github.com/industrial-mathematics-group/.github/blob/main/.github/CONTRIBUTING.md#ai-assisted-contributions
 version = 3
 exclude = ["reviews/**"]   # committed AI reviews (CONTRIBUTING.md) need no declaration
+
+# Line by line: the commit that landed a line on main declares it. For a pull request into main that is its
+# merge commit, whose message is the PR description with the ticked AI declaration of the template; main_dev
+# lands through the "Main dev" pull requests on GitHub. Lines whose commit declares nothing keep the
+# file-level declarations of the annotations below.
+[history]
+default-branch = "main"
+merge-method = "merge"
 
 [[annotations]]
 path = "**"
