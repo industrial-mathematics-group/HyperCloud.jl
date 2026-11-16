@@ -50,6 +50,7 @@ makedocs(;
         "Walls and Moving Boundaries" => "walls.md",
         "Convenience Wrappers" => "wrappers.md",
         "Builder API" => "builder.md",
+        "AI Signoff Report" => "aisignoff.md",
     ],
 )
 
