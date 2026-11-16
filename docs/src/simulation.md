@@ -27,8 +27,10 @@ Both runners follow the same steps, sharing one `context` dictionary (see
    `reserved_particles` and `reserved_bytes` with a [memory limit](@ref "Memory limit").
    The dataset's `metadata` (PDEStudioCore ≥ 0.5: information about the run that is not data and is never
    plotted) holds `:hypercloudcore` (the HyperCloudCore version), `:backend`, `:float_type`, `:steps`,
-   `:t_final` (the time reached) and `:stopped_early` (`true` if the run stopped before `tmax`, e.g. after a
-   blow-up: such a run is cached like any other, so check this flag before using it). The pipeline adds its
+   `:t_final` (the time reached), `:stopped_early` (`true` if the run stopped before `tmax`, e.g. after a
+   blow-up) and `:finite` (`false` if the last stored state is not finite: a blow-up the time step does not see,
+   with a fixed `dt` or constant wave speeds, is only detected at stored snapshots and can reach `tmax`). A
+   blown-up run is cached like any other, so check both flags before using it. The pipeline adds its
    `:provenance` (PDEStudioCore, Julia and HyperCloud versions, host, threads, git commit, wall time).
    `load_sim_data(params).metadata` returns all of it; PDEStudioCore's `sim_data_table()` lists the stored runs.
 

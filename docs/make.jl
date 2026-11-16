@@ -47,6 +47,7 @@ makedocs(;
         "Source Terms" => [
             "Kinetic Relaxation" => "SourceTerms/kinetic.md",
         ],
+        "Walls and Moving Boundaries" => "walls.md",
         "Convenience Wrappers" => "wrappers.md",
         "Builder API" => "builder.md",
     ],

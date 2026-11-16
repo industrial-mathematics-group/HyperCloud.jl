@@ -113,6 +113,12 @@ faster than ``M``; ``16 \times 16`` velocities still work (95 s to compile, 30 Â
 step). About a third of a step is the collision (two equilibria per stage), a third the gradient
 pre-pass with the limiter, and the rest the flux pass.
 
+## Walls
+
+`diffuse_wall(Î¸_w; velocity, accommodation)` is the Maxwell (diffuse) wall, `slip_wall()` the specular one, both
+operators of `MirrorBC`; see [Walls and Moving Boundaries](@ref). A gas in equilibrium at the wall temperature is
+reflected into itself exactly.
+
 ## API
 
 ```@docs

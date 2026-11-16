@@ -54,6 +54,7 @@ function run_kinetic_simulation(params::ParamDict)::Union{AbstractSimData, Nothi
         
         # 4. Geometry & Grid
         geom = build_domain(domain_conf, context)
+        _check_wall_ops(eq_kin, geom)
         context[:Domain] = geom
         context[:WeightConf] = weight_conf
         
@@ -102,7 +103,8 @@ function run_kinetic_simulation(params::ParamDict)::Union{AbstractSimData, Nothi
         end
         
         sim_data = create_sim_data(xs_svector[valid_indices], us_final, ts_full[valid_indices], params; xmins=Tuple(geom.mins), xmaxs=Tuple(geom.maxs), tmin=zero(T), tmax=tmax,
-                                   metadata = run_metadata(context, k_step, ts_full[last(valid_indices)], tmax))
+                                   metadata = run_metadata(context, k_step, ts_full[last(valid_indices)], tmax;
+                                                           final_state = last(us_final)))
         add_stat!(sim_data, :Runtime, elapsed_time, :none)
         add_stat!(sim_data, :k_step, Float64(k_step), :none)
         add_stat!(sim_data, :final_particle_count, Float64(pg.meta.N), :none)
