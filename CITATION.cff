@@ -8,7 +8,7 @@ authors:
 title: "HyperCloud.jl: A comprehensive meshfree simulation framework for solving N-dimensional hyperbolic PDEs with high-order numerical accuracy."
 version: 0.6.1
 date-released: 2026-11-10
-url: "https://github.com/blhackslash/HyperCloud.jl"
+url: "https://github.com/industrial-mathematics-group/HyperCloud.jl"
 identifiers:
   - type: doi
     value: 10.5281/zenodo.23266176

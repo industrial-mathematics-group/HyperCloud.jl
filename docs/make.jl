@@ -14,7 +14,7 @@ links = InterLinks(
 
 makedocs(;
     modules=[HyperCloud],
-    # Explicit, so the build does not depend on the `origin` remote (Forgejo checkouts).
+    # Explicit, so the build does not depend on the name or URL of the `origin` remote.
     repo=Remotes.GitHub("industrial-mathematics-group", "HyperCloud.jl"),
     plugins=[links],
     authors="Pascal Jung",
