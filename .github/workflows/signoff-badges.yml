@@ -3,7 +3,7 @@ name: Signoff-Badges
 # Summarises the AI declarations of the PRs merged into the default branch as README badges.
 on:
   push:
-    branches: ["main"]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
