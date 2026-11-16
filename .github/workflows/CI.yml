@@ -68,6 +68,8 @@ jobs:
       pull-requests: read
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0   # the whole history: SIGNOFF.toml declares lines from it ([history])
 
       - name: Set up Julia
         uses: julia-actions/setup-julia@v3
@@ -79,6 +81,17 @@ jobs:
       # 5. Provide a virtual display to Documenter for plotting during doc build
       - name: Install Xvfb
         run: sudo apt-get update && sudo apt-get install -y xvfb
+
+      # The interactive AI signoff report, published with the docs (page "AI Signoff Report", docs/src/aisignoff.md).
+      # In a pull request it marks what the pull request changes. A failure here doesn't stop the docs.
+      - name: AI signoff report
+        continue-on-error: true
+        env:
+          AISIGNOFF_VERSION: "1.0.0rc8"   # keep at the aisignoff release File-signoff uses
+          SINCE: ${{ github.event_name == 'pull_request' && 'origin/main' || '' }}
+        run: |
+          pipx run --spec "aisignoff==${AISIGNOFF_VERSION}" aisignoff report \
+            --html docs/src/assets/aisignoff.html --title "HyperCloud.jl" --with-source ${SINCE:+--since "$SINCE"}
 
       - name: Build and deploy documentation
         env:

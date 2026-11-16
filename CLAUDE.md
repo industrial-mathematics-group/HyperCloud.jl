@@ -14,6 +14,7 @@ julia -t 8 --project=test test/runtests.jl                          # same suite
 HYPERCLOUD_GUI_TESTS=false julia -t 8 --project=test test/runtests.jl   # skip PDEStudio/GLMakie tests
 HYPERCLOUD_BACKEND=ka_cpu julia -t 8 --project=test test/runtests.jl    # KernelAbstractions CPU backend (checks kernel rules)
 julia --project=docs docs/make.jl                                   # docs (instantiate docs env first)
+pipx run --spec aisignoff==1.0.0rc8 aisignoff report --html docs/src/assets/aisignoff.html --with-source  # optional, before make.jl: the AI Signoff Report page (CI does it)
 julia -t auto --project=test/gpu test/gpu/runtests.jl                # device checks, AMD GPU only (CASE=<regex>)
 julia -t auto --project=test/gpu benchmark/runners.jl                # CPU vs GPU runner benchmark
 ```

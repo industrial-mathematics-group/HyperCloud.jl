@@ -9,9 +9,9 @@
 [![Dev Docs](https://img.shields.io/badge/docs-dev-blue.svg)](https://industrial-mathematics-group.github.io/HyperCloud.jl/dev/)
 [![Stable Docs](https://img.shields.io/badge/docs-stable-blue.svg)](https://industrial-mathematics-group.github.io/HyperCloud.jl/stable/)
 
-![AI generation](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/industrial-mathematics-group/HyperCloud.jl/badges/aisignoff-generation.json)
-![Human review](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/industrial-mathematics-group/HyperCloud.jl/badges/aisignoff-human-review.json)
-![AI review](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/industrial-mathematics-group/HyperCloud.jl/badges/aisignoff-ai-review.json)
+[![AI generation](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/industrial-mathematics-group/HyperCloud.jl/badges/aisignoff-generation.json)](https://industrial-mathematics-group.github.io/HyperCloud.jl/dev/aisignoff/)
+[![Human review](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/industrial-mathematics-group/HyperCloud.jl/badges/aisignoff-human-review.json)](https://industrial-mathematics-group.github.io/HyperCloud.jl/dev/aisignoff/)
+[![AI review](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/industrial-mathematics-group/HyperCloud.jl/badges/aisignoff-ai-review.json)](https://industrial-mathematics-group.github.io/HyperCloud.jl/dev/aisignoff/)
 </div>
 
 **HyperCloud.jl** is an advanced meshfree simulation framework designed to solve arbitrary hyperbolic conservation laws. Powered by a high-performance, physics-agnostic mathematical engine, HyperCloud provides a complete computational environment. It combines dynamic particle topologies with high-order spatial approximations—including moving-least-squares MUSCL reconstruction and Multi-Dimensional Optimal Order Detection (MOOD)—controlled entirely through a streamlined, macro-driven execution workflow.
