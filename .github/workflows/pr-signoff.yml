@@ -3,7 +3,7 @@ name: PR-signoff
 # Checks the AI declaration ticked in the template of each pull request into the default branch.
 on:
   pull_request_target:
-    branches: ["main"]
+    branches: [main]
     types: [opened, edited, synchronize, reopened, ready_for_review]
 
 permissions:
