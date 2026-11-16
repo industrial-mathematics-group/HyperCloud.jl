@@ -73,7 +73,7 @@ AI-Review = "A0"
 Human-Review = "H1"
 Reviewed-by = ["blhackslash <dev@blackslash.win>"]
 
-# PDEStudioCore 0.5 features (claude/pdestudiocore-05): run metadata, @sim options; reviewed in reviews/81b8f0f.md
+# PDEStudioCore 0.5 features (claude/pdestudiocore-05): run metadata, @sim options
 # (the files changed by its fixes moved to the block above).
 [[annotations]]
 path = ["docs/src/macros.md"]
@@ -81,23 +81,18 @@ AI-Generation = "G3"
 Assisted-by = "Claude Opus 5.5 (Anthropic)"
 AI-Review = "A0"
 Human-Review = "H1"
-AI-Review = "A1"
 Reviewed-by = ["blhackslash <dev@blackslash.win>"]
-AI-Reviewed-by = ["Claude Opus 5.5 (Anthropic), same session"]
 
 [[attestations]]
 path = ".github/workflows/file-signoff.yml"
 blob = "f7192628ae1080e1bed28d94f1596613face206e"
 Human-Review = "H1"
-AI-Review = "A1"
 Reviewed-by = ["blhackslash <dev@blackslash.win>"]
-AI-Reviewed-by = ["Claude Opus 5.5 (Anthropic), same session"]
 
 [[attestations]]
 path = ".github/workflows/pr-signoff.yml"
 blob = "ab2dcedb2970f8817b72ef54a2e03952a475bf34"
 Human-Review = "H1"
-AI-Review = "A1"
 Reviewed-by = ["blhackslash <dev@blackslash.win>"]
 
 # Pull requests merged before version 4 whose ticked boxes are on the old AI review scale: these
