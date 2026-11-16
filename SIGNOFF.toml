@@ -1,7 +1,6 @@
 # AI declarations of the files, checked by aisignoff (migrated from aidecl and from format version 1).
 # Scheme: https://github.com/industrial-mathematics-group/.github/blob/main/.github/CONTRIBUTING.md#ai-assisted-contributions
 version = 3
-exclude = ["reviews/**"]   # committed AI reviews (CONTRIBUTING.md) need no declaration
 
 [[annotations]]
 path = "**"
