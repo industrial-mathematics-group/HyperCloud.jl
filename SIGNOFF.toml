@@ -2,6 +2,14 @@
 # Scheme: https://github.com/industrial-mathematics-group/.github/blob/main/.github/CONTRIBUTING.md#ai-assisted-contributions
 version = 3
 
+
+# Line by line: the commit that landed a line on main declares it. For a pull request into main that is its
+# merge commit, whose message is the PR description with the ticked AI declaration of the template. Lines
+# whose commit declares nothing keep the file-level declarations of the annotations below.
+[history]
+default-branch = "main"
+merge-method = "merge"
+
 [[annotations]]
 path = "**"
 AI-Generation = "G3"
