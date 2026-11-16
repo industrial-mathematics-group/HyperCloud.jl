@@ -375,3 +375,41 @@ Human-Review = "H1"
 AI-Review = "A1"
 Reviewed-by = ["blhackslash <dev@blackslash.win>"]
 AI-Reviewed-by = ["Claude Opus 5.5 (Anthropic), new sessions without the generating conversation (reviews/)"]
+
+# Pull requests merged before version 4 whose ticked boxes are on the old AI review scale.
+# These entries keep the levels they had (as version 3 read them), so that the change-over
+# raises nothing. A freeze --prune on main after the next Main dev merge archives them.
+
+[[commits]]
+commit = "c276d39"
+AI-Generation = "G3"
+Assisted-by = ["Claude Opus (Anthropic)"]
+Human-Review = "H0"
+Reviewed-by = ["Pascal Jung <dev@blackslash.win>"]
+AI-Review = "A1"
+AI-Reviewed-by = ["Claude Opus (Anthropic), new session without the generating conversation"]
+
+[[commits]]
+commit = "04a3f13"
+AI-Generation = "G3"
+Assisted-by = ["Claude Opus (Anthropic)"]
+Human-Review = "H1"
+Reviewed-by = ["Pascal Jung <dev@blackslash.win>"]
+AI-Review = "A0"
+
+[[commits]]
+commit = "3ea2561"
+AI-Generation = "G2"
+Assisted-by = ["Claude Opus (Anthropic)"]
+Human-Review = "H1"
+Reviewed-by = ["blhackslash <dev@blackslash.win>"]
+AI-Review = "A0"
+
+[[commits]]
+commit = "8ec6a61"
+AI-Generation = "G2"
+Assisted-by = ["Claude Opus (Anthropic)"]
+Human-Review = "H1"
+Reviewed-by = ["Pascal Jung <dev@blackslash.win>"]
+AI-Review = "A1"
+AI-Reviewed-by = ["Claude Opus 5.5 (Anthropic), new sessions without the generating conversation (reviews/)"]
