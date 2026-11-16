@@ -1,6 +1,6 @@
 # AI declarations of the files, checked by aisignoff (migrated from aidecl and from format version 1).
 # Scheme: https://github.com/industrial-mathematics-group/.github/blob/main/.github/CONTRIBUTING.md#ai-assisted-contributions
-version = 3
+version = 4
 
 
 # Line by line: the commit that landed a line on main declares it. For a pull request into main that is its
@@ -16,7 +16,7 @@ AI-Generation = "G3"
 Human-Review = "H1"
 Reviewed-by = "blhackslash <dev@blackslash.win>"
 Assisted-by = "Claude (Anthropic), claude-opus-5-5, claude-fable-5-1"
-AI-Review = "A2"
+AI-Review = "A1"
 AI-Reviewed-by = "Claude Opus 5.5 (Anthropic), new sessions without the generating conversation (reviews/)"
 
 [[annotations]]
@@ -25,7 +25,7 @@ AI-Generation = "G2"
 Assisted-by = "Claude (Anthropic), claude-opus-5-5, claude-fable-5-1"
 Human-Review = "H2"
 Reviewed-by = "blhackslash <dev@blackslash.win>"
-AI-Review = "A2"
+AI-Review = "A1"
 AI-Reviewed-by = "Claude Opus 5.5 (Anthropic), new sessions without the generating conversation (reviews/)"
 
 [[annotations]]
@@ -34,7 +34,7 @@ AI-Generation = "G3"
 Assisted-by = "Claude (Anthropic), claude-opus-5-5, claude-fable-5-1"
 Human-Review = "H1"
 Reviewed-by = "blhackslash <dev@blackslash.win>"
-AI-Review = "A2"
+AI-Review = "A1"
 AI-Reviewed-by = "Claude Opus 5.5 (Anthropic), new sessions without the generating conversation (reviews/)"
 
 [[annotations]]
@@ -43,7 +43,7 @@ AI-Generation = "G3"
 Assisted-by = "Claude (Anthropic), claude-opus-5-5, claude-fable-5-1"
 Human-Review = "H2"
 Reviewed-by = "blhackslash <dev@blackslash.win>"
-AI-Review = "A2"
+AI-Review = "A1"
 AI-Reviewed-by = "Claude Opus 5.5 (Anthropic), new sessions without the generating conversation (reviews/)"
 
 [[annotations]]
@@ -52,7 +52,7 @@ AI-Generation = "G2"
 Assisted-by = "Claude (Anthropic), claude-opus-5-5"
 Human-Review = "H2"
 Reviewed-by = "blhackslash <dev@blackslash.win>"
-AI-Review = "A2"
+AI-Review = "A1"
 AI-Reviewed-by = "Claude Opus 5.5 (Anthropic), new sessions without the generating conversation (reviews/)"
 
 # Changed by Claude agents to address the A2 reviews in reviews/ (and reviewed again there).
@@ -61,7 +61,7 @@ AI-Reviewed-by = "Claude Opus 5.5 (Anthropic), new sessions without the generati
 path = ["CLAUDE.md", "docs/src/PDEs/advection.md", "docs/src/PDEs/bgk.md", "docs/src/PDEs/burgers.md", "docs/src/PDEs/euler.md", "docs/src/PDEs/main.md", "docs/src/configuration.md", "docs/src/time_integration.md", "docs/src/wrappers.md", "src/Builder/kinetic.jl", "src/Examples/burgers_kinetic.jl", "src/ICs/quadrant_riemann.jl", "src/PDEs/_main.jl", "src/PDEs/bgk.jl", "src/PDEs/burgers.jl", "src/PDEs/euler.jl", "src/PDEs/linear_advection.jl", "src/SimulationFunctions/bgk.jl", "src/SourceTerms/bgk.jl", "src/inbuilt_methods.jl", "src/time_integration.jl", "test/examples.jl", "test/gpu/runtests.jl", "test/runtests.jl", "test/sims.jl", "test/sims_bgk.jl", "test/units.jl"]
 AI-Generation = "G3"
 Human-Review = "H0"
-AI-Review = "A2"
+AI-Review = "A1"
 Assisted-by = ["Claude (Anthropic), claude-opus-5-5"]
 AI-Reviewed-by = ["Claude Opus 5.5 (Anthropic), new sessions without the generating conversation (reviews/)"]
 Reviewed-by = ["blhackslash <dev@blackslash.win>"]
@@ -70,8 +70,7 @@ Reviewed-by = ["blhackslash <dev@blackslash.win>"]
 path = [".github/workflows/**"]
 AI-Generation = "G2"
 Assisted-by = "Claude Opus 5.5 (Anthropic)"
-AI-Review = "A1"
-AI-Reviewed-by = "Claude Opus 5.5 (Anthropic), same session"
+AI-Review = "A0"
 Human-Review = "H1"
 Reviewed-by = ["blhackslash <dev@blackslash.win>"]
 
@@ -80,7 +79,43 @@ Reviewed-by = ["blhackslash <dev@blackslash.win>"]
 path = ["docs/src/macros.md", "docs/src/simulation.md", "src/SimulationFunctions/direct.jl", "src/SimulationFunctions/kinetic.jl", "src/device.jl", "src/macros.jl"]
 AI-Generation = "G3"
 Assisted-by = "Claude Opus 5.5 (Anthropic)"
-AI-Review = "A1"
-AI-Reviewed-by = "Claude Opus 5.5 (Anthropic), same session"
+AI-Review = "A0"
 Human-Review = "H1"
 Reviewed-by = ["blhackslash <dev@blackslash.win>"]
+
+# Pull requests merged before version 4 whose ticked boxes are on the old AI review scale: these
+# entries keep the levels version 3 read (a new session's review is A1, a self-check A0).
+
+[[commits]]
+commit = "c276d39"
+AI-Generation = "G3"
+Assisted-by = ["Claude Opus (Anthropic)"]
+Human-Review = "H0"
+Reviewed-by = ["Pascal Jung <dev@blackslash.win>"]
+AI-Review = "A1"
+AI-Reviewed-by = ["Claude Opus (Anthropic), new session without the generating conversation"]
+
+[[commits]]
+commit = "04a3f13"
+AI-Generation = "G3"
+Assisted-by = ["Claude Opus (Anthropic)"]
+Human-Review = "H1"
+Reviewed-by = ["Pascal Jung <dev@blackslash.win>"]
+AI-Review = "A0"
+
+[[commits]]
+commit = "3ea2561"
+AI-Generation = "G2"
+Assisted-by = ["Claude Opus (Anthropic)"]
+Human-Review = "H1"
+Reviewed-by = ["Pascal Jung <dev@blackslash.win>"]
+AI-Review = "A0"
+
+[[commits]]
+commit = "8ec6a61"
+AI-Generation = "G2"
+Assisted-by = ["Claude Opus (Anthropic)"]
+Human-Review = "H1"
+Reviewed-by = ["Pascal Jung <dev@blackslash.win>"]
+AI-Review = "A1"
+AI-Reviewed-by = ["Claude Opus (Anthropic), new session without the generating conversation"]
