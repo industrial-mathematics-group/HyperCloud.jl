@@ -1,0 +1,32 @@
+name: Citation
+
+# Checks that CITATION.cff names the version of Project.toml, so that the release TagBot creates (and its
+# Zenodo archive) cites the right version. Change both in the pull request that bumps the version:
+# `version` in Project.toml, `version` and `date-released` in CITATION.cff.
+on:
+  pull_request:
+    branches: [main]
+    paths: [Project.toml, CITATION.cff]
+  push:
+    branches: [main]
+    paths: [Project.toml, CITATION.cff]
+  workflow_dispatch:
+
+jobs:
+  check:
+    name: CITATION.cff version
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compare with Project.toml
+        run: |
+          project=$(sed -nE 's/^version[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/p' Project.toml)
+          citation=$(sed -nE 's/^version:[[:space:]]*"?([^"[:space:]]+)"?.*/\1/p' CITATION.cff)
+          if [ -z "$project" ] || [ "$project" != "$citation" ]; then
+            echo "::error file=CITATION.cff::CITATION.cff says version '$citation', Project.toml says '$project'. Set 'version: $project' and 'date-released: $(date -u +%F)' in CITATION.cff."
+            exit 1
+          fi
+          echo "CITATION.cff and Project.toml both say $project."
