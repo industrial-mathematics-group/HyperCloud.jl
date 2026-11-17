@@ -330,6 +330,28 @@ end
         end
     end
 
+    @testset "BGK on blocks: the piston (moving piece) reproduces the standard run, diffuse and specular face" begin
+        w = 0.5
+        ρ₂, p₂, S = HyperCloud.piston_state(1.0, 1.0, w, 1.4)
+        piston = Moving(Tagged(HalfSpace((1.0,), (1.0,)), 2), translating((-w,)))
+        tube   = intersect(Tagged(Cuboid((0.0,), (1.5,)), 1), piston)
+        for (bc2, Ns) in ((diffuse_wall(1.0), 200), (slip_wall(), 200))
+            p = merge(bgk_wall_base(; Ns = Ns, tau = 1e-4, tmax = 0.3), Dict{Symbol, Any}(:Grid_domain => :shape, :Grid_shape => tube,
+                      :Grid_mins => (0.0,), :Grid_maxs => (1.5,), :Grid_bc => BCD(1 => slip_wall(), 2 => bc2),
+                      :Limiter_name => :VK, :Limiter_mode => :hard))
+            sim_s = run_bgk_simulation(p)
+            sim_b = run_bgk_simulation(merge(p, Dict{Symbol, Any}(:PDE_block_width => 8)))
+            @test sim_s !== nothing && sim_b !== nothing
+            if sim_s !== nothing && sim_b !== nothing
+                @test length(sim_b.x[end]) == length(sim_s.x[end]) && sim_b.x[end] == sim_s.x[end]      # the same swept cloud
+                @test maximum(maximum(abs.(ub - us)) for (ub, us) in zip(sim_b.u[end], sim_s.u[end])) < 1e-8
+                t = sim_b.t[end]
+                ρ, u, pr = plateau(sim_b, 1 - S * t + 0.06, 1 - w * t - 0.08)
+                @test abs(ρ - ρ₂) / ρ₂ < 0.02 && abs(pr - p₂) / p₂ < 0.02 && abs(u + w) < 0.02
+            end
+        end
+    end
+
     @testset "BGK: a hot diffuse wall heats the gas, the mass error shrinks with the resolution" begin
         # control: specular walls with a pressure jump in the gas conserve the mass to second order (measured
         # -3.9e-5 at N = 100), so the drift below is the diffuse wall's

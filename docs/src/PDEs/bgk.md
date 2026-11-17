@@ -153,9 +153,9 @@ length); the snapshots hold the macroscopic moments, `:save_relax` is refused, M
 `:only` (the admissibility across the blocks is the positivity of the moments, `:U2` is not available yet), a moving
 grid runs in the ALE frame with the mean velocity of the moments as the particle velocity (the Lagrangian movers;
 the conservative Lagrangian frame of the single state has no block form), and the kinetic walls act in two passes
-(the zero-flux density of a diffuse wall from all velocities, the specular reflection as the exact node flip at the
-axis-aligned walls of a rectangular domain; oblique or curved walls have no specular reflection on blocks yet). Static
-boundary pieces, no adaptivity, the host backends for now.
+(the zero-flux density of a diffuse wall from all velocities; the specular reflection as the exact node flip where
+it applies and as the reflection off the node grid otherwise, as on the single state). Moving boundary pieces (a
+piston) and the particle adaptivity work on every block; the host backends for now.
 
 ## Gas mixtures
 
