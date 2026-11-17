@@ -171,8 +171,8 @@ bk_of(bs, eq) = BGKBlocks(eq, Val(length(block_view(bs, 1)[1])))
         end
         @test HC._block_width(Dict{Symbol, Any}()) == 0 && HC._block_width(Dict{Symbol, Any}(:block_width => 0)) == 0
         # a width on an equation without a block form is refused, not ignored
-        @test (@test_logs (:error, r"Error during Direct") match_mode = :any
-               run_sim(merge(linear_1d_gauss(40), UPWIND1, Dict{Symbol, Any}(:PDE_block_width => 4)))) === nothing
+        p_lin = merge(linear_1d_gauss(40), UPWIND1, Dict{Symbol, Any}(:PDE_block_width => 4))
+        @test (@test_logs (:error, r"Error during Direct") match_mode = :any run_sim(p_lin)) === nothing
         # the collision's parameter arrays follow the storage; a memory limit reserves the block stepper and the state
         bk8 = BGKBlocks(BGKEquation(Val(1), nodes, w, 1.4, ConstantRelaxationTime(1e-2)), Val(8))
         @test parent(HC._block_sources(bk8, IMEX_ARS222_Tableau(Float64), Array)[1].params) isa Vector
