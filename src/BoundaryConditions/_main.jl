@@ -318,3 +318,5 @@ see [`DiffuseWall`](@ref).
 """
 diffuse_wall(temperature::Real; velocity = nothing, accommodation::Real = 1, degree::Int = 1, bounded::Bool = true) =
     MirrorBC(DiffuseWall(temperature; velocity = velocity, accommodation = accommodation); degree = degree, bounded = bounded)
+
+include("blocks.jl")

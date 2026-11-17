@@ -112,6 +112,30 @@ particle `p`.
 @inline block_moments(mb::MixtureBlocks, Y, N::Int, nb::Int, p::Int) = _cat(species_block_moments(mb, Y, N, nb, p))
 block_moments(mb::MixtureBlocks, bs::BlockState, p::Int) = block_moments(mb, parent(bs.data), bs.N[], bs.nb, p)
 
+# The Lagrangian movers move the particle with the mass-averaged mixture velocity
+@inline function HyperCloudCore.block_fluid_velocity(mb::MixtureBlocks{D, W, T, NB, L}, Y, N::Int, nb::Int, p::Int) where {D, W, T, NB, L}
+    moms = species_block_moments(mb, Y, N, nb, p)
+    ρ  = zero(T)
+    ρu = zero(Space{D, T})
+    @inbounds for s in 1:L
+        m = moms[s]
+        ρ  += mb.mix.masses[s] * m[1]
+        ρu += mb.mix.masses[s] * Space{D, T}(ntuple(d -> m[1 + d], Val(D)))
+    end
+    return ρu / ρ
+end
+
+@inline HyperCloudCore.block_max_eigenvalue(mb::MixtureBlocks{D, W, T}, U::State, d::Int, b::Int, shift::Real) where {D, W, T} =
+    maximum(map(sp -> _max_relative_speed(sp, d, T(shift)), mb.mix.species))
+
+@inline function (::RusanovFlux)(f_L::Flux{D, W, T}, f_R::Flux{D, W, T}, F_L::Flux{D, W, T}, F_R::Flux{D, W, T},
+                                 a::ALEFrame{D, W, T, <:BlockOf{D, W, T, <:MixtureBlocks}}) where {D, W, T}
+    return Flux{D, W, T}(ntuple(Val(D)) do d
+        v = _block_speeds(a.eq.eq, a.eq.b, d)
+        T(0.5) * (F_L[d] + F_R[d] - abs.(v .- a.w[d]) .* (f_R[d] - f_L[d]))
+    end)
+end
+
 # The PAD of MOOD across the blocks: every species with finite moments, positive density and temperature
 @inline function HyperCloudCore.block_admissible(mb::MixtureBlocks{D, W, T, NB, L}, Y, N::Int, nb::Int, p::Int) where {D, W, T, NB, L}
     moms = species_block_moments(mb, Y, N, nb, p)

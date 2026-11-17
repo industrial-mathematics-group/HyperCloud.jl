@@ -76,6 +76,24 @@ order as for a single state (the `h` value of a velocity is read from its block)
 end
 block_moments(bk::BGKBlocks, bs::BlockState, p::Int) = block_moments(bk, parent(bs.data), bs.N[], bs.nb, p)
 
+# The Lagrangian movers of the block pipeline move the particle with the mean velocity of the moments
+@inline HyperCloudCore.block_fluid_velocity(bk::BGKBlocks{D, W, T}, Y, N::Int, nb::Int, p::Int) where {D, W, T} =
+    _primitives(bk.eq, block_moments(bk, Y, N, nb, p))[2]
+
+# The wave speed bound in a frame moving at `shift`: the exact largest relative node speed (the default `v_max + |shift|`
+# over-estimated it)
+@inline HyperCloudCore.block_max_eigenvalue(bk::BGKBlocks{D, W, T}, U::State, d::Int, b::Int, shift::Real) where {D, W, T} =
+    _max_relative_speed(bk.eq, d, T(shift))
+
+# The per-velocity upwind dissipation of a block in the moving frame, |v_k − w_d|
+@inline function (::RusanovFlux)(f_L::Flux{D, W, T}, f_R::Flux{D, W, T}, F_L::Flux{D, W, T}, F_R::Flux{D, W, T},
+                                 a::ALEFrame{D, W, T, <:BlockOf{D, W, T, <:BGKBlocks}}) where {D, W, T}
+    return Flux{D, W, T}(ntuple(Val(D)) do d
+        v = _block_speeds(a.eq.eq, a.eq.b, d)
+        T(0.5) * (F_L[d] + F_R[d] - abs.(v .- a.w[d]) .* (f_R[d] - f_L[d]))
+    end)
+end
+
 # The PAD of MOOD across the blocks: positive density and temperature of the moments (the per-block check of the
 # pipeline covers finiteness; individual f_k may dip below zero, as for the single state)
 @inline function HyperCloudCore.block_admissible(bk::BGKBlocks{D, W, T}, Y, N::Int, nb::Int, p::Int) where {D, W, T}
