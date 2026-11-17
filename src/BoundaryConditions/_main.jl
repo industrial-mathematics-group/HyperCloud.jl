@@ -235,6 +235,23 @@ end
 end
 
 # -------------------------------------------------------------------------
+# Walls of a gas mixture: species by species
+# -------------------------------------------------------------------------
+# The ghost state of a mixture is the species' ghost states one after the other. A diffuse wall at the thermodynamic
+# temperature T_w emits species s at its thermal speed θ_w,s = k_B T_w / m_s, each with its own zero-flux density.
+@inline (::SlipWall)(eq::BGKMixture{D, M, T}, f::State{M, T}, wall::WallPoint{D, T}) where {D, M, T} =
+    _cat(map((s, b) -> _specular(s, b, wall.normal, wall.velocity), eq.species, _blocks(eq, f)))
+
+@inline function (wd::DiffuseWall)(eq::BGKMixture{D, M, T}, f::State{M, T}, wall::WallPoint{D, T}) where {D, M, T}
+    return _cat(map(eq.species, _blocks(eq, f), Tuple(eq.masses)) do s, b, m
+        _species_wall(wd, eq, m)(s, b, wall)
+    end)
+end
+
+@inline _species_wall(wd::DiffuseWall{Tw, V}, eq::BGKMixture{D, M, T}, m::T) where {Tw, V, D, M, T} =
+    DiffuseWall{T, V}(eq.kB * T(wd.temperature) / m, wd.velocity, T(wd.accommodation))
+
+# -------------------------------------------------------------------------
 # Host-side checks before a run
 # -------------------------------------------------------------------------
 # The operators run inside the ghost-fit kernel: an operator without a method for the equation was a MethodError at
@@ -270,6 +287,14 @@ function _check_wall_op(wd::DiffuseWall, eq::HyperbolicPDE{D, M, T}, tag) where 
         throw(ArgumentError("DiffuseWall of boundary tag $tag: the velocity grid has no discrete Maxwellian at the wall " *
                             "temperature $(wd.temperature) and velocity $(wd.velocity) (moments per unit density $(m ./ m[1]), " *
                             "wanted $Uw); refine or widen the velocity grid"))
+    return nothing
+end
+
+# Every species needs its wall Maxwellian on its own grid
+function _check_wall_op(wd::DiffuseWall, eq::BGKMixture{D, M, T}, tag) where {D, M, T}
+    for (s, m) in zip(eq.species, eq.masses)
+        _check_wall_op(_species_wall(wd, eq, m), s, tag)
+    end
     return nothing
 end
 

@@ -671,6 +671,256 @@ end
 end
 
 # -------------------------------------------------------------------------
+# 6c. BGK MIXTURE (multi-species BBGSP model)
+# -------------------------------------------------------------------------
+@testset "BGK mixture" begin
+    nodes1, w1 = velocity_grid(:uniform, 16, 8.0)
+    nodes2, w2 = velocity_grid(:uniform, 12, 4.0)
+    lam = [19.96 1.153; 1.153 17.52]                       # He–Ar constants of the paper, masses 1 and 10 here
+    mix = BGKMixture(Val(1), (1.0, 10.0), lam, ((nodes1, w1), (nodes2, w2)); epsilon = 1e-2, kappa = 2e-2)
+    "Mixture distribution with every species in the discrete Maxwellian of its block of the macroscopic state `U`."
+    mixture_equilibrium(eq, U) = HC._cat(map(HC._indices(eq), eq.species) do s, sp
+        first(equilibrium(sp, SVector{3}(U[(3s - 2):(3s)])))
+    end)
+    "`@allocated` of a call through a function barrier (globals would allocate)."
+    alloc_implicit(st, f, pg) = (HC.implicit_solve(st, f, 0.01, 1, pg, 0.0); @allocated HC.implicit_solve(st, f, 0.01, 1, pg, 0.0))
+    alloc_explicit(st, f, pg) = (HC.evaluate_source(st, f, 1, pg, 0.0); @allocated HC.evaluate_source(st, f, 1, pg, 0.0))
+
+    @testset "Construction and state layout" begin
+        @test mix isa BGKMixture{1, 56, Float64, 2}
+        @test HC.get_M(mix) == 32 + 24 && num_species(mix) == 2 && HC.num_velocities(mix) == 28
+        @test mix.K ≈ 2 && mix.epsilon == 1e-2 && mix.kappa == 2e-2 && mix.kB == 1
+        @test mix.max_speed == SVector(7.5)
+        U = mixture_state(mix, (1.0, 0.3), (0.5, -0.2), (1.0, 2.0))
+        @test length(U) == 6
+        @test U[1:3] ≈ [1.0, 0.5, 1.5 * 1.0 + 0.5 * 0.25]                  # θ_He = k_B T / m = 1
+        @test U[4:6] ≈ [0.3, -0.06, 0.3 * (1.5 * 0.2 + 0.5 * 0.04)]         # θ_Ar = 2 / 10
+        @test mixture_state(mix, (1.0, 0.3), ((0.5,), (-0.2,)), (1.0, 2.0)) == U
+        pr = species_primitives(mix, U)
+        @test pr[1][1] ≈ 1.0 && pr[1][2] ≈ SVector(0.5) && pr[1][3] ≈ 1.0
+        @test pr[2][1] ≈ 0.3 && pr[2][2] ≈ SVector(-0.2) && pr[2][3] ≈ 2.0
+        f = mixture_equilibrium(mix, U)
+        @test length(f) == 56
+        b = HC._blocks(mix, f)
+        @test length(b[1]) == 32 && length(b[2]) == 24 && vcat(b...) == f
+        @test moments(mix, f) ≈ U atol = 1e-13
+        @test species_moments(mix, f)[2] ≈ U[4:6] atol = 1e-13
+        @test mixture_moments(mix, f) ≈ SVector(1.0 + 3.0, 0.5 - 0.6, U[3] + 10 * U[6])
+        @test HC.fluid_velocity(mix, f) ≈ SVector(-0.1 / 4)
+        @test HC.is_admissible(mix, f) && !HC.is_admissible(mix, -f)
+        @test HC.max_eigenvalue(mix, f, 1) == 7.5 && HC.max_eigenvalue(mix, f, 1, 1.0) ≈ 8.5
+        @test_throws ArgumentError BGKMixture(Val(1), (1.0,), lam, ((nodes1, w1), (nodes2, w2)))          # one mass, two grids
+        @test_throws ArgumentError BGKMixture(Val(1), (1.0, -1.0), lam, ((nodes1, w1), (nodes2, w2)))
+        @test_throws ArgumentError BGKMixture(Val(1), (1.0, 10.0), [1.0 2.0; 3.0 4.0], ((nodes1, w1), (nodes2, w2)))
+        @test_throws ArgumentError BGKMixture(Val(1), (1.0, 10.0), -lam, ((nodes1, w1), (nodes2, w2)))
+        @test_throws ArgumentError BGKMixture(Val(1), (1.0, 10.0), lam, ((nodes1, w1), (nodes2, w2)); epsilon = 0.0)
+        @test_throws ArgumentError BGKMixture(Val(1), (1.0, 10.0), lam, ((nodes1, w1), (nodes2, w2)); kB = 0.0)
+        @test_throws ArgumentError species_primitives(mix, SVector(1.0, 0.0, 1.0))
+        @test_throws ArgumentError mixture_state(mix, (1.0, 0.3), ((0.5, 0.0), (0.0, 0.0)), (1.0, 2.0))
+        s1 = BGKEquation(Val(1), nodes1, w1, 5 / 3, ConstantRelaxationTime(Inf))
+        s2 = BGKEquation(Val(1), nodes2, w2, 3.0, ConstantRelaxationTime(Inf))              # K = 0: another γ
+        @test_throws ArgumentError BGKMixture((s1, s2), (1.0, 10.0), lam)
+        s3 = BGKEquation(Val(2), nodes2, w2, 2.0, ConstantRelaxationTime(Inf))
+        @test_throws ArgumentError BGKMixture((s1, s3), (1.0, 10.0), lam)
+        @test BGKMixture((s1,), (1.0,), fill(1.0, 1, 1)) isa BGKMixture{1, 32, Float64, 1}
+        n32, w32 = velocity_grid(:uniform, 8, 6.0, Float32)
+        mix32 = BGKMixture(Val(1), (1.0, 2.0), lam, ((n32, w32), (n32, w32)); epsilon = 0.1)
+        @test mix32 isa BGKMixture{1, 32, Float32, 2} && mix32.masses isa SVector{2, Float32}
+        # 2-D, with centred grids per species
+        mix2 = BGKMixture(Val(2), (1.0, 2.0), lam, ((n32, w32), (n32, w32)); centers = ((1.0, 0.0), (0.0, 0.0)))
+        @test mix2 isa BGKMixture{2, 2 * 2 * 64, Float32, 2} && mix2.K ≈ 1 && mix2.max_speed == SVector(6.25f0, 5.25f0)   # Chu pairs
+        @test mixture_state(mix2, (1.0, 1.0), ((0.5, 0.0), (0.0, 0.2)), (1.0, 1.0)) isa SVector{8, Float32}
+    end
+
+    @testset "Transport: the flux and the per-velocity upwind flux of every species" begin
+        U = mixture_state(mix, (1.0, 0.3), (0.5, -0.2), (1.0, 2.0))
+        f = mixture_equilibrium(mix, U)
+        b = HC._blocks(mix, f)
+        @test HC.flux(mix, f)[1] ≈ vcat(HC.flux(mix.species[1], b[1])[1], HC.flux(mix.species[2], b[2])[1])
+        M = HC.get_M(mix)
+        fL = Flux{1, M, Float64}((State{M, Float64}(ntuple(k -> 1 + 0.1k, M)),))
+        fR = Flux{1, M, Float64}((State{M, Float64}(ntuple(k -> 2 - 0.05k, M)),))
+        FL = Flux{1, M, Float64}((HC.flux(mix, fL[1])[1],))
+        FR = Flux{1, M, Float64}((HC.flux(mix, fR[1])[1],))
+        upwind(w) = vcat(map(mix.species, HC._blocks(mix, fL[1]), HC._blocks(mix, fR[1])) do sp, l, r
+            Ms = HC.get_M(sp)
+            State{Ms, Float64}(ntuple(Ms) do k
+                c = velocity_node(sp, k)[1][1] - w
+                max(c, 0) * l[k] + min(c, 0) * r[k]
+            end)
+        end...)
+        for F in (RusanovFlux(), UpwindFlux(), AlignedRusanovFlux())
+            @test F(fL, fR, FL, FR, mix)[1] ≈ upwind(0.0)
+        end
+        # the moving frames keep the per-velocity dissipation |v − w|
+        fr = ALEFrame(mix, SVector(0.3))
+        FLw = Flux{1, M, Float64}((HC.flux(fr, fL[1])[1],))
+        FRw = Flux{1, M, Float64}((HC.flux(fr, fR[1])[1],))
+        @test RusanovFlux()(fL, fR, FLw, FRw, fr)[1] ≈ upwind(0.3)
+        @test HC.max_eigenvalue(fr, f, 1) ≈ 7.5 + 0.3
+        lf = LagrangianFrame(mix, 1.0)
+        @test HyperCloudCore.frame_velocity(lf, f) ≈ HC.fluid_velocity(mix, f)
+    end
+
+    @testset "Collision: conservation, the two moment systems, allocation" begin
+        imp, expl = MixtureRelaxation(mix), ExplicitMixtureRelaxation(mix)
+        pg, _ = test_grid((0.0,), (1.0,), (4,); M = 56)
+        U0 = mixture_state(mix, (1.0, 0.3), (0.5, -0.2), (1.0, 2.0))
+        f0 = mixture_equilibrium(mix, U0)
+        f  = f0 + State{56, Float64}(ntuple(k -> 0.01 * sin(k), 56))              # out of equilibrium
+        Δ  = 0.01
+        g  = HC.implicit_solve(imp, f, Δ, 1, pg, 0.0)
+        Uf, Ug = moments(mix, f), moments(mix, g)
+        @test Ug[1] ≈ Uf[1] atol = 1e-14
+        @test Ug[4] ≈ Uf[4] atol = 1e-14
+        @test mixture_moments(mix, g)[2:3] ≈ mixture_moments(mix, f)[2:3] atol = 1e-12
+        # the species' velocities and temperatures after the stage solve the paper's two L × L systems
+        n, Ut, Tt, ok = HC._species_state(mix, HC._blocks(mix, f))
+        @test ok
+        m = mix.masses
+        ρ = m .* n
+        μ = Δ / mix.kappa
+        d12 = lam[1, 2] * n[1] * n[2] * m[1] * m[2] / (m[1] + m[2])
+        Un  = [ρ[1] + μ * d12 -μ * d12; -μ * d12 ρ[2] + μ * d12] \ (ρ .* Ut[:, 1])
+        pg_ = species_primitives(mix, Ug)
+        @test [pg_[1][2][1], pg_[2][2][1]] ≈ Un
+        ndof = 3
+        c12 = ndof * lam[1, 2] * n[1] * n[2] * m[1] * m[2] / (m[1] + m[2])^2
+        a12, a21 = m[2] / (m[1] + m[2]), m[1] / (m[1] + m[2])
+        γ12, γ21 = m[1] * a12^2 / ndof, m[2] * a21^2 / ndof
+        U12 = (1 - a12) * Un[1] + a12 * Un[2]
+        U21 = (1 - a21) * Un[2] + a21 * Un[1]
+        E1 = 1.5 * n[1] * Tt[1] + 0.5 * ρ[1] * (Ut[1, 1]^2 - Un[1]^2) -
+             μ * lam[1, 2] * n[2] * (0.5 * ρ[1] * (Un[1]^2 - U12^2) - 1.5 * n[1] * γ12 * (Un[1] - Un[2])^2)
+        E2 = 1.5 * n[2] * Tt[2] + 0.5 * ρ[2] * (Ut[2, 1]^2 - Un[2]^2) -
+             μ * lam[2, 1] * n[1] * (0.5 * ρ[2] * (Un[2]^2 - U21^2) - 1.5 * n[2] * γ21 * (Un[2] - Un[1])^2)
+        Tn = [1.5 * n[1] + μ * c12 -μ * c12; -μ * c12 1.5 * n[2] + μ * c12] \ [E1, E2]
+        @test [pg_[1][3], pg_[2][3]] ≈ Tn
+        # the implicit stage equation g = f + Δ Q(g) holds with the operator evaluated at g
+        @test g ≈ f + Δ * HC.evaluate_source(imp, g, 1, pg, 0.0) rtol = 1e-10
+        # the explicit term conserves the same quantities
+        S = HC.evaluate_source(expl, f, 1, pg, 0.0)
+        US = moments(mix, S)
+        @test abs(US[1]) < 1e-10 && abs(US[4]) < 1e-10
+        @test mixture_moments(mix, S)[2:3] ≈ zeros(2) atol = 1e-9                   # rates of order 10³
+        # kernel rules: no allocation, inferred (species on different grids)
+        @test alloc_implicit(imp, f, pg) == 0
+        @test alloc_explicit(expl, f, pg) == 0
+        @test (@inferred HC.implicit_solve(imp, f, Δ, 1, pg, 0.0)) isa State{56, Float64}
+        @test (@inferred HC.evaluate_source(expl, f, 1, pg, 0.0)) isa State{56, Float64}
+        # repeated collisions reach the common velocity and temperature fixed by the conserved totals
+        h = f0
+        for _ in 1:3000
+            h = HC.implicit_solve(imp, h, Δ, 1, pg, 0.0)
+        end
+        ph = species_primitives(mix, moments(mix, h))
+        @test ph[1][2] ≈ ph[2][2] atol = 1e-8
+        @test ph[1][3] ≈ ph[2][3] atol = 1e-8
+        mm  = mixture_moments(mix, f0)
+        Ueq = mm[2] / mm[1]
+        @test ph[1][2][1] ≈ Ueq
+        @test ph[1][3] ≈ (mm[3] - 0.5 * mm[1] * Ueq^2) / (1.5 * (U0[1] + U0[4]))
+        # κ = Inf: the species relax on their own, their velocities and temperatures do not change
+        mix_k = BGKMixture(Val(1), (1.0, 10.0), lam, ((nodes1, w1), (nodes2, w2)); epsilon = 1e-2, kappa = Inf)
+        gk = HC.implicit_solve(MixtureRelaxation(mix_k), f, Δ, 1, pg, 0.0)
+        pk, pf = species_primitives(mix_k, moments(mix_k, gk)), species_primitives(mix_k, Uf)
+        @test all(s -> pk[s][2] ≈ pf[s][2] && pk[s][3] ≈ pf[s][3], 1:2)
+        @test gk != f
+        # ε = Inf without inter-species constants: nothing happens
+        free = BGKMixture(Val(1), (1.0, 10.0), [1.0 0.0; 0.0 1.0], ((nodes1, w1), (nodes2, w2)); epsilon = Inf, kappa = 1e-2)
+        @test HC.implicit_solve(MixtureRelaxation(free), f, Δ, 1, pg, 0.0) == f
+        @test HC.bgk_sources(mix, IMEX_ARS222_Tableau(Float64)) == ((), (imp,))
+        @test HC.bgk_sources(mix, RK2_SSP_Tableau(Float64)) == ((expl,), ())
+        none = BGKMixture(Val(1), (1.0, 10.0), zeros(2, 2), ((nodes1, w1), (nodes2, w2)))
+        @test HC.bgk_sources(none, IMEX_ARS222_Tableau(Float64)) == ((), ())
+        @test HC.bgk_sources(free, IMEX_ARS222_Tableau(Float64)) == ((), (MixtureRelaxation(free),))
+        # a non-physical state is left alone
+        bad = State{56, Float64}(ntuple(k -> k <= 32 ? -f[k] : f[k], 56))
+        @test HC.implicit_solve(imp, bad, Δ, 1, pg, 0.0) == bad
+        @test HC.evaluate_source(expl, bad, 1, pg, 0.0) == zero(bad)
+    end
+
+    @testset "Collision: one species is the single gas, two identical species are its halves" begin
+        nodes, w = velocity_grid(:uniform, 16, 6.0)
+        ε, λ = 0.5, 2.0
+        one = BGKMixture(Val(1), (1.0,), fill(λ, 1, 1), ((nodes, w),); epsilon = ε)
+        pg, _ = test_grid((0.0,), (1.0,), (4,); M = 32)
+        feq, _ = equilibrium(one.species[1], mixture_state(one, (1.3,), (0.4,), (0.9,)))
+        f = State{32, Float64}(ntuple(k -> feq[k] * (1 + 0.1 * sin(k)), 32))
+        n = moments(one, f)[1]
+        bgk = BGKEquation(Val(1), nodes, w, 5 / 3, ConstantRelaxationTime(ε / (λ * n)))      # ν_11 / ε = λ n / ε = 1 / τ
+        for Δ in (0.03, 1e3)                                                                 # also the stiff limit
+            @test HC.implicit_solve(MixtureRelaxation(one), f, Δ, 1, pg, 0.0) ≈ HC.implicit_solve(BGKRelaxation(bgk), f, Δ, 1, pg, 0.0) atol = 1e-14
+        end
+        @test HC.evaluate_source(ExplicitMixtureRelaxation(one), f, 1, pg, 0.0) ≈ HC.evaluate_source(ExplicitBGKRelaxation(bgk), f, 1, pg, 0.0) atol = 1e-13
+        # two identical species with the same state: each half relaxes like the whole (ν = λ n_r, a_sr = 1/2)
+        two = BGKMixture(Val(1), (1.0, 1.0), fill(λ, 2, 2), ((nodes, w), (nodes, w)); epsilon = ε)
+        pg2, _ = test_grid((0.0,), (1.0,), (4,); M = 64)
+        f2 = vcat(f / 2, f / 2)
+        g2 = HC.implicit_solve(MixtureRelaxation(two), f2, 0.03, 1, pg2, 0.0)
+        @test g2[1:32] + g2[33:64] ≈ HC.implicit_solve(BGKRelaxation(bgk), f, 0.03, 1, pg, 0.0) atol = 1e-14
+        @test g2[1:32] ≈ g2[33:64] atol = 1e-15
+    end
+
+    @testset "Walls: species by species" begin
+        U = mixture_state(mix, (1.0, 0.3), (0.0, 0.0), (1.5, 1.5))              # at rest at T = 1.5
+        f = mixture_equilibrium(mix, U)
+        wall = WallPoint(SVector(0.0), SVector(1.0), 0.0, SVector(0.0))
+        @test SlipWall()(mix, f, wall) ≈ f atol = 1e-13
+        @test DiffuseWall(1.5)(mix, f, wall) ≈ f atol = 1e-13                    # emits He at θ = 1.5 and Ar at 0.15
+        @test DiffuseWall(1.5; accommodation = 0.5)(mix, f, wall) ≈ f atol = 1e-13
+        g = DiffuseWall(3.0)(mix, f, wall)                                       # a hotter wall changes the emitted half only
+        b, bg = HC._blocks(mix, f), HC._blocks(mix, g)
+        for (s, sp) in enumerate(mix.species), k in 1:HC.num_velocities(sp)
+            v = velocity_node(sp, k)[1][1]
+            @test (v > 0) == (bg[s][k] == b[s][k])
+        end
+        for (s, sp) in enumerate(mix.species)
+            @test 0.5 < moments(sp, bg[s])[1] / moments(sp, b[s])[1] < 1       # the hotter wall emits a faster, thinner stream (measured 0.86)
+        end
+        # the host-side check: every species needs the wall's Maxwellian on its own grid
+        @test HC._check_wall_op(DiffuseWall(1.5), mix, 1) === nothing
+        @test HC._check_wall_op(SlipWall(), mix, 1) === nothing
+        @test_throws ArgumentError HC._check_wall_op(DiffuseWall(1e-4), mix, 1)                 # too cold for He's grid
+        @test_throws ArgumentError HC._check_wall_op(DiffuseWall(1.5; velocity = (0.0, 0.0)), mix, 1)
+    end
+
+    @testset "build_equation(:bgk_mixture)" begin
+        ctx  = Dict{Symbol, Any}(:T => Float64)
+        conf = Dict{Symbol, Any}(:name => :bgk_mixture, :D => 1, :masses => (1.0, 10.0), :lambda => lam, :epsilon => 1e-2,
+                                 :Nv => (16, 12), :vmax => (8.0, 4.0))
+        eqb = build_equation(conf, ctx)
+        @test eqb isa BGKMixture{1, 56, Float64, 2} && eqb.kappa == 1e-2 && eqb.kB == 1 && eqb.lambda == lam
+        @test eqb.species[2].nodes == nodes2
+        conf2 = Dict{Symbol, Any}(:name => :bgk_mixture, :D => 1, :masses => (1.0, 10.0), :lambda => ((19.96, 1.153), (1.153, 17.52)),
+                                  :epsilon => 1e-2, :kappa => 1e-3, :kB => 8.3145, :Nv => 8, :vmax => 6.0, :gamma => 1.4, :vcenter => (1.0,))
+        eq2 = build_equation(conf2, Dict{Symbol, Any}(:T => Float32))
+        @test eq2 isa BGKMixture{1, 32, Float32, 2} && eq2.kappa ≈ 1e-3 && eq2.kB ≈ 8.3145f0 && eq2.K ≈ 4
+        @test eq2.species[1].center == SVector(1f0) && eq2.species[2].center == SVector(1f0)
+        @test_throws ErrorException build_equation(merge(conf, Dict(:lambda => [1.0 0.0])), ctx)
+        @test_throws ErrorException build_equation(merge(conf, Dict(:Nv => (16, 12, 8))), ctx)
+    end
+
+    @testset "Initial conditions: every species in its discrete Maxwellian" begin
+        pg, ctx0 = test_grid((0.0,), (1.0,), (8,); M = 56)
+        ctx = merge(ctx0, Dict{Symbol, Any}(:Equation => mix, :M => 6))     # the IC gives the 6 species moments
+        uL = mixture_state(mix, (1.0, 0.3), (0.0, 0.0), (1.0, 1.0))
+        uR = mixture_state(mix, (0.5, 0.1), (0.1, 0.0), (0.8, 0.8))
+        ic = build_ic(Dict{Symbol, Any}(:name => :riemann, :uL => Tuple(uL), :uR => Tuple(uR), :p0 => (0.5,), :n => (1.0,)), ctx)
+        HC.set_initial_conditions!(pg, mix, ic)
+        il, ir = argmin(i -> pg.core.positions[i][1], 1:pg.meta.N), argmax(i -> pg.core.positions[i][1], 1:pg.meta.N)
+        @test moments(mix, pg.rhos[il]) ≈ uL atol = 1e-12
+        @test moments(mix, pg.rhos[ir]) ≈ uR atol = 1e-12
+        hot = mixture_state(mix, (1.0, 0.3), (0.0, 6.0), (1.0, 1.0))                          # Ar drifting beyond its grid (±4)
+        ich = build_ic(Dict{Symbol, Any}(:name => :riemann, :uL => Tuple(hot), :uR => Tuple(hot), :p0 => (0.5,), :n => (1.0,)), ctx)
+        @test_logs (:warn, r"cannot represent") HC.set_initial_conditions!(pg, mix, ich)
+        ctx3 = merge(ctx, Dict{Symbol, Any}(:M => 3))
+        ic3 = build_ic(Dict{Symbol, Any}(:name => :riemann, :uL => (1.0, 0.0, 1.0), :uR => (1.0, 0.0, 1.0), :p0 => (0.5,), :n => (1.0,)), ctx3)
+        @test_throws ErrorException HC.set_initial_conditions!(pg, mix, ic3)
+    end
+end
+
+# -------------------------------------------------------------------------
 # 7. ANALYTICAL CLOSURES
 # -------------------------------------------------------------------------
 @testset "Analytical closures" begin

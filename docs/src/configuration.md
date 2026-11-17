@@ -26,8 +26,8 @@ parameters, so any key below may appear in either place.
 
 | Key | Used by | Meaning |
 |:----|:--------|:--------|
-| `:name` | all | `:linear`, `:burgers`, `:euler` or `:bgk`. Required. |
-| `:D` | `:burgers`, `:euler`, `:bgk` | Spatial dimension. Linear advection infers `D` from `:velocities`. |
+| `:name` | all | `:linear`, `:burgers`, `:euler`, `:bgk` or `:bgk_mixture` (keys of the last two: [`build_equation`](@ref)). Required. |
+| `:D` | `:burgers`, `:euler`, `:bgk`, `:bgk_mixture` | Spatial dimension. Linear advection infers `D` from `:velocities`. |
 | `:velocities` | `:linear` | One entry per dimension describing ``A_d``; see [Linear Advection](PDEs/advection.md). |
 | `:gamma` | `:euler`, `:bgk` | Ratio of specific heats (BGK default `(D + 2) / D`; it fixes the internal degrees of freedom, see [BGK](PDEs/bgk.md)). |
 | `:Nv` | `:bgk` | Velocity nodes per direction (`Nv^D` discrete velocities). |

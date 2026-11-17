@@ -1,5 +1,23 @@
 # Group `sims-bgk`: BGK simulations (collisionless convergence, Euler limit, conservation, explicit vs IMEX).
 
+const MIXTURE_LAMBDA = [19.96 1.153; 1.153 17.52]      # He–Ar collision constants of the paper (masses 1 and 10 here)
+
+"1-D two-species mixture (masses 1 and 10) with a smooth periodic wave of both species' number densities and energies."
+mixture_wave_params(N; epsilon = 1e-2, kappa = epsilon, masses = (1.0, 10.0), lambda = MIXTURE_LAMBDA, Nv = (16, 12), vmax = (8.0, 4.0),
+                    gamma = 5 / 3, stepper = :ARS222, tmax = 0.1,
+                    a = (0.1, 0.0, 0.152, 0.03, 0.0, 0.0069), c = (1.0, 0.2, 1.52, 0.3, -0.03, 0.069)) = Dict{Symbol, Any}(
+    :PDE_name => :bgk_mixture, :PDE_D => 1, :PDE_masses => masses, :PDE_lambda => lambda, :PDE_epsilon => epsilon, :PDE_kappa => kappa,
+    :PDE_Nv => Nv, :PDE_vmax => vmax, :PDE_gamma => gamma,
+    :sim_func_name => :run_bgk_simulation, :tmax => tmax, :snapshots => 2,
+    :Grid_domain => :rectangular, :Grid_mins => (0.0,), :Grid_maxs => (1.0,), :Grid_Ns => (N,),
+    :Grid_periodic => true, :Grid_randomness_factor => (0.0,), :Grid_seed => 42, :Grid_mover => :none,
+    :Weight_name => :exponential, :Weight_alpha => 1.0, :Weight_range => 5.5,
+    :IC_name => :sine, :IC_a => a, :IC_period => (1.0,), :IC_c_offset => c,
+    :Time_CFL => 0.2, :Time_stepper => stepper,
+    :Scheme_name => :MUSCL, :Scheme_order => 2, :Flux_name => :Rusanov, :Limiter_name => :none,
+    :MOOD_criterion => :none,
+)
+
 @testset "Simulations" begin
     @testset "BGK" begin
         @testset "Collisionless transport converges at the scheme's order" begin
@@ -114,6 +132,45 @@
             sim = run_sim(merge(p2, Dict{Symbol, Any}(:Grid_Ns => (16, 16), :PDE_tau => 1e-2, :Time_stepper => :ARS222)))
             @test sim !== nothing
             sim !== nothing && @test isapprox(totals(sim, length(sim.u)), totals(sim, 1); rtol = 1e-12, atol = 1e-12)
+        end
+    end
+
+    @testset "BGK mixture" begin
+        @testset "Species densities, total momentum and energy are conserved; the temperatures equalise" begin
+            sim = run_sim(mixture_wave_params(50; tmax = 0.2))
+            @test sim !== nothing
+            if sim !== nothing
+                @test length(sim.u[end][1]) == 6                                 # the species' number moments
+                t0, t1 = totals(sim, 1), totals(sim, length(sim.u))
+                @test t1[1] ≈ t0[1] rtol = 1e-12
+                @test t1[4] ≈ t0[4] rtol = 1e-12
+                @test t1[2] + 10 * t1[5] ≈ t0[2] + 10 * t0[5] atol = 1e-11 * length(sim.u[1])
+                @test t1[3] + 10 * t1[6] ≈ t0[3] + 10 * t0[6] rtol = 1e-12
+                eqm = build_equation(Dict{Symbol, Any}(:name => :bgk_mixture, :D => 1, :masses => (1.0, 10.0), :lambda => MIXTURE_LAMBDA,
+                                                       :epsilon => 1e-2, :Nv => (16, 12), :vmax => (8.0, 4.0)), Dict{Symbol, Any}(:T => Float64))
+                spread(u) = (p = species_primitives(eqm, u); abs(p[1][3] - p[2][3]))
+                @test maximum(spread, sim.u[1]) > 0.4                              # T_He = 1, T_Ar = 1.5 at the start
+                @test maximum(spread, sim.u[end]) < 0.05                           # exchanged by t = 0.2 (κ = 1e-2)
+                @test all(u -> all(p -> p[1] > 0 && p[3] > 0, species_primitives(eqm, u)), sim.u[end])
+            end
+        end
+
+        @testset "Two identical species are the halves of the single gas (ν = λ n: τ = μ/ρ with μ = ε/λ, ω = 1)" begin
+            ε, λ = 0.05, 2.0
+            pm = mixture_wave_params(40; epsilon = ε, masses = (1.0, 1.0), lambda = fill(λ, 2, 2), Nv = (16, 16), vmax = (6.0, 6.0),
+                                     gamma = 3.0, tmax = 0.1,
+                                     a = (0.1, 0.05, 0.05, 0.1, 0.05, 0.05), c = (0.5, 0.0, 0.25, 0.5, 0.0, 0.25))
+            ps = bgk_wave_params(40; Nv = 16, stepper = :ARS222, order = 2)
+            delete!(ps, :PDE_tau)
+            merge!(ps, Dict{Symbol, Any}(:PDE_viscosity => ε / λ, :PDE_omega => 1.0, :tmax => 0.1))
+            simm, sims = run_sim(pm), run_sim(ps)
+            @test simm !== nothing && sims !== nothing
+            if simm !== nothing && sims !== nothing
+                @test simm.t[end] == sims.t[end]
+                err = maximum(maximum(abs.(um[1:3] + um[4:6] - us)) for (um, us) in zip(simm.u[end], sims.u[end]))
+                @test err < 1e-11
+                @test maximum(maximum(abs.(um[1:3] - um[4:6])) for um in simm.u[end]) < 1e-12
+            end
         end
     end
 end

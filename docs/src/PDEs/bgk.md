@@ -121,6 +121,68 @@ pre-pass with the limiter, and the rest the flux pass.
 operators of `MirrorBC`; see [Walls and Moving Boundaries](@ref). A gas in equilibrium at the wall temperature is
 reflected into itself exactly.
 
+## Gas mixtures
+
+[`BGKMixture`](@ref) is the discrete-velocity model of a mixture of ``L`` species with the multi-species
+BGK operator of Bobylev, Bisi, Groppi, Spiga and Potapenko (BBGSP),
+
+```math
+\partial_t f_s + \vec v\cdot\nabla_x f_s
+= \frac{1}{\varepsilon}\,\nu_{ss}\,(n_s M_{ss} - f_s)
++ \frac{1}{\kappa}\sum_{r\ne s}\nu_{sr}\,(n_s M_{sr} - f_s), \qquad s = 1,\dots,L,
+```
+
+with the number densities ``n_s``, the collision frequencies ``\nu_{sr} = \lambda_{sr} n_r`` (a symmetric
+matrix of constants ``\lambda``: Maxwell molecules), the intra-species Knudsen number ``\varepsilon`` and the
+inter-species one ``\kappa``. ``M_{sr}`` is the unit-density Maxwellian of species ``s`` (mass ``m_s``) at the
+mixture velocity ``\vec U_{sr} = (1 - a_{sr})\vec U_s + a_{sr}\vec U_r`` and temperature
+``T_{sr} = (1 - b_{sr}) T_s + b_{sr} T_r + \gamma_{sr}|\vec U_s - \vec U_r|^2/k_B`` with
+``a_{sr} = m_r/(m_s + m_r)``, ``b_{sr} = 2 a_{sr} m_s/(m_s + m_r)`` and ``\gamma_{sr} = m_s a_{sr}^2/n_{\mathrm{dof}}``
+(``n_{\mathrm{dof}} = D + K``, 3 for a monatomic gas): the choice for which the operator conserves every species'
+number density and the total momentum and energy.
+
+- **One state, species blocks.** Every species is a [`BGKEquation`](@ref) on its own velocity grid (a light
+  species needs a wider one; the Chu reduction and the node tables are per species), with the thermal speed
+  ``\theta_s = k_B T_s/m_s`` as its temperature. The particle state is the concatenation of the species'
+  states, ``M = \sum_s M_s``, and the transport stays diagonal, so the flux, the per-velocity Rusanov
+  dissipation (static and in the moving frames, which move with the mass-averaged mixture velocity), MOOD and
+  the walls (`slip_wall()` species by species, `diffuse_wall(T_w)` at the thermodynamic wall temperature,
+  emitting species ``s`` at ``k_B T_w/m_s``) carry over from the single gas. The macroscopic state of
+  [`moments`](@ref) is the species' number moments ``(n_s, n_s\vec u_s, e_s)`` one after the other
+  (``L(D + 2)`` numbers; [`mixture_state`](@ref) builds it from ``n_s``, ``\vec u_s``, ``T_s``,
+  [`species_primitives`](@ref) reads it back, [`mixture_moments`](@ref) gives ``(\rho, \rho\vec U, E)``).
+- **Collision step.** [`MixtureRelaxation`](@ref) solves the implicit stage equation in closed form, as the
+  relaxation step of the paper: the species densities are invariant, so ``\nu_{sr}`` is known; the species
+  velocities and temperatures after the stage come from two ``L \times L`` symmetric positive definite
+  systems (the graph Laplacians of ``d_{sr} = \lambda_{sr} n_s n_r m_s m_r/(m_s + m_r)`` and of
+  ``c_{sr} = n_{\mathrm{dof}} k_B \lambda_{sr} n_s n_r m_s m_r/(m_s + m_r)^2``, the latter with the exchanged
+  kinetic energy on the right-hand side), which conserve the totals exactly; the Maxwellians are then the
+  conservative discrete equilibria of each species at those values (discrete moments exact, so the
+  moment correction of the paper is not needed), and
+  ``f_s = (f_s^* + \Delta t\,a_{ii}\sum_r (\nu_{sr}/\varepsilon_{sr})\,n_s M_{sr}) / (1 + \Delta t\,a_{ii}\sum_r \nu_{sr}/\varepsilon_{sr})``.
+  Exact for any stiffness in ``\varepsilon`` and ``\kappa`` (asymptotic preserving); with an explicit tableau
+  [`ExplicitMixtureRelaxation`](@ref). Checked: the species densities, total momentum and energy are kept to
+  round-off per step and over a periodic run; a one-species mixture reproduces `BGKRelaxation` with
+  ``\tau = \varepsilon/(\lambda n)`` to round-off, and two identical species with equal states are the two
+  halves of that single gas (also over a run, with ``\tau = \mu/\rho``, ``\mu = \varepsilon/\lambda``).
+- **Units.** ``m_s``, ``k_B`` and ``\lambda`` are plain numbers. Dimensionless problems use ``k_B = 1``;
+  with the molar masses in g/mol as ``m_s`` and ``k_B = R = 8.3145`` temperatures are in kelvin and velocities
+  in units of ``\sqrt{1000}\,\mathrm{m/s} \approx 31.6\,\mathrm{m/s}`` (He–Ar: ``\lambda_{11} = 19.96``,
+  ``\lambda_{12} = 1.153``, ``\lambda_{22} = 17.52``).
+
+```julia
+:PDE_name => :bgk_mixture, :PDE_D => 1,
+:PDE_masses => (4.0, 40.0), :PDE_lambda => [19.96 1.153; 1.153 17.52], :PDE_kB => 8.3145,
+:PDE_epsilon => 1e-3, :PDE_kappa => 1e-3,
+:PDE_Nv => 30, :PDE_vmax => (125.0, 60.0),       # one velocity grid per species
+:sim_func_name => :run_bgk_simulation,
+```
+
+Initial conditions give the species' number moments, e.g. `:IC_uL => Tuple(mixture_state(eq, n, u, T))`;
+the stored snapshots are the species' number moments. The state length grows with the number of species
+and their grids (two species with 30² nodes and the Chu reduction are 3600 components per particle, far
+beyond the table above): start with 1-D problems and measure.
+
 ## API
 
 ```@docs
@@ -138,6 +200,15 @@ ViscosityRelaxationTime
 relaxation_time
 BGKRelaxation
 ExplicitBGKRelaxation
+BGKMixture
+HyperCloudCore.is_admissible(::BGKMixture{D, M, T}, ::State{M, T}) where {D, M, T}
+num_species
+species_moments
+mixture_moments
+species_primitives
+mixture_state
+MixtureRelaxation
+ExplicitMixtureRelaxation
 run_bgk_simulation
 euler_limit_solution
 bgk_1d_sod
