@@ -38,11 +38,18 @@ end
 HyperCloudCore.reduction_type(st::_MixtureBlockCollision) = _mixture_params_type(st.blocks)
 _mixture_params_type(::MixtureBlocks{D, W, T, NB, L}) where {D, W, T, NB, L} = MixtureBlockParams{L * L, D + 2, T}
 
-@inline function HyperCloudCore.block_reduce(st::_MixtureBlockCollision, p, Y, N, nb, pg, t, dt_coeff)
+# The additive form: the species' moments of a block range add up over ranges
+HyperCloudCore.reduction_partial_type(st::_MixtureBlockCollision) = _mixture_partial_type(st.blocks)
+_mixture_partial_type(::MixtureBlocks{D, W, T, NB, L}) where {D, W, T, NB, L} = SVector{L * (D + 2), T}
+@inline HyperCloudCore.block_partial(st::_MixtureBlockCollision, p, Y, N, nb, blocks::UnitRange, pg, t) =
+    _cat(species_block_moments(st.blocks, Y, N, nb, p, blocks))
+@inline function HyperCloudCore.finalize_reduction(st::_MixtureBlockCollision, p, moms_flat::SVector{Q, T}, pg, t, dt_coeff) where {Q, T}
     mb = st.blocks
-    eq = mb.mix
-    moms = species_block_moments(mb, Y, N, nb, p)
-    return _mixture_block_params(mb, eq, moms, dt_coeff)
+    moms = _split_species(mb, moms_flat)
+    return _mixture_block_params(mb, mb.mix, moms, dt_coeff)
+end
+@inline function _split_species(::MixtureBlocks{D, W, T, NB, L}, v::SVector{Q, T}) where {D, W, T, NB, L, Q}
+    return ntuple(s -> SVector{D + 2, T}(ntuple(i -> (@inbounds v[(s - 1) * (D + 2) + i]), Val(D + 2))), Val(L))
 end
 
 @inline function _mixture_block_params(mb::MixtureBlocks{D, W, T, NB, L}, eq::BGKMixture{D, M, T, L}, moms, dt_coeff) where {D, W, T, NB, L, M}

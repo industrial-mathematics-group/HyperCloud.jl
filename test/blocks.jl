@@ -96,6 +96,7 @@ bk_of(bs, eq) = BGKBlocks(eq, Val(length(block_view(bs, 1)[1])))
         prm = HyperCloudCore.block_reduce(st, 2, Y, 4, 4, pg, 0.0, 0.01)
         @test prm.ok && prm.alpha ≈ α && prm.lambda ≈ 0.01 / 1e-2
         @test (@inferred HyperCloudCore.block_reduce(st, 2, Y, 4, 4, pg, 0.0, 0.01)) isa HyperCloudCore.reduction_type(st)
+        @test HyperCloudCore.block_partial(st, 2, Y, 4, 4, 1:2, pg, 0.0) + HyperCloudCore.block_partial(st, 2, Y, 4, 4, 3:4, pg, 0.0) ≈ U atol = 1e-13
         alloc_reduce(st, Y, pg) = (HyperCloudCore.block_reduce(st, 2, Y, 4, 4, pg, 0.0, 0.01); @allocated HyperCloudCore.block_reduce(st, 2, Y, 4, 4, pg, 0.0, 0.01))
         alloc_solve(st, f, prm, pg) = (HyperCloudCore.block_implicit_solve(st, f, 2, prm, 0.01, 2, pg, 0.0); @allocated HyperCloudCore.block_implicit_solve(st, f, 2, prm, 0.01, 2, pg, 0.0))
         @test alloc_reduce(st, Y, pg) == 0
@@ -206,6 +207,11 @@ bk_of(bs, eq) = BGKBlocks(eq, Val(length(block_view(bs, 1)[1])))
             S_b = HyperCloudCore.block_source(ExplicitMixtureBlockRelaxation(mb), slice(b), b, prm0, 3, pg, 0.0)
             @test maximum(abs.(S_b - State{8, Float64}(S_full[(8b - 7):(8b)]))) < 1e-10 * maximum(abs.(S_full))
         end
+        # the additive form of the reduction: partials over block ranges add up to the species moments
+        pa = HyperCloudCore.block_partial(st, 3, Y, 4, 7, 1:3, pg, 0.0)
+        pb = HyperCloudCore.block_partial(st, 3, Y, 4, 7, 4:7, pg, 0.0)
+        @test pa + pb ≈ moments(mix, f) atol = 1e-13
+        @test HyperCloudCore.finalize_reduction(st, 3, pa + pb, pg, 0.0, Δ).ok
         # kernel rules
         alloc_r(st, Y, pg) = (HyperCloudCore.block_reduce(st, 3, Y, 4, 7, pg, 0.0, 0.01); @allocated HyperCloudCore.block_reduce(st, 3, Y, 4, 7, pg, 0.0, 0.01))
         alloc_s(st, f, prm, pg) = (HyperCloudCore.block_implicit_solve(st, f, 5, prm, 0.01, 3, pg, 0.0); @allocated HyperCloudCore.block_implicit_solve(st, f, 5, prm, 0.01, 3, pg, 0.0))
@@ -265,7 +271,14 @@ bk_of(bs, eq) = BGKBlocks(eq, Val(length(block_view(bs, 1)[1])))
                 @test all(u -> u[1] > 0 && 0.4 * (u[3] - 0.5 * u[2]^2 / u[1]) > 0, sim_b.u[end])
             end
         end
-        @test run_bgk_simulation(merge(p, Dict{Symbol, Any}(:PDE_block_width => 8, :MOOD_criterion => :U2, :MOOD_strategy => :EPD1, :MOOD_delta_relax => 1e-3))) === nothing
+        # U2 on blocks: the block's gradients are regathered for its curvature test; the standard run to round-off
+        pu = merge(p, Dict{Symbol, Any}(:MOOD_criterion => :U2, :MOOD_strategy => :EPD1, :MOOD_delta_relax => 1e-3))
+        sim_s = run_bgk_simulation(pu)
+        sim_b = run_bgk_simulation(merge(pu, Dict{Symbol, Any}(:PDE_block_width => 8)))
+        @test sim_s !== nothing && sim_b !== nothing
+        if sim_s !== nothing && sim_b !== nothing
+            @test maximum(maximum(abs.(ub - us)) for (ub, us) in zip(sim_b.u[end], sim_s.u[end])) < 1e-8
+        end
     end
 
     @testset "Moving grids on the block form: a prescribed mover as the standard run, the Lagrangian Sod in the ALE frame" begin
