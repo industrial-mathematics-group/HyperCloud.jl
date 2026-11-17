@@ -142,5 +142,91 @@ bk_of(bs, eq) = BGKBlocks(eq, Val(length(block_view(bs, 1)[1])))
         tot0 = sum(wave_state(pg_b.core.positions[i][1]) for i in 1:pg_b.meta.N)
         @test tot ≈ tot0 rtol = 1e-12
     end
-end
 
+    @testset "Configuration pipeline: :PDE_block_width runs the block form, the moments agree with the standard run" begin
+        p = bgk_sod_params(120)                                            # ARS222, VK, τ = 1e-5, Dirichlet / outflow
+        sim_s = run_bgk_simulation(p)
+        sim_b = run_bgk_simulation(merge(p, Dict{Symbol, Any}(:PDE_block_width => 8)))
+        @test sim_s !== nothing && sim_b !== nothing
+        if sim_s !== nothing && sim_b !== nothing
+            @test sim_b.x[end] == sim_s.x[end] && sim_b.t[end] == sim_s.t[end]
+            @test length(sim_b.u[end][1]) == 3                               # the moments
+            @test maximum(maximum(abs.(ub - us)) for (ub, us) in zip(sim_b.u[end], sim_s.u[end])) < 1e-9
+            @test sim_b.metadata[:finite] && !sim_b.metadata[:stopped_early]
+        end
+        # collisionless wave, RK3, forwarded by the kinetic runner
+        pw = merge(bgk_wave_params(50), Dict{Symbol, Any}(:sim_func_name => :run_kinetic_simulation, :PDE_block_width => 4))
+        sim_w = run_sim(pw)
+        sim_w0 = run_sim(bgk_wave_params(50))
+        @test sim_w !== nothing && sim_w0 !== nothing
+        sim_w !== nothing && sim_w0 !== nothing &&
+            @test maximum(maximum(abs.(ub - us)) for (ub, us) in zip(sim_w.u[end], sim_w0.u[end])) < 1e-12
+        # refusals (the runner logs the error and returns nothing)
+        for bad in (Dict{Symbol, Any}(:PDE_block_width => 5),                         # 5 does not divide 32
+                    Dict{Symbol, Any}(:PDE_block_width => 8, :MOOD_criterion => :u2, :MOOD_strategy => :EPD1),
+                    Dict{Symbol, Any}(:PDE_block_width => 8, :save_relax => true),
+                    Dict{Symbol, Any}(:PDE_block_width => 8, :Grid_mover => :lagrangian))
+            @test (@test_logs (:info, r"") (:error, r"Error during BGK") match_mode = :any run_bgk_simulation(merge(p, bad))) === nothing
+        end
+    end
+
+    @testset "Mixture on blocks: the block API against the single state, the configuration pipeline" begin
+        lam = [19.96 1.153; 1.153 17.52]
+        mix = BGKMixture(Val(1), (1.0, 10.0), lam, (velocity_grid(:uniform, 16, 8.0), velocity_grid(:uniform, 12, 4.0)); epsilon = 1e-2, kappa = 2e-2)
+        @test_throws ArgumentError MixtureBlocks(mix, Val(16))                                  # 16 does not divide 24
+        mb = MixtureBlocks(mix, Val(8))                                                           # 4 + 3 blocks
+        @test mb isa HyperbolicPDE{1, 8, Float64} && HyperCloudCore.num_blocks(mb) == 7 && HC.num_species(mb) == 2
+        @test [species_of_block(mb, b) for b in 1:7] == [(1, 1), (1, 2), (1, 3), (1, 4), (2, 1), (2, 2), (2, 3)]
+        U0 = mixture_state(mix, (1.0, 0.3), (0.5, -0.2), (1.0, 2.0))
+        f  = HC._cat(ntuple(s -> first(equilibrium(mix.species[s], SVector{3}(U0[(3s - 2):(3s)]))), 2))
+        f  = f .* (1 .+ 0.05 .* sin.(1:56))                                                        # out of equilibrium
+        f  = State{56, Float64}(f)
+        slice(b) = State{8, Float64}(f[(8b - 7):(8b)])
+        for b in 1:7
+            @test HyperCloudCore.block_flux(mb, slice(b), b)[1] == State{8, Float64}(HC.flux(mix, f)[1][(8b - 7):(8b)])
+        end
+        # the block state of f and its moments
+        pg = bgk_block_grid(4, 8)
+        bs = BlockState(mb, pg)
+        set_block_states!((x, b) -> slice(b), bs, pg)
+        @test block_moments(mb, bs, 3) == moments(mix, f)
+        # the collision: the block solve of every block equals the slice of the single-state solve (same Newton, same order)
+        st  = MixtureBlockRelaxation(mb)
+        Y   = parent(bs.data)
+        Δ   = 0.01
+        prm = HyperCloudCore.block_reduce(st, 3, Y, 4, 7, pg, 0.0, Δ)
+        @test prm.ok
+        g_full = HC.implicit_solve(MixtureRelaxation(mix), f, Δ, 1, pg, 0.0)
+        for b in 1:7
+            g_b = HyperCloudCore.block_implicit_solve(st, slice(b), b, prm, Δ, 3, pg, 0.0)
+            @test maximum(abs.(g_b - State{8, Float64}(g_full[(8b - 7):(8b)]))) < 1e-14
+        end
+        prm0 = HyperCloudCore.block_reduce(ExplicitMixtureBlockRelaxation(mb), 3, Y, 4, 7, pg, 0.0, 0.0)
+        S_full = HC.evaluate_source(ExplicitMixtureRelaxation(mix), f, 1, pg, 0.0)
+        for b in 1:7
+            S_b = HyperCloudCore.block_source(ExplicitMixtureBlockRelaxation(mb), slice(b), b, prm0, 3, pg, 0.0)
+            @test maximum(abs.(S_b - State{8, Float64}(S_full[(8b - 7):(8b)]))) < 1e-10 * maximum(abs.(S_full))
+        end
+        # kernel rules
+        alloc_r(st, Y, pg) = (HyperCloudCore.block_reduce(st, 3, Y, 4, 7, pg, 0.0, 0.01); @allocated HyperCloudCore.block_reduce(st, 3, Y, 4, 7, pg, 0.0, 0.01))
+        alloc_s(st, f, prm, pg) = (HyperCloudCore.block_implicit_solve(st, f, 5, prm, 0.01, 3, pg, 0.0); @allocated HyperCloudCore.block_implicit_solve(st, f, 5, prm, 0.01, 3, pg, 0.0))
+        @test alloc_r(st, Y, pg) == 0
+        @test alloc_s(st, slice(5), prm, pg) == 0
+        @test (@inferred HyperCloudCore.block_reduce(st, 3, Y, 4, 7, pg, 0.0, 0.01)) isa HyperCloudCore.reduction_type(st)
+        @test (@inferred HyperCloudCore.block_implicit_solve(st, slice(5), 5, prm, 0.01, 3, pg, 0.0)) isa State{8, Float64}
+        # the configuration pipeline: the two-species wave, block form against the single state
+        pm = mixture_wave_params(50; tmax = 0.1)
+        sim_s = run_bgk_simulation(pm)
+        sim_b = run_bgk_simulation(merge(pm, Dict{Symbol, Any}(:PDE_block_width => 8)))
+        @test sim_s !== nothing && sim_b !== nothing
+        if sim_s !== nothing && sim_b !== nothing
+            @test length(sim_b.u[end][1]) == 6
+            @test maximum(maximum(abs.(ub - us)) for (ub, us) in zip(sim_b.u[end], sim_s.u[end])) < 1e-10
+            t0, t1 = sum(sim_b.u[1]), sum(sim_b.u[end])
+            @test t1[1] ≈ t0[1] rtol = 1e-12
+            @test t1[4] ≈ t0[4] rtol = 1e-12
+            @test t1[3] + 10 * t1[6] ≈ t0[3] + 10 * t0[6] rtol = 1e-12
+        end
+        @test run_bgk_simulation(merge(pm, Dict{Symbol, Any}(:PDE_block_width => 16))) === nothing          # 16 ∤ 24
+    end
+end

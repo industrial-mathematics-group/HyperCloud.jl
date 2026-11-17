@@ -117,8 +117,8 @@ the run. An infinite CFL step with a finite state and a finite CFL number (no wa
 `tmax`; an infinite CFL number (or fixed step) stops at once.
 """
 function solve_equation(
-    timestepper::TimeStepper, 
-    eq::HyperbolicPDE{D, M, T}, 
+    timestepper::TimeStepper,
+    eq::HyperbolicPDE{D, M, T},
     pg::ParticleGrid{D, M, T},
     tmax::Real,
     dt::Real;
@@ -129,26 +129,80 @@ function solve_equation(
     progress_interval::Real = 1.0,
     adaptivity::Union{Nothing, ParticleAdaptivity} = nothing
 ) where {D, M, T}
-    
     snapshots >= 1 || throw(ArgumentError("snapshots must be ≥ 1 (the number of output intervals), got $snapshots"))
     xs = Vector{Vector{Space{D, T}}}(undef, snapshots + 1)
     us = Vector{Vector{State{M, T}}}(undef, snapshots + 1)
     ts = Vector{T}(undef, snapshots + 1)
+    div_interp = hasproperty(timestepper, :divergence_interpolator) ? timestepper.divergence_interpolator : NoFallbackGrad()
 
-    tmax_val = T(tmax)
-    dt_inp = T(dt)
+    step!(t, d) = (timestepper(eq, pg, t, d); adaptivity === nothing || adapt_particles!(pg, adaptivity, _extract_order(div_interp)); nothing)
+    save!(k, t) = (saveData!(xs, us, ts, k, pg, t, remove_ghosts); us[k])
+    k_step, elapsed_time = _time_loop(step!, () -> get_time_step(pg, eq, div_interp), save!,
+                                      () -> isfinite(_max_abs(host_view(pg.rhos, pg.meta.N))),
+                                      T(tmax), T(dt), is_cfl, Int(snapshots), show_progress, progress_interval)
+    return xs, us, ts, k_step, elapsed_time
+end
+
+"""
+    solve_equation(timestepper::BlockTimeStepper, eq, pg, bs::BlockState, tmax, dt; reduce, kwargs...)
+
+The time loop of [`solve_equation`](@ref) for the block pipeline: the block state `bs` is advanced, and the
+stored snapshots hold `reduce(bs, i)` per particle (the macroscopic moments, e.g. `(bs, i) -> block_moments(bk, bs, i)`),
+never the full distribution. Static grids, no adaptivity; the other keywords as for the standard pipeline.
+"""
+function solve_equation(
+    timestepper::BlockTimeStepper,
+    eq::HyperbolicPDE{D, W, T},
+    pg::ParticleGrid{D, W, T},
+    bs::BlockState{W, T},
+    tmax::Real,
+    dt::Real;
+    reduce,
+    is_cfl::Bool = false,
+    snapshots::Integer = 10,
+    remove_ghosts::Bool = false,
+    show_progress::Bool = true,
+    progress_interval::Real = 1.0
+) where {D, W, T}
+    snapshots >= 1 || throw(ArgumentError("snapshots must be ≥ 1 (the number of output intervals), got $snapshots"))
+    R  = typeof(reduce(bs, 1))
+    xs = Vector{Vector{Space{D, T}}}(undef, snapshots + 1)
+    us = Vector{Vector{R}}(undef, snapshots + 1)
+    ts = Vector{T}(undef, snapshots + 1)
+    div_interp = timestepper.inner.divergence_interpolator
+
+    step!(t, d) = timestepper(eq, pg, bs, t, d)
+    save!(k, t) = (_save_block_data!(xs, us, ts, k, pg, bs, t, remove_ghosts, reduce); us[k])
+    finite()    = all(i -> all(isfinite, reduce(bs, i)), 1:pg.meta.N)
+    k_step, elapsed_time = _time_loop(step!, () -> get_time_step(pg, eq, div_interp, bs), save!, finite,
+                                      T(tmax), T(dt), is_cfl, Int(snapshots), show_progress, progress_interval)
+    return xs, us, ts, k_step, elapsed_time
+end
+
+# The stored data of a block state: positions and the per-particle reduction (a host loop)
+function _save_block_data!(xs, us, ts, k::Int, pg::ParticleGrid{D, W, T}, bs::BlockState{W, T}, t, remove_ghosts::Bool, reduce) where {D, W, T}
+    N  = pg.meta.N
+    ts[k] = T(t)
+    pos = host_view(get_positions(pg), N)
+    idx = remove_ghosts ? findall(!, host_view(pg.core.is_boundary, N)) : collect(1:N)
+    xs[k] = [pos[i] for i in idx]
+    us[k] = [reduce(bs, i) for i in idx]
+    return nothing
+end
+
+# The time loop itself: `step!(t, dt)` advances, `cfl_step()` is the CFL step, `save!(k, t)` stores snapshot `k` and
+# returns the stored states, `state_finite()` says whether the current state is finite. Returns `(k_step, elapsed)`.
+function _time_loop(step!, cfl_step, save!, state_finite, tmax_val::T, dt_inp::T, is_cfl::Bool, snapshots::Int,
+                    show_progress::Bool, progress_interval::Real) where {T}
     t_snap = range(zero(T), tmax_val, length=snapshots+1)
     snap_counter = 1
     t = zero(T)
     k_step = 0
-    
-    div_interp = hasproperty(timestepper, :divergence_interpolator) ? timestepper.divergence_interpolator : NoFallbackGrad()
 
-    saveData!(xs, us, ts, snap_counter, pg, t, remove_ghosts)
-    snap_counter += 1 
-    u0_scale = _max_abs(us[1])
+    u0_scale = _max_abs(save!(snap_counter, t))
+    snap_counter += 1
     growth_warned = false
-    
+
     @info "Using $(nameof(typeof(get_backend()))) for parallel runs!"
 
     p = Progress(10000, desc="Running Simulation...", dt=progress_interval, enabled=show_progress)
@@ -159,13 +213,13 @@ function solve_equation(
     stopped = false      # stopped early: the stop has been reported, the final slot is not checked again
 
     elapsed_time = @elapsed while t < tmax_val
-        dt_step = is_cfl ? dt_inp * get_time_step(pg, eq, div_interp) : dt_inp
+        dt_step = is_cfl ? dt_inp * cfl_step() : dt_inp
         # A collapsed or non-finite step (NaN states, unbounded wave speeds) ends the run early, so no NaN
         # time is ever recorded. An infinite CFL step means that no wave moves, and the run goes straight to
         # tmax, unless the state is not finite (the CFL estimate skips particles with NaN wave speeds).
         # An infinite CFL number is a configuration error, not a field at rest: it stops below.
         if is_cfl && isfinite(dt_inp) && dt_step == T(Inf)
-            if !isfinite(_max_abs(host_view(pg.rhos, pg.meta.N)))
+            if !state_finite()
                 @warn "solve_equation stopped at t = $t before tmax = $tmax_val after $k_step steps: the state " *
                       "is not finite (blown up). The data end at t = $t."
                 stopped = true
@@ -183,16 +237,15 @@ function solve_equation(
         dt_val = min(dt_step, tmax_val - t)
         if dt_val <= max(T(1e-12), 4 * eps(T)) * tmax_val; break; end      # tmax reached up to round-off (relative)
 
-        timestepper(eq, pg, t, dt_val)
-        adaptivity === nothing || adapt_particles!(pg, adaptivity, _extract_order(div_interp))
+        step!(t, dt_val)
 
         t += dt_val
         k_step += 1
         
         blown_up = false
         while snap_counter <= snapshots && t >= t_snap[snap_counter]
-            saveData!(xs, us, ts, snap_counter, pg, t, remove_ghosts)
-            blown_up, growth_warned = _check_snapshot(us[snap_counter], t, tmax_val, k_step, u0_scale, growth_warned)
+            state = save!(snap_counter, t)
+            blown_up, growth_warned = _check_snapshot(state, t, tmax_val, k_step, u0_scale, growth_warned)
             snap_counter += 1
             blown_up && break
         end
@@ -235,11 +288,11 @@ function solve_equation(
     show_progress && finish!(p)
 
     if snap_counter <= snapshots + 1
-        saveData!(xs, us, ts, snapshots + 1, pg, t, remove_ghosts)
+        state = save!(snapshots + 1, t)
         # The final slot is checked too (with one snapshot it is the only one after t = 0), unless the run stopped:
         # then it holds the state whose stop was just reported
-        stopped || _check_snapshot(us[snapshots + 1], t, tmax_val, k_step, u0_scale, growth_warned; final = true)
+        stopped || _check_snapshot(state, t, tmax_val, k_step, u0_scale, growth_warned; final = true)
     end
 
-    return xs, us, ts, k_step, elapsed_time
+    return k_step, elapsed_time
 end

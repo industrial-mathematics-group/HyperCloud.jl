@@ -27,6 +27,7 @@ parameters, so any key below may appear in either place.
 | Key | Used by | Meaning |
 |:----|:--------|:--------|
 | `:name` | all | `:linear`, `:burgers`, `:euler`, `:bgk` or `:bgk_mixture` (keys of the last two: [`build_equation`](@ref)). Required. |
+| `:block_width` | `:bgk`, `:bgk_mixture` | Runs the block form (HyperCloudCore's block pipeline) with `W` components per block; see [BGK](PDEs/bgk.md). |
 | `:D` | `:burgers`, `:euler`, `:bgk`, `:bgk_mixture` | Spatial dimension. Linear advection infers `D` from `:velocities`. |
 | `:velocities` | `:linear` | One entry per dimension describing ``A_d``; see [Linear Advection](PDEs/advection.md). |
 | `:gamma` | `:euler`, `:bgk` | Ratio of specific heats (BGK default `(D + 2) / D`; it fixes the internal degrees of freedom, see [BGK](PDEs/bgk.md)). |

@@ -35,8 +35,9 @@ end
 
 # Species data of a state: number densities n (L), velocities U (L × D, one row per species), thermodynamic
 # temperatures Tt (L), and whether every species is physical.
-@inline function _species_state(eq::BGKMixture{D, M, T, L}, blocks::Tuple) where {D, M, T, L}
-    prim = map((s, b) -> _primitives(s, moments(s, b)), eq.species, blocks)
+@inline _species_state(eq::BGKMixture, blocks::Tuple) = _species_state_from_moments(eq, map((s, b) -> moments(s, b), eq.species, blocks))
+@inline function _species_state_from_moments(eq::BGKMixture{D, M, T, L}, moms::Tuple) where {D, M, T, L}
+    prim = map((s, m) -> _primitives(s, m), eq.species, moms)
     n  = SVector{L, T}(ntuple(s -> (@inbounds prim[s][1]), Val(L)))
     U  = SMatrix{L, D, T}(ntuple(i -> (@inbounds prim[(i - 1) % L + 1][2][(i - 1) ÷ L + 1]), Val(L * D)))
     θ  = SVector{L, T}(ntuple(s -> (@inbounds prim[s][3]), Val(L)))

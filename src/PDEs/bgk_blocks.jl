@@ -91,3 +91,41 @@ end
     off = (b - 1) * W
     return State{W, T}(ntuple(j -> equilibrium_component(bk.eq, α, off + j), Val(W)))
 end
+
+"""
+    set_initial_conditions!(bs::BlockState, bk::BGKBlocks, pg::ParticleGrid, IC::InitialCondition)
+
+Every particle starts in the conservative discrete Maxwellian of the macroscopic state `IC(x)` (as
+`set_initial_conditions!` for the single state): one Newton solve per particle ([`equilibrium_parameters`](@ref)),
+then the blocks from the parameters. Warns once if the velocity grid cannot represent a state (the discrete
+moments of the Maxwellian off by more than `√ε` relative to the state, as for the single state).
+"""
+function set_initial_conditions!(bs::BlockState{W, T}, bk::BGKBlocks{D, W, T}, pg::ParticleGrid{D, W, T}, IC::InitialCondition) where {D, W, T}
+    eq  = bk.eq
+    N   = pg.meta.N
+    nb  = bs.nb
+    pos = host_view(pg.core.positions, N)
+    buf = Vector{State{W, T}}(undef, nb * N)
+    n_bad, worst = 0, zero(T)
+    for i in 1:N
+        U = IC(pos[i])
+        length(U) == D + 2 || error("BGK initial conditions give the macroscopic state (ρ, ρu..., E) of length $(D + 2), got $(length(U))")
+        Uv = SVector{D + 2, T}(U)
+        α, ok = equilibrium_parameters(eq, Uv)
+        ok || error("initial state $U at $(pos[i]) is not admissible for the BGK equation (ρ > 0, θ > 0)")
+        ρ, u, θ = _primitives(eq, Uv)
+        scale = SVector{D + 2, T}(ρ, ntuple(_ -> ρ * (sqrt(sum(abs2, u)) + sqrt(θ)), Val(D))..., Uv[D + 2])
+        m, _ = _equilibrium_system(eq, α)
+        r = _scaled_residual(m - Uv, scale)
+        r > sqrt(eps(T)) && (n_bad += 1; worst = max(worst, r))
+        for b in 1:nb
+            buf[(b - 1) * N + i] = _equilibrium_block(bk, α, b)
+        end
+    end
+    bs.N[] = N
+    HyperCloudCore.ensure_capacity!(bs.data, nb * N)
+    copyto!(parent(bs.data), 1, buf, 1, nb * N)
+    n_bad > 0 && @warn "BGK initial state: the velocity grid cannot represent the macroscopic state of $n_bad " *
+                       "particle(s) (relative moment error up to $worst); enlarge `vmax` or refine the velocity grid"
+    return nothing
+end

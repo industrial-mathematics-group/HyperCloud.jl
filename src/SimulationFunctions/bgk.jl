@@ -48,6 +48,8 @@ function run_bgk_simulation(params::ParamDict)::Union{AbstractSimData, Nothing}
         eq isa DiscreteVelocityEquation ||
             error("run_bgk_simulation needs a BGK equation (:PDE_name => :bgk or :bgk_mixture), got $(typeof(eq))")
         D = get_D(eq)
+        W = Int(get(pde_conf, :block_width, 0))
+        W > 0 && return _run_bgk_blocks(params, context, eq, W)
 
         context[:Equation] = _ic_equation(eq)
         context[:D] = D
@@ -128,6 +130,108 @@ end
 
 # BGK configurations carry their own collision term, so the direct and kinetic runners hand them over.
 _is_bgk(params) = get(params, :PDE_name, nothing) in (:bgk, :bgk_mixture)
+
+"""
+    run_bgk_simulation with `:PDE_block_width => W`
+
+The BGK model or the mixture on HyperCloudCore's block pipeline ([`BGKBlocks`](@ref), [`BGKBlockRelaxation`](@ref);
+[`MixtureBlocks`](@ref), [`MixtureBlockRelaxation`](@ref)): the state of `W` components per particle and block,
+`M / W` blocks (`W` must divide the state length of every species), the collision in two passes. Every particle starts in the
+discrete Maxwellian of the `IC` state, and the snapshots hold the macroscopic moments (`:save_relax` is refused:
+the full distribution is never assembled). Static grids without MOOD and without kinetic walls (`SlipWall`,
+`DiffuseWall`), on the host backends; the other keys as for the standard form.
+"""
+function _run_bgk_blocks(params::ParamDict, context::Dict, eq, W::Int)
+    T = context[:T]
+    pde_conf    = extract_namespace(params, :PDE)
+    domain_conf = extract_namespace(params, :Grid)
+    grid_conf   = extract_namespace(params, :Grid)
+    weight_conf = extract_namespace(params, :Weight)
+    flux_conf   = extract_namespace(params, :Flux)
+    lim_conf    = extract_namespace(params, :Limiter)
+    mood_conf   = extract_namespace(params, :MOOD)
+    scheme_conf = extract_namespace(params, :Scheme)
+    ic_conf     = extract_namespace(params, :IC)
+    time_conf   = extract_namespace(params, :Time)
+    adapt_conf  = extract_namespace(params, :Adapt)
+    D = get_D(eq)
+
+    get(mood_conf, :criterion, :none) == :none || error("the block form runs without MOOD for now (:MOOD_criterion => :none)")
+    get(grid_conf, :mover, :none) == :none || error("the block form runs on static grids for now (:Grid_mover => :none)")
+    isempty(adapt_conf) || error("the block form runs without particle adaptivity for now")
+    (get(params, :save_relax, false) || get(params, :Kinetic_save_relax, false)) &&
+        error("the block form stores the macroscopic moments only (:save_relax is not available)")
+    context[:Storage] === Array || error("the block form runs on the host backends for now")
+
+    bk = _block_form(eq, W)
+    context[:Equation] = _ic_equation(eq)
+    context[:D] = D
+    context[:M] = _ic_length(eq)
+    IC = build_ic(ic_conf, context)
+    context[:Equation] = bk
+    context[:M] = W
+
+    context[:Tableau] = build_tableau(time_conf, context)
+    sources = _block_sources(bk, context[:Tableau])
+    @info "$(_describe(eq)), block form: $(HyperCloudCore.num_blocks(bk)) blocks of $W, collision: " *
+          (isempty(sources) ? "none (collisionless)" : HyperCloudCore._is_implicit(sources[1]) ? "implicit" : "explicit")
+
+    geom = build_domain(domain_conf, context)
+    for (tag, bc) in geom.bc_map
+        bc isa MirrorBC && bc.op !== nothing &&
+            error("the block form has no kinetic walls yet (boundary tag $tag: $(nameof(typeof(bc.op))))")
+    end
+    context[:Domain] = geom
+    context[:WeightConf] = weight_conf
+    pg = build_run_grid(grid_conf, context)
+    context[:Flux]    = build_flux(flux_conf, context)
+    context[:Limiter] = build_limiter(lim_conf, context)
+    context[:MOOD]    = build_mood(mood_conf, context)
+    context[:Scheme]  = build_scheme(scheme_conf, context)
+    method = BlockTimeStepper(bk, context[:Scheme], sources, context[:Tableau]; storage = context[:Storage])
+
+    bs = BlockState(bk, pg; storage = context[:Storage])
+    set_initial_conditions!(bs, bk, pg, IC)
+
+    is_cfl = haskey(time_conf, :CFL)
+    dt = is_cfl ? T(time_conf[:CFL]) : T(time_conf[:dt])
+    tmax = T(get(time_conf, :tmax, params[:tmax]))
+    xs_svector, us_svector, ts_full, k_step, elapsed_time = solve_equation(
+        method, bk, pg, bs, tmax, dt;
+        reduce = (b, i) -> block_moments(bk, b, i),
+        is_cfl = is_cfl, snapshots = params[:snapshots], remove_ghosts = get(params, :remove_ghosts, true),
+        show_progress = _PROGRESS_BAR[], progress_interval = _PROGRESS_INTERVAL[])
+    @info "BGK Simulation (block form, D=$D) finished in $(round(elapsed_time, digits=2)) seconds."
+
+    valid_indices = findall(i -> isassigned(us_svector, i), 1:length(us_svector))
+    us_final = us_svector[valid_indices]
+    sim_data = create_sim_data(xs_svector[valid_indices], us_final, ts_full[valid_indices], params; xmins=Tuple(geom.mins), xmaxs=Tuple(geom.maxs), tmin=zero(T), tmax=tmax,
+                               metadata = run_metadata(context, k_step, ts_full[last(valid_indices)], tmax;
+                                                       final_state = last(us_final)))
+    add_stat!(sim_data, :Runtime, elapsed_time, :none)
+    add_stat!(sim_data, :k_step, Float64(k_step), :none)
+    add_stat!(sim_data, :final_particle_count, Float64(pg.meta.N), :none)
+    return sim_data
+end
+
+_block_form(eq::BGKEquation, W::Int) = BGKBlocks(eq, Val(W))
+_block_form(eq::BGKMixture, W::Int) = MixtureBlocks(eq, Val(W))
+
+# The block sources of a run: implicit for an IMEX tableau, explicit otherwise, none when collisionless
+function _block_sources(bk::BGKBlocks, tableau::IMEXButcherTableau)
+    eq = bk.eq
+    _is_collisionless(eq.relaxation) && return ()
+    all(iszero, tableau.a) || return (BlockSourceTerm(BGKBlockRelaxation(bk)),)
+    _is_zero_relaxation(eq.relaxation) && throw(ArgumentError(
+        "BGK: the relaxation time is zero, which the explicit collision term (M[f] - f) / τ cannot handle; " *
+        "use an IMEX time stepper (e.g. :ARS222) for τ = 0"))
+    return (BlockSourceTerm(ExplicitBGKBlockRelaxation(bk)),)
+end
+function _block_sources(mb::MixtureBlocks, tableau::IMEXButcherTableau)
+    _is_collisionless(mb.mix) && return ()
+    all(iszero, tableau.a) || return (BlockSourceTerm(MixtureBlockRelaxation(mb)),)
+    return (BlockSourceTerm(ExplicitMixtureBlockRelaxation(mb)),)
+end
 
 # The equation and state length the initial conditions are built for, and the log line of the run
 _ic_equation(eq::BGKEquation) = euler_limit(eq)

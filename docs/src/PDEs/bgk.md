@@ -147,7 +147,10 @@ ts(bk, pg, bs, t, dt)
 U = block_moments(bk, bs, i)                                                   # (ρ, ρu, E) of particle i
 ```
 
-The configuration pipeline (`run_bgk_simulation`) does not use the block form yet.
+From a configuration, `:PDE_block_width => W` runs the block form through `run_bgk_simulation` (also for a
+mixture, [`MixtureBlocks`](@ref) with [`MixtureBlockRelaxation`](@ref): `W` must divide every species' state
+length); the snapshots hold the macroscopic moments, `:save_relax` is refused, and for now the block form runs
+on static grids without MOOD and without kinetic walls, on the host backends.
 
 ## Gas mixtures
 
@@ -235,6 +238,11 @@ equilibrium_block
 block_moments
 BGKBlockRelaxation
 ExplicitBGKBlockRelaxation
+MixtureBlocks
+species_of_block
+HyperCloud.species_block_moments
+MixtureBlockRelaxation
+ExplicitMixtureBlockRelaxation
 BGKMixture
 HyperCloudCore.is_admissible(::BGKMixture{D, M, T}, ::State{M, T}) where {D, M, T}
 num_species
