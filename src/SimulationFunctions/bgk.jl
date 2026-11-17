@@ -141,9 +141,9 @@ discrete Maxwellian of the `IC` state, and the snapshots hold the macroscopic mo
 the full distribution is never assembled). MOOD works with the `:U1`, `:PAD` and `:only` criteria (the admissibility
 across the blocks is the positivity of the moments; `:U2` is not available yet). Moving grids run in the ALE frame
 with the mean velocity of the moments as the particle velocity (the Lagrangian movers; no conservative Lagrangian
-frame on blocks), the kinetic walls (`SlipWall`, `DiffuseWall`) act in two passes, with the exact specular node flip at
-the axis-aligned walls of a rectangular domain only. Static boundary pieces, no adaptivity, the host backends; the
-other keys as for the standard form.
+frame on blocks), the kinetic walls (`SlipWall`, `DiffuseWall`) act in two passes (the specular reflection as the exact
+node flip where it applies, the reflection off the node grid otherwise). Moving boundary pieces are swept with every
+block remapped, the particle adaptivity acts on every block; the host backends; the other keys as for the standard form.
 """
 function _run_bgk_blocks(params::ParamDict, context::Dict, eq, W::Int)
     T = context[:T]
@@ -162,7 +162,6 @@ function _run_bgk_blocks(params::ParamDict, context::Dict, eq, W::Int)
 
     get(mood_conf, :criterion, :none) == :U2 && error("the block form has no :U2 criterion yet (its curvature test needs the gradient " *
                                                        "cache of the checked block); use :U1 or :PAD")
-    isempty(adapt_conf) || error("the block form runs without particle adaptivity for now")
     haskey(context, :MemoryLimit) && error("the block form does not reserve its buffers under a memory limit yet (set_memory_limit!(nothing))")
     (get(params, :save_relax, false) || get(params, :Kinetic_save_relax, false)) &&
         error("the block form stores the macroscopic moments only (:save_relax is not available)")
@@ -183,18 +182,10 @@ function _run_bgk_blocks(params::ParamDict, context::Dict, eq, W::Int)
 
     geom = build_domain(domain_conf, context)
     _check_wall_ops(eq, geom)
-    # The specular reflection of the block form is the exact node flip of an axis-aligned wall (the mirrored value of the
-    # flipped velocity, read from its block); an oblique or curved wall has no specular reflection on blocks yet
-    for (tag, bc) in geom.bc_map
-        bc isa MirrorBC && bc.op !== nothing || continue
-        specular = bc.op isa SlipWall || (bc.op isa DiffuseWall && bc.op.accommodation < 1)
-        specular && !(geom.shape isa HyperCloudCore.Cuboid) &&
-            error("the block form reflects velocities only at the axis-aligned walls of a rectangular domain for now " *
-                  "(boundary tag $tag: $(nameof(typeof(bc.op))) on a $(nameof(typeof(geom.shape))))")
-    end
     context[:Domain] = geom
     context[:WeightConf] = weight_conf
     pg = build_run_grid(grid_conf, context)
+    adaptivity = build_adaptivity(adapt_conf, context)
     context[:Flux]    = build_flux(flux_conf, context)
     context[:Limiter] = build_limiter(lim_conf, context)
     context[:MOOD]    = build_mood(mood_conf, context)
@@ -216,7 +207,7 @@ function _run_bgk_blocks(params::ParamDict, context::Dict, eq, W::Int)
         method, bk, pg, bs, tmax, dt;
         reduce = (b, i) -> block_moments(bk, b, i),
         is_cfl = is_cfl, snapshots = params[:snapshots], remove_ghosts = get(params, :remove_ghosts, true),
-        show_progress = _PROGRESS_BAR[], progress_interval = _PROGRESS_INTERVAL[])
+        show_progress = _PROGRESS_BAR[], progress_interval = _PROGRESS_INTERVAL[], adaptivity = adaptivity)
     @info "BGK Simulation (block form, D=$D) finished in $(round(elapsed_time, digits=2)) seconds."
 
     valid_indices = findall(i -> isassigned(us_svector, i), 1:length(us_svector))

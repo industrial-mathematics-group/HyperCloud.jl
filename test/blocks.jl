@@ -301,4 +301,62 @@ bk_of(bs, eq) = BGKBlocks(eq, Val(length(block_view(bs, 1)[1])))
             @test sum(abs(ρ[i] - interp(xs[i])) for i in eachindex(xs)) / length(xs) < 0.02
         end
     end
+
+    @testset "Adaptivity on the block form: the Lagrangian Sod with particle management, every block managed alike" begin
+        pl = merge(bgk_sod_params(200), Dict{Symbol, Any}(:Grid_mover => :lagrangian, :Grid_volumes => :mls, :Grid_volumes_degree => 2,
+                                                         :Grid_randomness_factor => (0.2,), :snapshots => 2, :Adapt_enabled => true,
+                                                         :PDE_block_width => 8))
+        sim = run_bgk_simulation(pl)
+        @test sim !== nothing
+        if sim !== nothing
+            @test sim.metadata[:finite] && !sim.metadata[:stopped_early]
+            @test all(u -> u[1] > 0 && 0.4 * (u[3] - 0.5 * u[2]^2 / u[1]) > 0, sim.u[end])
+            xs = sort([x[1] for x in sim.x[end]])
+            hs = diff(xs)
+            @test 0.3 * (1 / 200) < minimum(hs) && maximum(hs) < 2.2 * (1 / 200)                     # the spacing rules held
+        end
+        # without the adaptivity the Lagrangian cloud violates the spacing rules (compressed at the shock, stretched in the fan)
+        sim0 = run_bgk_simulation(merge(pl, Dict{Symbol, Any}(:Adapt_enabled => false)))
+        @test sim0 !== nothing
+        if sim0 !== nothing
+            hs0 = diff(sort([x[1] for x in sim0.x[end]]))
+            @test minimum(hs0) < 0.5 * (1 / 200) || maximum(hs0) > 1.6 * (1 / 200)
+            @test length(sim0.x[end]) == length(sim0.x[1])
+        end
+    end
+
+    @testset "Specular reflection on blocks off the node grid: oblique and moving walls as the single state, also for the mixture" begin
+        nodes, w = velocity_grid(:uniform, 12, 6.0)
+        eq = BGKEquation(Val(2), nodes, w, 2.0, ConstantRelaxationTime(1e-2))            # 2-D, M = 144 (no h)
+        bk = BGKBlocks(eq, Val(16))                                                      # 9 blocks
+        f, _ = equilibrium(eq, SVector(1.2, 0.3, -0.2, 2.4))
+        f = State{144, Float64}(f .* (1 .+ 0.05 .* sin.(1:144)))
+        Y = [State{16, Float64}(f[(16b - 15):(16b)]) for b in 1:9]
+        for (n, wv) in ((SVector(1.0, 0.0), SVector(0.0, 0.0)), (SVector(1.0, 0.0), SVector(-0.5, 0.0)),
+                        (SVector(0.6, 0.8), SVector(0.0, 0.0)), (SVector(0.6, 0.8), SVector(0.1, -0.2)))
+            wall = WallPoint(SVector(0.0, 0.0), n, 0.02, wv)
+            g_std = SlipWall()(eq, f, wall)
+            prm = HyperCloudCore.block_wall_reduce(SlipWall(), bk, Y, 1, 9, 1, wall)
+            g_blk = vcat((HyperCloudCore.block_wall_apply(SlipWall(), bk, Y[b], b, prm, wall, Y, 1, 9, 1) for b in 1:9)...)
+            @test maximum(abs.(g_std - g_blk)) < 1e-13
+            @test prm.flip == (n == SVector(1.0, 0.0) && wv[1] == 0.0)
+            d_std = DiffuseWall(1.0; accommodation = 0.5)(eq, f, wall)
+            prm_d = HyperCloudCore.block_wall_reduce(DiffuseWall(1.0; accommodation = 0.5), bk, Y, 1, 9, 1, wall)
+            d_blk = vcat((HyperCloudCore.block_wall_apply(DiffuseWall(1.0; accommodation = 0.5), bk, Y[b], b, prm_d, wall, Y, 1, 9, 1) for b in 1:9)...)
+            @test maximum(abs.(d_std - d_blk)) < 1e-13
+        end
+        # the mixture at an oblique moving wall
+        lam = [19.96 1.153; 1.153 17.52]
+        mix = BGKMixture(Val(1), (1.0, 10.0), lam, (velocity_grid(:uniform, 16, 8.0), velocity_grid(:uniform, 12, 4.0)); epsilon = 1e-2)
+        mb  = MixtureBlocks(mix, Val(8))
+        U0  = mixture_state(mix, (1.0, 0.3), (0.5, -0.2), (1.0, 2.0))
+        fm  = HC._cat(ntuple(s -> first(equilibrium(mix.species[s], SVector{3}(U0[(3s - 2):(3s)]))), 2))
+        fm  = State{56, Float64}(fm .* (1 .+ 0.05 .* sin.(1:56)))
+        Ym  = [State{8, Float64}(fm[(8b - 7):(8b)]) for b in 1:7]
+        wallm = WallPoint(SVector(0.0), SVector(1.0), 0.02, SVector(-0.3))
+        g_std = SlipWall()(mix, fm, wallm)
+        prm = HyperCloudCore.block_wall_reduce(SlipWall(), mb, Ym, 1, 7, 1, wallm)
+        g_blk = vcat((HyperCloudCore.block_wall_apply(SlipWall(), mb, Ym[b], b, prm, wallm, Ym, 1, 7, 1) for b in 1:7)...)
+        @test maximum(abs.(g_std - g_blk)) < 1e-13
+    end
 end
