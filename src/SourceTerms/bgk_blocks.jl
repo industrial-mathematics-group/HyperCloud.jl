@@ -38,12 +38,15 @@ end
 HyperCloudCore.reduction_type(st::_BGKBlockCollision) = _bgk_params_type(st.blocks)
 _bgk_params_type(::BGKBlocks{D, W, T}) where {D, W, T} = BGKBlockParams{D + 2, T}
 
-@inline function HyperCloudCore.block_reduce(st::_BGKBlockCollision, p, Y, N, nb, pg, t, dt_coeff)
-    bk = st.blocks
-    eq = bk.eq
-    U  = block_moments(bk, Y, N, nb, p)
+# The additive form: the moments of the velocities of a block range add up over ranges (a state split over devices
+# exchanges them); the parameters follow from the sum
+HyperCloudCore.reduction_partial_type(st::_BGKBlockCollision) = _bgk_partial_type(st.blocks)
+_bgk_partial_type(::BGKBlocks{D, W, T}) where {D, W, T} = SVector{D + 2, T}
+@inline HyperCloudCore.block_partial(st::_BGKBlockCollision, p, Y, N, nb, blocks::UnitRange, pg, t) =
+    block_moments(st.blocks, Y, N, nb, p, blocks)
+@inline function HyperCloudCore.finalize_reduction(st::_BGKBlockCollision, p, U::SVector{P, T}, pg, t, dt_coeff) where {P, T}
+    eq = st.blocks.eq
     α, ok = equilibrium_parameters(eq, U)
-    T  = eltype(U)
     τ  = ok ? relaxation_time(eq, U) : one(T)
     return BGKBlockParams(α, τ, T(dt_coeff) / τ, ok)
 end

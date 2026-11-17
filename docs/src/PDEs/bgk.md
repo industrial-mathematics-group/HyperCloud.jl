@@ -149,13 +149,15 @@ U = block_moments(bk, bs, i)                                                   #
 
 From a configuration, `:PDE_block_width => W` runs the block form through `run_bgk_simulation` (also for a
 mixture, [`MixtureBlocks`](@ref) with [`MixtureBlockRelaxation`](@ref): `W` must divide every species' state
-length); the snapshots hold the macroscopic moments, `:save_relax` is refused, MOOD works with `:U1`, `:PAD` and
-`:only` (the admissibility across the blocks is the positivity of the moments, `:U2` is not available yet), a moving
+length); the snapshots hold the macroscopic moments, `:save_relax` is refused, MOOD works with every criterion (the
+admissibility across the blocks is the positivity of the moments), a moving
 grid runs in the ALE frame with the mean velocity of the moments as the particle velocity (the Lagrangian movers;
 the conservative Lagrangian frame of the single state has no block form), and the kinetic walls act in two passes
 (the zero-flux density of a diffuse wall from all velocities; the specular reflection as the exact node flip where
 it applies and as the reflection off the node grid otherwise, as on the single state). Moving boundary pieces (a
-piston) and the particle adaptivity work on every block; the host backends for now.
+piston) and the particle adaptivity work on every block; the storage follows the backend. The collision's reduction is
+given in the additive form of HyperCloudCore's `block_partial` (the moments of a block range), which a block state split
+over devices exchanges.
 
 ## Gas mixtures
 

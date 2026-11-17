@@ -51,18 +51,23 @@ end
 end
 
 """
-    block_moments(bk::BGKBlocks, Y, N, nb, p) -> State{D + 2}
+    block_moments(bk::BGKBlocks, Y, N, nb, p[, blocks::UnitRange]) -> State{D + 2}
     block_moments(bk::BGKBlocks, bs::BlockState, p) -> State{D + 2}
 
 Macroscopic state `(ρ, ρu..., E)` of particle `p` from a block-major state array `Y` (block `b` at
 `Y[(b − 1) N + p]`) or a `BlockState`: the quadrature of [`moments`](@ref) over the blocks, summed in the same
-order as for a single state (the `h` value of a velocity is read from its block). Runs inside kernels.
+order as for a single state (the `h` value of a velocity is read from its block). With `blocks` the contribution of
+the velocities whose `f` lies in those blocks only (the additive form of the reduction; the `h` values are read
+from their own blocks). Runs inside kernels.
 """
-@inline function block_moments(bk::BGKBlocks{D, W, T}, Y, N::Int, nb::Int, p::Int) where {D, W, T}
+@inline block_moments(bk::BGKBlocks, Y, N::Int, nb::Int, p::Int) = block_moments(bk, Y, N, nb, p, 1:nb)
+@inline function block_moments(bk::BGKBlocks{D, W, T}, Y, N::Int, nb::Int, p::Int, blocks::UnitRange) where {D, W, T}
     eq = bk.eq
     NV = num_velocities(eq)
     m  = zero(SVector{D + 2, T})
-    @inbounds for k in 1:NV
+    k_lo = (first(blocks) - 1) * W + 1
+    k_hi = min(last(blocks) * W, NV)
+    @inbounds for k in k_lo:k_hi
         v, w = velocity_node(eq, k)
         fk = Y[((k - 1) ÷ W) * N + p][(k - 1) % W + 1]
         e  = T(0.5) * sum(abs2, v) * fk
