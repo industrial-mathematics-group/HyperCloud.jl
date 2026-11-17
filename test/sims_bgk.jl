@@ -24,6 +24,28 @@
             @test err_far > 0.025
         end
 
+        @testset "Sod on Lagrangian particles: sharp contact, mass kept (per-velocity frame flux, LagrangianFrame)" begin
+            # On Lagrangian particles the generic Rusanov of the moving frame smeared the contact (width 0.135 against
+            # 0.036 static at N = 800 with EPD2) and the cloud gained mass at the shock at a rate independent of N
+            # (+0.1 to 0.5 % by t = 0.2; study/bgk-lagrangian-contact of the simulations). With the per-velocity
+            # dissipation of the frame and HyperCloudCore's conservative LagrangianFrame the Lagrangian Sod is close to
+            # the static one.
+            p = merge(bgk_sod_params(200), Dict{Symbol, Any}(:Grid_mover => :lagrangian, :Grid_volumes => :mls, :Grid_volumes_degree => 2,
+                                                             :Grid_randomness_factor => (0.2,), :snapshots => 2))
+            err, sim = euler_l1(p)
+            @test sim !== nothing
+            if sim !== nothing
+                @test err < 0.025                                              # measured 0.0129 (static 0.0153)
+                xs = [x[1] for x in sim.x[end]]; pm = sortperm(xs); xs = xs[pm]; ρ = [u[1] for u in sim.u[end]][pm]
+                hs = [i == 1 ? xs[2] - xs[1] : i == length(xs) ? xs[end] - xs[end - 1] : (xs[i + 1] - xs[i - 1]) / 2 for i in eachindex(xs)]
+                x0 = [x[1] for x in sim.x[1]]; pm0 = sortperm(x0); x0 = x0[pm0]; ρ0 = [u[1] for u in sim.u[1]][pm0]
+                h0 = [i == 1 ? x0[2] - x0[1] : i == length(x0) ? x0[end] - x0[end - 1] : (x0[i + 1] - x0[i - 1]) / 2 for i in eachindex(x0)]
+                @test abs(sum(hs .* ρ) - sum(h0 .* ρ0)) < 5e-4             # measured 1.3e-4 (static 2.7e-4; frozen frame: +1e-3 to 5e-3, N-independent)
+                @test all(>(0), ρ) && minimum(hs) > 0.2 / 200
+                @test count(x -> 0.29 < x < 0.40, ρ) * (1 / 200) < 0.10        # measured 0.055 (static 0.070; generic frame flux: 0.135 at N = 800)                # the contact width
+            end
+        end
+
         @testset "Mass, momentum and energy are conserved (periodic lattice, IMEX)" begin
             sim = run_sim(bgk_wave_params(64; tau = 1e-2, stepper = :ARS222, order = 2))
             @test sim !== nothing

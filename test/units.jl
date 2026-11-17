@@ -625,6 +625,34 @@ end
                 @test F(fL, fR, FL, FR, eq) ≈ exact
             end
             @test HC.flux(eq, fL[1])[D] ≈ [velocity_node(eq, k)[1][D] * fL[1][k] for k in 1:M]
+            # In a moving frame (the ALE frame of a prescribed velocity, the Lagrangian frame of w = α u) the per-velocity
+            # upwind dissipation is |v_k − w| (the generic Rusanov of the frame used v_max + |w| for every velocity and
+            # smeared the contact of the Sod on Lagrangian particles)
+            w_fr = Space{D, Float64}(ntuple(d -> 0.3 + 0.1d, D))         # (own name: `w` are the velocity weights)
+            a = ALEFrame(eq, w_fr)
+            FLa = Flux{D, M, Float64}(ntuple(d -> HC.flux(a, fL[d])[d], D))
+            FRa = Flux{D, M, Float64}(ntuple(d -> HC.flux(a, fR[d])[d], D))
+            exact_a = Flux{D, M, Float64}(ntuple(D) do d
+                State{M, Float64}(ntuple(M) do k
+                    v = velocity_node(eq, k)[1][d] - w_fr[d]
+                    max(v, 0) * fL[d][k] + min(v, 0) * fR[d][k]
+                end)
+            end)
+            for F in (RusanovFlux(), UpwindFlux(), AlignedRusanovFlux())
+                @test F(fL, fR, FLa, FRa, a) ≈ exact_a
+            end
+            @test max_eigenvalue(eq, fL[1], 1, w_fr[1]) ≈ maximum(abs(velocity_node(eq, k)[1][1] - w_fr[1]) for k in 1:M)
+            fr = LagrangianFrame(eq, 0.5)
+            FLl = Flux{D, M, Float64}(ntuple(d -> HC.flux(fr, fL[d])[d], D))
+            FRl = Flux{D, M, Float64}(ntuple(d -> HC.flux(fr, fR[d])[d], D))
+            exact_l = Flux{D, M, Float64}(ntuple(D) do d
+                wd = 0.5 * fluid_velocity(eq, 0.5 * (fL[d] + fR[d]))[d]
+                State{M, Float64}(ntuple(M) do k
+                    v = velocity_node(eq, k)[1][d]
+                    0.5 * (FLl[d][k] + FRl[d][k]) - 0.5 * abs(v - wd) * (fR[d][k] - fL[d][k])
+                end)
+            end)
+            @test RusanovFlux()(fL, fR, FLl, FRl, fr) ≈ exact_l
         end
     end
 

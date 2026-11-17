@@ -53,7 +53,7 @@ The equation representation is read from the same namespace by `parse_representa
 | `:Ns` | — | Particles per direction (tuple). The nominal spacing is `(maxs - mins) ./ Ns`. |
 | `:randomness_factor` | — | Jitter per direction as a fraction of the spacing (tuple). |
 | `:seed` | `42` | RNG seed for the jitter. |
-| `:mover` | `:none` | Grid motion: `:none`, `:lagrangian`, `:scaled_lagrangian` (factor `:mover_alpha`) or `:sinusoidal` (amplitude `:mover_amplitude`); see [Moving Grids](@extref HyperCloudCore Moving-Grids-(ALE)). Lagrangian movers need `fluid_velocity` for the equation; all built-in equations define it. |
+| `:mover` | `:none` | Grid motion: `:none`, `:lagrangian`, `:scaled_lagrangian` (factor `:mover_alpha`) or `:sinusoidal` (amplitude `:mover_amplitude`); see [Moving Grids](@extref HyperCloudCore Moving-Grids-(ALE)). Lagrangian movers need `fluid_velocity` for the equation; all built-in equations define it. With the MUSCL scheme they run in HyperCloudCore's conservative `LagrangianFrame` (the frozen-velocity form gained mass at shocks at a rate independent of the resolution). |
 | `:volumes` | `:shepard` | Particle volume estimator: `:shepard` (`:volumes_sweeps`) or `:mls` (`:volumes_degree`, `:volumes_samples_per_dx`); see [Particle Volumes](@extref HyperCloudCore Particle-Volumes-and-Adaptivity). Used for the initial volumes and, on a moving grid, for the re-estimation after every step and every adaptation call (HyperCloudCore ≥ 0.7.5; before, only the initial volumes). On a moving grid Shepard volumes give a resolution-independent bias in the discrete mass; `:mls` converges but costs about 3 (1-D) to 20 (2-D) time steps per re-estimation. |
 
 !!! note "`:Grid_bc` and `:Grid_bc_map`"

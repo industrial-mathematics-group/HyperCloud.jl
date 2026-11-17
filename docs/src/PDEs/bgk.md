@@ -16,7 +16,9 @@ The velocity space is discretised by a tensor grid of `Nv` nodes per direction
 ([`velocity_grid`](@ref)), and the particle state is the vector of distribution values at the
 nodes: the number of equations is the number of discrete velocities. Everything HyperCloudCore
 offers (MUSCL, limiters, MOOD, IMEX, moving grids, the device backends) therefore runs on the BGK
-model unchanged. Moments are quadrature sums,
+model unchanged. On a moving grid the Rusanov flux of the frame (`ALEFrame`, `LagrangianFrame`) keeps the
+per-velocity upwind dissipation, `|v_k − w|` per component (the generic Rusanov of the frame dissipated every
+velocity with the largest relative speed and smeared the contact of the Sod on Lagrangian particles). Moments are quadrature sums,
 ``U = \sum_k w_k\,(1, \vec v_k, \tfrac12|\vec v_k|^2)\,f_k``.
 
 Since the state is an `SVector`, its length drives compile time and per-particle cost. The model
