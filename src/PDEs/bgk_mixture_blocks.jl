@@ -73,24 +73,44 @@ end
     end)
 end
 
+# The diagonal transport matrix of a block and the one-component UpwindFlux (see the BGK blocks)
+@inline function HyperCloudCore.block_velocity(mb::MixtureBlocks{D, W, T}, U::State, d::Int, b::Int) where {D, W, T}
+    v = _block_speeds(mb, b, d)
+    return SMatrix{W, W, T}(ntuple(i -> (i - 1) % W == (i - 1) ÷ W ? v[(i - 1) % W + 1] : zero(T), Val(W * W)))
+end
+@inline (::UpwindFlux)(f_L::Flux{D, 1, T}, f_R::Flux{D, 1, T}, F_L::Flux{D, 1, T}, F_R::Flux{D, 1, T},
+                       w::BlockOf{D, 1, T, <:MixtureBlocks}) where {D, T} = RusanovFlux()(f_L, f_R, F_L, F_R, w)
+@inline (::UpwindFlux)(f_L::Flux{D, 1, T}, f_R::Flux{D, 1, T}, F_L::Flux{D, 1, T}, F_R::Flux{D, 1, T},
+                       a::ALEFrame{D, 1, T, <:BlockOf{D, 1, T, <:MixtureBlocks}}) where {D, T} = RusanovFlux()(f_L, f_R, F_L, F_R, a)
+
 # Number moments of species `s` (the `moments` of its BGKEquation, summed in the same order) from the block-major array;
 # `blocks`: the velocities whose `f` lies in those blocks (global block indices) only (the additive form)
 @inline _species_moments_from_blocks(sp::BGKEquation{D, Ms, T, NV1, NV}, Y, N::Int, p::Int, boff::Int, ::Val{W}) where {D, Ms, T, NV1, NV, W} =
-    _species_moments_from_blocks(sp, Y, N, p, boff, Val(W), (boff + 1):(boff + cld(NV, W)))
+    _species_moments_from_blocks(sp, Y, N, p, boff, Val(W), (boff + 1):(boff + Ms ÷ W))     # (all blocks of the species, f and h)
 @inline function _species_moments_from_blocks(sp::BGKEquation{D, Ms, T, NV1, NV}, Y, N::Int, p::Int, boff::Int, ::Val{W},
                                               blocks::UnitRange) where {D, Ms, T, NV1, NV, W}
     m = zero(SVector{D + 2, T})
-    k_lo = max(1, (first(blocks) - 1 - boff) * W + 1)
-    k_hi = min(NV, (last(blocks) - boff) * W)
+    c_lo = max(1, (first(blocks) - 1 - boff) * W + 1)          # the species' components in the range
+    c_hi = (last(blocks) - boff) * W
+    k_lo, k_hi = c_lo, min(NV, c_hi)
     @inbounds for k in k_lo:k_hi
         v, w = velocity_node(sp, k)
         fk = Y[(boff + (k - 1) ÷ W) * N + p][(k - 1) % W + 1]
         e  = T(0.5) * sum(abs2, v) * fk
         if _has_h(sp)
             kh = k + NV
-            e += Y[(boff + (kh - 1) ÷ W) * N + p][(kh - 1) % W + 1]
+            c_lo <= kh <= c_hi && (e += Y[(boff + (kh - 1) ÷ W) * N + p][(kh - 1) % W + 1])
         end
         m += w * SVector{D + 2, T}(fk, (fk * v)..., e)
+    end
+    if _has_h(sp)                          # the h values in the range whose f lies outside it (none for the whole range)
+        @inbounds for kh in max(NV + 1, c_lo):min(2NV, c_hi)
+            k = kh - NV
+            k_lo <= k <= k_hi && continue
+            _, w = velocity_node(sp, k)
+            hk = Y[(boff + (kh - 1) ÷ W) * N + p][(kh - 1) % W + 1]
+            m += w * SVector{D + 2, T}(ntuple(i -> i == D + 2 ? hk : zero(T), Val(D + 2)))
+        end
     end
     return m
 end

@@ -90,6 +90,14 @@ bk_of(bs, eq) = BGKBlocks(eq, Val(length(block_view(bs, 1)[1])))
                 @test F(fL, fR, FL, FR, w_b)[1] ≈ exact
             end
         end
+        # one component per block: UpwindFlux is the per-velocity flux too (it took the scalar Murman–Roe path, which
+        # needs the velocity, and failed), and the transport matrix is the node speed
+        bk1 = BGKBlocks(eq, Val(1))
+        w1 = BlockOf(bk1, 5)
+        g = Flux{1, 1, Float64}((State{1, Float64}(1.0),))
+        G = Flux{1, 1, Float64}((HC.flux(w1, g[1])[1],))
+        @test UpwindFlux()(g, g, G, G, w1) == RusanovFlux()(g, g, G, G, w1)
+        @test HyperCloudCore.velocity(w1, g[1], 1)[1, 1] == velocity_node(eq, 5)[1][1]
         # the reduction and the solve are kernel functions: no allocation, inferred
         st = BGKBlockRelaxation(bk)
         Y  = parent(bs.data)
@@ -97,6 +105,14 @@ bk_of(bs, eq) = BGKBlocks(eq, Val(length(block_view(bs, 1)[1])))
         @test prm.ok && prm.alpha ≈ α && prm.lambda ≈ 0.01 / 1e-2
         @test (@inferred HyperCloudCore.block_reduce(st, 2, Y, 4, 4, pg, 0.0, 0.01)) isa HyperCloudCore.reduction_type(st)
         @test HyperCloudCore.block_partial(st, 2, Y, 4, 4, 1:2, pg, 0.0) + HyperCloudCore.block_partial(st, 2, Y, 4, 4, 3:4, pg, 0.0) ≈ U atol = 1e-13
+        # a partial reads its own blocks only (the f values in blocks 1:2, the h values in 3:4: a device owning some
+        # blocks has only those)
+        p34 = HyperCloudCore.block_partial(st, 2, Y, 4, 4, 3:4, pg, 0.0)
+        @test p34[1] == 0 && p34[2] == 0 && p34[3] > 0
+        Y2 = copy(Y)
+        Y2[2 * 4 + 2] = 2 * Y2[2 * 4 + 2]                                              # block 3 of particle 2
+        @test HyperCloudCore.block_partial(st, 2, Y2, 4, 4, 1:2, pg, 0.0) == HyperCloudCore.block_partial(st, 2, Y, 4, 4, 1:2, pg, 0.0)
+        @test HyperCloudCore.block_partial(st, 2, Y2, 4, 4, 3:4, pg, 0.0)[3] > p34[3]
         alloc_reduce(st, Y, pg) = (HyperCloudCore.block_reduce(st, 2, Y, 4, 4, pg, 0.0, 0.01); @allocated HyperCloudCore.block_reduce(st, 2, Y, 4, 4, pg, 0.0, 0.01))
         alloc_solve(st, f, prm, pg) = (HyperCloudCore.block_implicit_solve(st, f, 2, prm, 0.01, 2, pg, 0.0); @allocated HyperCloudCore.block_implicit_solve(st, f, 2, prm, 0.01, 2, pg, 0.0))
         @test alloc_reduce(st, Y, pg) == 0

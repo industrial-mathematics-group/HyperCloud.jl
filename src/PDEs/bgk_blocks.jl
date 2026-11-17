@@ -50,6 +50,17 @@ end
     end)
 end
 
+# The transport matrix of a block, diagonal in the node speeds (the velocity-based schemes and fluxes); for one
+# component per block `UpwindFlux` took HyperCloudCore's scalar Murman–Roe path and failed on the missing velocity
+@inline function HyperCloudCore.block_velocity(bk::BGKBlocks{D, W, T}, U::State, d::Int, b::Int) where {D, W, T}
+    v = _block_speeds(bk, b, d)
+    return SMatrix{W, W, T}(ntuple(i -> (i - 1) % W == (i - 1) ÷ W ? v[(i - 1) % W + 1] : zero(T), Val(W * W)))
+end
+@inline (::UpwindFlux)(f_L::Flux{D, 1, T}, f_R::Flux{D, 1, T}, F_L::Flux{D, 1, T}, F_R::Flux{D, 1, T},
+                       w::BlockOf{D, 1, T, <:BGKBlocks}) where {D, T} = RusanovFlux()(f_L, f_R, F_L, F_R, w)
+@inline (::UpwindFlux)(f_L::Flux{D, 1, T}, f_R::Flux{D, 1, T}, F_L::Flux{D, 1, T}, F_R::Flux{D, 1, T},
+                       a::ALEFrame{D, 1, T, <:BlockOf{D, 1, T, <:BGKBlocks}}) where {D, T} = RusanovFlux()(f_L, f_R, F_L, F_R, a)
+
 """
     block_moments(bk::BGKBlocks, Y, N, nb, p[, blocks::UnitRange]) -> State{D + 2}
     block_moments(bk::BGKBlocks, bs::BlockState, p) -> State{D + 2}
@@ -57,8 +68,9 @@ end
 Macroscopic state `(ρ, ρu..., E)` of particle `p` from a block-major state array `Y` (block `b` at
 `Y[(b − 1) N + p]`) or a `BlockState`: the quadrature of [`moments`](@ref) over the blocks, summed in the same
 order as for a single state (the `h` value of a velocity is read from its block). With `blocks` the contribution of
-the velocities whose `f` lies in those blocks only (the additive form of the reduction; the `h` values are read
-from their own blocks). Runs inside kernels.
+the components in those blocks only (the additive form of the reduction: an `f` value gives its mass, momentum and
+kinetic energy, an `h` value its internal energy, so the contributions of disjoint block ranges add up to the whole).
+Runs inside kernels.
 """
 @inline block_moments(bk::BGKBlocks, Y, N::Int, nb::Int, p::Int) = block_moments(bk, Y, N, nb, p, 1:nb)
 @inline function block_moments(bk::BGKBlocks{D, W, T}, Y, N::Int, nb::Int, p::Int, blocks::UnitRange) where {D, W, T}
@@ -67,15 +79,25 @@ from their own blocks). Runs inside kernels.
     m  = zero(SVector{D + 2, T})
     k_lo = (first(blocks) - 1) * W + 1
     k_hi = min(last(blocks) * W, NV)
+    b_lo, b_hi = first(blocks), last(blocks)
     @inbounds for k in k_lo:k_hi
         v, w = velocity_node(eq, k)
         fk = Y[((k - 1) ÷ W) * N + p][(k - 1) % W + 1]
         e  = T(0.5) * sum(abs2, v) * fk
         if _has_h(eq)
             kh = k + NV
-            e += Y[((kh - 1) ÷ W) * N + p][(kh - 1) % W + 1]
+            b_lo <= (kh - 1) ÷ W + 1 <= b_hi && (e += Y[((kh - 1) ÷ W) * N + p][(kh - 1) % W + 1])
         end
         m += w * SVector{D + 2, T}(fk, (fk * v)..., e)
+    end
+    if _has_h(eq)                          # the h values in the range whose f lies outside it (none for the whole range)
+        @inbounds for kh in max(NV + 1, k_lo):min(2NV, b_hi * W)
+            k = kh - NV
+            k_lo <= k <= k_hi && continue
+            _, w = velocity_node(eq, k)
+            hk = Y[((kh - 1) ÷ W) * N + p][(kh - 1) % W + 1]
+            m += w * SVector{D + 2, T}(ntuple(i -> i == D + 2 ? hk : zero(T), Val(D + 2)))
+        end
     end
     return m
 end
