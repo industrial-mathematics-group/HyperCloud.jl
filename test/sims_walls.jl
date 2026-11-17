@@ -277,6 +277,25 @@ end
         end
     end
 
+    @testset "BGK mixture: an equilibrium mixture between walls at its temperature stays in equilibrium" begin
+        lam = [19.96 1.153; 1.153 17.52]
+        eqm = BGKMixture(Val(1), (1.0, 10.0), lam, (velocity_grid(:uniform, 16, 6.0), velocity_grid(:uniform, 16, 3.0)); epsilon = 1e-2)
+        U = mixture_state(eqm, (1.0, 0.3), (0.0, 0.0), (1.0, 1.0))
+        base = merge(bgk_wall_base(), Dict{Symbol, Any}(:PDE_name => :bgk_mixture, :PDE_masses => (1.0, 10.0), :PDE_lambda => lam,
+                                                         :PDE_epsilon => 1e-2, :PDE_Nv => 16, :PDE_vmax => (6.0, 3.0),
+                                                         :IC_uL => Tuple(U), :IC_uR => Tuple(U)))
+        delete!(base, :PDE_tau)
+        delete!(base, :PDE_gamma)
+        for bc in (diffuse_wall(1.0), slip_wall(), diffuse_wall(1.0; accommodation = 0.5))
+            sim = run_bgk_simulation(merge(base, Dict{Symbol, Any}(:Grid_bc => BCD(1 => bc, 2 => bc))))
+            @test sim !== nothing
+            sim !== nothing && @test maximum(maximum(abs.(u - U)) for u in sim.u[end]) < 1e-12
+        end
+        # a wall too cold for the Ar grid is refused before the run (the runner returns nothing and logs the error)
+        @test (@test_logs (:info, r"Running BGK") (:error, r"Error during BGK") match_mode = :any run_bgk_simulation(
+            merge(base, Dict{Symbol, Any}(:Grid_bc => BCD(1 => diffuse_wall(1e-3), 2 => diffuse_wall(1.0)))))) === nothing
+    end
+
     @testset "BGK: a hot diffuse wall heats the gas, the mass error shrinks with the resolution" begin
         # control: specular walls with a pressure jump in the gas conserve the mass to second order (measured
         # -3.9e-5 at N = 100), so the drift below is the diffuse wall's

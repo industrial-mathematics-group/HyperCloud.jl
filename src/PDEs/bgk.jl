@@ -116,6 +116,17 @@ end
 # =========================================================================
 
 """
+    DiscreteVelocityEquation{D, M, T} <: HyperbolicPDE{D, M, T}
+
+Kinetic equations whose particle state is a distribution sampled at discrete velocities, with the diagonal
+transport `∂_t f_k + v_k·∇f_k = …` ([`BGKEquation`](@ref), [`BGKMixture`](@ref)). A subtype provides the
+velocity of every state component along an axis (`_component_speeds(eq, Val(d))`), `moments`,
+`is_admissible`, `fluid_velocity` and `max_eigenvalue`; the flux, the per-velocity Rusanov fluxes (static and
+in the moving frames) are shared.
+"""
+abstract type DiscreteVelocityEquation{D, M, T} <: HyperbolicPDE{D, M, T} end
+
+"""
     BGKEquation{D, M, T, NV1, NV, R} <: HyperbolicPDE{D, M, T}
     BGKEquation(::Val{D}, nodes, weights, gamma, relaxation; center = 0)
 
@@ -142,7 +153,7 @@ largest speed for every component), and `max_eigenvalue` is the largest node spe
 is a small bits type (nodes, weights, center, `K`, `γ`, the relaxation model); node indices are resolved
 at compile time, so there are no per-velocity arrays in the kernels.
 """
-struct BGKEquation{D, M, T, NV1, NV, R <: RelaxationTimeModel} <: HyperbolicPDE{D, M, T}
+struct BGKEquation{D, M, T, NV1, NV, R <: RelaxationTimeModel} <: DiscreteVelocityEquation{D, M, T}
     nodes::SVector{NV1, T}
     weights::SVector{NV1, T}
     center::SVector{D, T}
@@ -173,6 +184,8 @@ Number of discrete velocities `NV = NV1^D` (the number of equations is `NV`, or 
 degrees of freedom).
 """
 num_velocities(::BGKEquation{D, M, T, NV1, NV}) where {D, M, T, NV1, NV} = NV
+
+_is_collisionless(eq::BGKEquation) = _is_collisionless(eq.relaxation)
 
 @inline _has_h(::BGKEquation{D, M, T, NV1, NV}) where {D, M, T, NV1, NV} = M != NV
 
@@ -209,7 +222,7 @@ end
 end
 
 # `Flux{D, M, T}((g(speeds_1), …, g(speeds_D)))` with the speeds of every axis (`g(speeds, d)`), unrolled over D.
-@generated function _per_axis(g::G, eq::BGKEquation{D, M, T}) where {G, D, M, T}
+@generated function _per_axis(g::G, eq::DiscreteVelocityEquation{D, M, T}) where {G, D, M, T}
     terms = [:(g(_component_speeds(eq, Val($d)), $d)) for d in 1:D]
     return :(Flux{$D, $M, $T}(($(terms...),)))
 end
@@ -395,7 +408,7 @@ euler_limit(eq::BGKEquation{D, M, T}) where {D, M, T} = EulerEquation(Val(D), T,
 # HYPERCLOUDCORE API
 # =========================================================================
 
-@inline flux(eq::BGKEquation{D, M, T}, U::State{M, T}) where {D, M, T} = _per_axis((v, d) -> v .* U, eq)
+@inline flux(eq::DiscreteVelocityEquation{D, M, T}, U::State{M, T}) where {D, M, T} = _per_axis((v, d) -> v .* U, eq)
 
 @inline max_eigenvalue(eq::BGKEquation, U::State, d::Int) = @inbounds eq.max_speed[d]
 
@@ -412,7 +425,7 @@ end
 # |v_{k,d}| per component, not the largest node speed for all of them (which smears the slow velocities and
 # dominates the error near equilibrium). `UpwindFlux` and `AlignedRusanovFlux` fall back to this method.
 @inline function (::RusanovFlux)(f_L::Flux{D, M, T}, f_R::Flux{D, M, T}, F_L::Flux{D, M, T}, F_R::Flux{D, M, T},
-                                 eq::BGKEquation{D, M, T}) where {D, M, T}
+                                 eq::DiscreteVelocityEquation{D, M, T}) where {D, M, T}
     return _per_axis(eq) do v, d
         T(0.5) * (F_L[d] + F_R[d] - abs.(v) .* (f_R[d] - f_L[d]))
     end
@@ -424,13 +437,13 @@ end
 # 0.036 on the static cloud at N = 800 with EPD2, study/bgk-lagrangian-contact of the simulations); the per-velocity
 # upwind dissipation of the frame is |v_k,d − w_d|. `UpwindFlux` and `AlignedRusanovFlux` fall back to these too.
 @inline function (::RusanovFlux)(f_L::Flux{D, M, T}, f_R::Flux{D, M, T}, F_L::Flux{D, M, T}, F_R::Flux{D, M, T},
-                                 a::ALEFrame{D, M, T, <:BGKEquation}) where {D, M, T}
+                                 a::ALEFrame{D, M, T, <:DiscreteVelocityEquation}) where {D, M, T}
     return _per_axis(a.eq) do v, d
         T(0.5) * (F_L[d] + F_R[d] - abs.(v .- a.w[d]) .* (f_R[d] - f_L[d]))
     end
 end
 @inline function (::RusanovFlux)(f_L::Flux{D, M, T}, f_R::Flux{D, M, T}, F_L::Flux{D, M, T}, F_R::Flux{D, M, T},
-                                 fr::LagrangianFrame{D, M, T, <:BGKEquation}) where {D, M, T}
+                                 fr::LagrangianFrame{D, M, T, <:DiscreteVelocityEquation}) where {D, M, T}
     return _per_axis(fr.eq) do v, d
         w_d = HyperCloudCore.frame_velocity(fr, T(0.5) * (f_L[d] + f_R[d]))[d]
         T(0.5) * (F_L[d] + F_R[d] - abs.(v .- w_d) .* (f_R[d] - f_L[d]))
@@ -440,7 +453,9 @@ end
 # The largest relative node speed along `d` in a frame moving at `shift` (the frames' `max_eigenvalue`; the default bound
 # v_max + |shift| over-estimated it)
 @inline max_eigenvalue(eq::BGKEquation{D, M, T}, U::State{M, T}, d::Int, shift::Real) where {D, M, T} =
-    @inbounds max(abs(eq.center[d] + eq.nodes[1] - T(shift)), abs(eq.center[d] + eq.nodes[end] - T(shift)))
+    _max_relative_speed(eq, d, T(shift))
+@inline _max_relative_speed(eq::BGKEquation{D, M, T}, d::Int, shift::T) where {D, M, T} =
+    @inbounds max(abs(eq.center[d] + eq.nodes[1] - shift), abs(eq.center[d] + eq.nodes[end] - shift))
 
 # =========================================================================
 # ANALYTIC CLOSURE (collisionless limit)
