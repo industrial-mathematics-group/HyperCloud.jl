@@ -418,6 +418,30 @@ end
     end
 end
 
+# On a moving grid the scheme sees the equation in a frame: `ALEFrame` (the particle's velocity `w`) or `LagrangianFrame`
+# (`w(U) = α u(U)`, the conservative form). The generic Rusanov of a frame dissipated every velocity with the largest
+# relative speed (v_max + |w| ≈ 7 on the Sod), which smeared the contact on Lagrangian particles (width 0.135 against
+# 0.036 on the static cloud at N = 800 with EPD2, study/bgk-lagrangian-contact of the simulations); the per-velocity
+# upwind dissipation of the frame is |v_k,d − w_d|. `UpwindFlux` and `AlignedRusanovFlux` fall back to these too.
+@inline function (::RusanovFlux)(f_L::Flux{D, M, T}, f_R::Flux{D, M, T}, F_L::Flux{D, M, T}, F_R::Flux{D, M, T},
+                                 a::ALEFrame{D, M, T, <:BGKEquation}) where {D, M, T}
+    return _per_axis(a.eq) do v, d
+        T(0.5) * (F_L[d] + F_R[d] - abs.(v .- a.w[d]) .* (f_R[d] - f_L[d]))
+    end
+end
+@inline function (::RusanovFlux)(f_L::Flux{D, M, T}, f_R::Flux{D, M, T}, F_L::Flux{D, M, T}, F_R::Flux{D, M, T},
+                                 fr::LagrangianFrame{D, M, T, <:BGKEquation}) where {D, M, T}
+    return _per_axis(fr.eq) do v, d
+        w_d = HyperCloudCore.frame_velocity(fr, T(0.5) * (f_L[d] + f_R[d]))[d]
+        T(0.5) * (F_L[d] + F_R[d] - abs.(v .- w_d) .* (f_R[d] - f_L[d]))
+    end
+end
+
+# The largest relative node speed along `d` in a frame moving at `shift` (the frames' `max_eigenvalue`; the default bound
+# v_max + |shift| over-estimated it)
+@inline max_eigenvalue(eq::BGKEquation{D, M, T}, U::State{M, T}, d::Int, shift::Real) where {D, M, T} =
+    @inbounds max(abs(eq.center[d] + eq.nodes[1] - T(shift)), abs(eq.center[d] + eq.nodes[end] - T(shift)))
+
 # =========================================================================
 # ANALYTIC CLOSURE (collisionless limit)
 # =========================================================================
