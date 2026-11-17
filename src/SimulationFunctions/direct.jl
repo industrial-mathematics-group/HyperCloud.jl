@@ -34,6 +34,8 @@ function run_direct_simulation(params::ParamDict)::Union{AbstractSimData, Nothin
         
         # 2. Base Equation & Dimensions
         eq = build_equation(pde_conf, context)
+        get(pde_conf, :block_width, 0) == 0 ||
+            error(":PDE_block_width runs the block form of the BGK models (run_bgk_simulation); it has no effect on $(nameof(typeof(eq)))")
         D = get_D(eq)
         
         context[:Equation] = eq

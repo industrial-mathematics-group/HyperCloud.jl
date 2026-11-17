@@ -155,7 +155,9 @@ grid runs in the ALE frame with the mean velocity of the moments as the particle
 the conservative Lagrangian frame of the single state has no block form), and the kinetic walls act in two passes
 (the zero-flux density of a diffuse wall from all velocities; the specular reflection as the exact node flip where
 it applies and as the reflection off the node grid otherwise, as on the single state). Moving boundary pieces (a
-piston) and the particle adaptivity work on every block; the storage follows the backend. The collision's reduction is
+piston) and the particle adaptivity work on every block; the storage follows the backend (the parameter arrays of the
+collision included), and `set_memory_limit!` reserves the block stepper and the block state (the state arrays count
+`nb` elements per particle). The collision's reduction is
 given in the additive form of HyperCloudCore's `block_partial` (the moments of a block range), which a block state split
 over devices exchanges.
 

@@ -165,8 +165,27 @@ bk_of(bs, eq) = BGKBlocks(eq, Val(length(block_view(bs, 1)[1])))
         # refusals (the runner logs the error and returns nothing)
         for bad in (Dict{Symbol, Any}(:PDE_block_width => 5),                         # 5 does not divide 32
                     Dict{Symbol, Any}(:PDE_block_width => 8, :MOOD_criterion => :u2, :MOOD_strategy => :EPD1),
-                    Dict{Symbol, Any}(:PDE_block_width => 8, :save_relax => true))
-            @test (@test_logs (:info, r"") (:error, r"Error during BGK") match_mode = :any run_bgk_simulation(merge(p, bad))) === nothing
+                    Dict{Symbol, Any}(:PDE_block_width => 8, :save_relax => true),
+                    Dict{Symbol, Any}(:PDE_block_width => -8), Dict{Symbol, Any}(:PDE_block_width => 8.5))
+            @test (@test_logs (:error, r"Error during BGK") match_mode = :any run_bgk_simulation(merge(p, bad))) === nothing
+        end
+        @test HC._block_width(Dict{Symbol, Any}()) == 0 && HC._block_width(Dict{Symbol, Any}(:block_width => 0)) == 0
+        # a width on an equation without a block form is refused, not ignored
+        @test (@test_logs (:error, r"Error during Direct") match_mode = :any
+               run_sim(merge(linear_1d_gauss(40), UPWIND1, Dict{Symbol, Any}(:PDE_block_width => 4)))) === nothing
+        # the collision's parameter arrays follow the storage; a memory limit reserves the block stepper and the state
+        bk8 = BGKBlocks(BGKEquation(Val(1), nodes, w, 1.4, ConstantRelaxationTime(1e-2)), Val(8))
+        @test parent(HC._block_sources(bk8, IMEX_ARS222_Tableau(Float64), Array)[1].params) isa Vector
+        try
+            set_memory_limit!(64 * 2^20; tolerance = 0.1)
+            sim_m = run_bgk_simulation(merge(p, Dict{Symbol, Any}(:PDE_block_width => 8)))
+            @test sim_m !== nothing
+            if sim_m !== nothing
+                @test sim_m.stats[:reserved_particles][1] >= length(sim_m.x[end])
+                @test sim_m.stats[:reserved_bytes][1] <= 0.9 * 64 * 2^20
+            end
+        finally
+            set_memory_limit!(nothing)
         end
     end
 
