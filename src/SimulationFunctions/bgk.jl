@@ -139,8 +139,11 @@ The BGK model or the mixture on HyperCloudCore's block pipeline ([`BGKBlocks`](@
 `M / W` blocks (`W` must divide the state length of every species), the collision in two passes. Every particle starts in the
 discrete Maxwellian of the `IC` state, and the snapshots hold the macroscopic moments (`:save_relax` is refused:
 the full distribution is never assembled). MOOD works with the `:U1`, `:PAD` and `:only` criteria (the admissibility
-across the blocks is the positivity of the moments; `:U2` is not available yet). Static grids without kinetic walls
-(`SlipWall`, `DiffuseWall`), on the host backends; the other keys as for the standard form.
+across the blocks is the positivity of the moments; `:U2` is not available yet). Moving grids run in the ALE frame
+with the mean velocity of the moments as the particle velocity (the Lagrangian movers; no conservative Lagrangian
+frame on blocks), the kinetic walls (`SlipWall`, `DiffuseWall`) act in two passes, with the exact specular node flip at
+the axis-aligned walls of a rectangular domain only. Static boundary pieces, no adaptivity, the host backends; the
+other keys as for the standard form.
 """
 function _run_bgk_blocks(params::ParamDict, context::Dict, eq, W::Int)
     T = context[:T]
@@ -159,8 +162,8 @@ function _run_bgk_blocks(params::ParamDict, context::Dict, eq, W::Int)
 
     get(mood_conf, :criterion, :none) == :U2 && error("the block form has no :U2 criterion yet (its curvature test needs the gradient " *
                                                        "cache of the checked block); use :U1 or :PAD")
-    get(grid_conf, :mover, :none) == :none || error("the block form runs on static grids for now (:Grid_mover => :none)")
     isempty(adapt_conf) || error("the block form runs without particle adaptivity for now")
+    haskey(context, :MemoryLimit) && error("the block form does not reserve its buffers under a memory limit yet (set_memory_limit!(nothing))")
     (get(params, :save_relax, false) || get(params, :Kinetic_save_relax, false)) &&
         error("the block form stores the macroscopic moments only (:save_relax is not available)")
     context[:Storage] === Array || error("the block form runs on the host backends for now")
@@ -179,9 +182,15 @@ function _run_bgk_blocks(params::ParamDict, context::Dict, eq, W::Int)
           (isempty(sources) ? "none (collisionless)" : HyperCloudCore._is_implicit(sources[1]) ? "implicit" : "explicit")
 
     geom = build_domain(domain_conf, context)
+    _check_wall_ops(eq, geom)
+    # The specular reflection of the block form is the exact node flip of an axis-aligned wall (the mirrored value of the
+    # flipped velocity, read from its block); an oblique or curved wall has no specular reflection on blocks yet
     for (tag, bc) in geom.bc_map
-        bc isa MirrorBC && bc.op !== nothing &&
-            error("the block form has no kinetic walls yet (boundary tag $tag: $(nameof(typeof(bc.op))))")
+        bc isa MirrorBC && bc.op !== nothing || continue
+        specular = bc.op isa SlipWall || (bc.op isa DiffuseWall && bc.op.accommodation < 1)
+        specular && !(geom.shape isa HyperCloudCore.Cuboid) &&
+            error("the block form reflects velocities only at the axis-aligned walls of a rectangular domain for now " *
+                  "(boundary tag $tag: $(nameof(typeof(bc.op))) on a $(nameof(typeof(geom.shape))))")
     end
     context[:Domain] = geom
     context[:WeightConf] = weight_conf
@@ -190,8 +199,12 @@ function _run_bgk_blocks(params::ParamDict, context::Dict, eq, W::Int)
     context[:Limiter] = build_limiter(lim_conf, context)
     context[:MOOD]    = build_mood(mood_conf, context)
     context[:Scheme]  = build_scheme(scheme_conf, context)
-    method = BlockTimeStepper(bk, context[:Scheme], context[:MOOD], sources, context[:Tableau]; storage = context[:Storage],
-                              mood_substeps = get(time_conf, :mood_substeps, true))
+    # the standard stepper for one block carries the options (the volume estimator of a moving grid, the MOOD substeps, …)
+    context[:Equation] = BlockOf(bk, 1)
+    context[:ExplicitSources], context[:ImplicitSources] = (), ()
+    inner  = build_run_timestepper(context; time_conf = time_conf)
+    context[:Equation] = bk
+    method = BlockTimeStepper(bk, inner, sources)
 
     bs = BlockState(bk, pg; storage = context[:Storage])
     set_initial_conditions!(bs, bk, pg, IC)

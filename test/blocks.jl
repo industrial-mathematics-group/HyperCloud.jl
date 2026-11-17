@@ -164,8 +164,7 @@ bk_of(bs, eq) = BGKBlocks(eq, Val(length(block_view(bs, 1)[1])))
         # refusals (the runner logs the error and returns nothing)
         for bad in (Dict{Symbol, Any}(:PDE_block_width => 5),                         # 5 does not divide 32
                     Dict{Symbol, Any}(:PDE_block_width => 8, :MOOD_criterion => :u2, :MOOD_strategy => :EPD1),
-                    Dict{Symbol, Any}(:PDE_block_width => 8, :save_relax => true),
-                    Dict{Symbol, Any}(:PDE_block_width => 8, :Grid_mover => :lagrangian))
+                    Dict{Symbol, Any}(:PDE_block_width => 8, :save_relax => true))
             @test (@test_logs (:info, r"") (:error, r"Error during BGK") match_mode = :any run_bgk_simulation(merge(p, bad))) === nothing
         end
     end
@@ -267,5 +266,39 @@ bk_of(bs, eq) = BGKBlocks(eq, Val(length(block_view(bs, 1)[1])))
             end
         end
         @test run_bgk_simulation(merge(p, Dict{Symbol, Any}(:PDE_block_width => 8, :MOOD_criterion => :U2, :MOOD_strategy => :EPD1, :MOOD_delta_relax => 1e-3))) === nothing
+    end
+
+    @testset "Moving grids on the block form: a prescribed mover as the standard run, the Lagrangian Sod in the ALE frame" begin
+        p = merge(bgk_wave_params(50; tau = 1e-2, stepper = :ARS222, order = 2),
+                  Dict{Symbol, Any}(:Grid_mover => :sinusoidal, :Grid_mover_amplitude => 0.2, :tmax => 0.1))
+        sim_s = run_sim(p)
+        sim_b = run_sim(merge(p, Dict{Symbol, Any}(:PDE_block_width => 4)))
+        @test sim_s !== nothing && sim_b !== nothing
+        if sim_s !== nothing && sim_b !== nothing
+            @test sim_b.x[end] == sim_s.x[end]                                     # the particles moved the same way
+            @test any(x -> x != sim_s.x[1][1], sim_s.x[end][1:1]) || sim_s.x[end] != sim_s.x[1]
+            @test maximum(maximum(abs.(ub - us)) for (ub, us) in zip(sim_b.u[end], sim_s.u[end])) < 1e-10
+        end
+        # the Lagrangian Sod: the block form runs in the ALE frame with the mean velocity (the frozen frame), positive and
+        # close to the standard run with the conservative Lagrangian frame
+        pl = merge(bgk_sod_params(200), Dict{Symbol, Any}(:Grid_mover => :lagrangian, :Grid_volumes => :mls, :Grid_volumes_degree => 2,
+                                                         :Grid_randomness_factor => (0.2,), :snapshots => 2))
+        sim_s = run_bgk_simulation(pl)
+        sim_b = run_bgk_simulation(merge(pl, Dict{Symbol, Any}(:PDE_block_width => 8)))
+        @test sim_s !== nothing && sim_b !== nothing
+        if sim_s !== nothing && sim_b !== nothing
+            @test sim_b.metadata[:finite] && !sim_b.metadata[:stopped_early]
+            @test all(u -> u[1] > 0 && 0.4 * (u[3] - 0.5 * u[2]^2 / u[1]) > 0, sim_b.u[end])
+            @test sim_b.x[end] != sim_b.x[1]                                        # the cloud moved
+            xs = [x[1] for x in sim_b.x[end]]; pm = sortperm(xs); xs = xs[pm]; ρ = [u[1] for u in sim_b.u[end]][pm]
+            hs = [i == 1 ? xs[2] - xs[1] : i == length(xs) ? xs[end] - xs[end - 1] : (xs[i + 1] - xs[i - 1]) / 2 for i in eachindex(xs)]
+            x0 = [x[1] for x in sim_b.x[1]]; pm0 = sortperm(x0); x0 = x0[pm0]; ρ0 = [u[1] for u in sim_b.u[1]][pm0]
+            h0 = [i == 1 ? x0[2] - x0[1] : i == length(x0) ? x0[end] - x0[end - 1] : (x0[i + 1] - x0[i - 1]) / 2 for i in eachindex(x0)]
+            @test abs(sum(hs .* ρ) - sum(h0 .* ρ0)) < 1e-2                         # the frozen frame's gain (standard: 1.3e-4 with the conservative frame)
+            # against the standard Lagrangian run, read at the block run's positions (both clouds move with the fluid)
+            xs_s = [x[1] for x in sim_s.x[end]]; ps = sortperm(xs_s); xs_s = xs_s[ps]; ρ_s = [u[1] for u in sim_s.u[end]][ps]
+            interp(x) = (k = searchsortedfirst(xs_s, x); k <= 1 ? ρ_s[1] : k > length(xs_s) ? ρ_s[end] : ρ_s[k - 1] + (ρ_s[k] - ρ_s[k - 1]) * (x - xs_s[k - 1]) / (xs_s[k] - xs_s[k - 1]))
+            @test sum(abs(ρ[i] - interp(xs[i])) for i in eachindex(xs)) / length(xs) < 0.02
+        end
     end
 end

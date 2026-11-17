@@ -296,6 +296,40 @@ end
             merge(base, Dict{Symbol, Any}(:Grid_bc => BCD(1 => diffuse_wall(1e-3), 2 => diffuse_wall(1.0)))))) === nothing
     end
 
+    @testset "BGK on blocks: the kinetic walls in two passes (equilibrium kept, the hot wall as the standard run, the mixture)" begin
+        for bc in (diffuse_wall(1.0), slip_wall(), diffuse_wall(1.0; accommodation = 0.5))
+            sim = run_bgk_simulation(merge(bgk_wall_base(), Dict{Symbol, Any}(:Grid_bc => BCD(1 => bc, 2 => bc), :PDE_block_width => 8)))
+            @test sim !== nothing
+            sim !== nothing && @test maximum(maximum(abs.(u - SVector(1.0, 0.0, 2.5))) for u in sim.u[end]) < 1e-12
+        end
+        # the hot diffuse wall, fully diffuse and with a specular share (the node flip across the blocks), as the standard run
+        for acc in (1.0, 0.5)
+            p = merge(bgk_wall_base(; Ns = 50, tmax = 0.2), Dict{Symbol, Any}(:Grid_bc => BCD(1 => diffuse_wall(1.0; accommodation = acc),
+                                                                                             2 => diffuse_wall(2.0; accommodation = acc))))
+            sim_s = run_bgk_simulation(p)
+            sim_b = run_bgk_simulation(merge(p, Dict{Symbol, Any}(:PDE_block_width => 8)))
+            @test sim_s !== nothing && sim_b !== nothing
+            if sim_s !== nothing && sim_b !== nothing
+                @test maximum(maximum(abs.(ub - us)) for (ub, us) in zip(sim_b.u[end], sim_s.u[end])) < 1e-9
+                @test maximum(u -> 2 * (u[3] - 0.5 * u[2]^2 / u[1]) / (5 * u[1]), sim_b.u[end]) > 1.2       # heated next to the hot wall
+            end
+        end
+        # the mixture between walls at its temperature
+        lam = [19.96 1.153; 1.153 17.52]
+        eqm = BGKMixture(Val(1), (1.0, 10.0), lam, (velocity_grid(:uniform, 16, 6.0), velocity_grid(:uniform, 16, 3.0)); epsilon = 1e-2)
+        U = mixture_state(eqm, (1.0, 0.3), (0.0, 0.0), (1.0, 1.0))
+        base = merge(bgk_wall_base(), Dict{Symbol, Any}(:PDE_name => :bgk_mixture, :PDE_masses => (1.0, 10.0), :PDE_lambda => lam,
+                                                         :PDE_epsilon => 1e-2, :PDE_Nv => 16, :PDE_vmax => (6.0, 3.0), :PDE_block_width => 8,
+                                                         :IC_uL => Tuple(U), :IC_uR => Tuple(U)))
+        delete!(base, :PDE_tau)
+        delete!(base, :PDE_gamma)
+        for bc in (diffuse_wall(1.0), slip_wall(), diffuse_wall(1.0; accommodation = 0.5))
+            sim = run_bgk_simulation(merge(base, Dict{Symbol, Any}(:Grid_bc => BCD(1 => bc, 2 => bc))))
+            @test sim !== nothing
+            sim !== nothing && @test maximum(maximum(abs.(u - U)) for u in sim.u[end]) < 1e-12
+        end
+    end
+
     @testset "BGK: a hot diffuse wall heats the gas, the mass error shrinks with the resolution" begin
         # control: specular walls with a pressure jump in the gas conserve the mass to second order (measured
         # -3.9e-5 at N = 100), so the drift below is the diffuse wall's
