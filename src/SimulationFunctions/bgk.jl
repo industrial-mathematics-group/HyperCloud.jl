@@ -138,8 +138,13 @@ The BGK model or the mixture on HyperCloudCore's block pipeline ([`BGKBlocks`](@
 [`MixtureBlocks`](@ref), [`MixtureBlockRelaxation`](@ref)): the state of `W` components per particle and block,
 `M / W` blocks (`W` must divide the state length of every species), the collision in two passes. Every particle starts in the
 discrete Maxwellian of the `IC` state, and the snapshots hold the macroscopic moments (`:save_relax` is refused:
-the full distribution is never assembled). Static grids without MOOD and without kinetic walls (`SlipWall`,
-`DiffuseWall`), on the host backends; the other keys as for the standard form.
+the full distribution is never assembled). MOOD works with every criterion (the admissibility across the blocks is the
+positivity of the moments). Moving grids run in the ALE frame
+with the mean velocity of the moments as the particle velocity (the Lagrangian movers; no conservative Lagrangian
+frame on blocks), the kinetic walls (`SlipWall`, `DiffuseWall`) act in two passes (the specular reflection as the exact
+node flip where it applies, the reflection off the node grid otherwise). Moving boundary pieces are swept with every
+block remapped, the particle adaptivity acts on every block (host grids); the storage follows the backend as for the
+standard form; the other keys as for the standard form.
 """
 function _run_bgk_blocks(params::ParamDict, context::Dict, eq, W::Int)
     T = context[:T]
@@ -156,12 +161,9 @@ function _run_bgk_blocks(params::ParamDict, context::Dict, eq, W::Int)
     adapt_conf  = extract_namespace(params, :Adapt)
     D = get_D(eq)
 
-    get(mood_conf, :criterion, :none) == :none || error("the block form runs without MOOD for now (:MOOD_criterion => :none)")
-    get(grid_conf, :mover, :none) == :none || error("the block form runs on static grids for now (:Grid_mover => :none)")
-    isempty(adapt_conf) || error("the block form runs without particle adaptivity for now")
+    haskey(context, :MemoryLimit) && error("the block form does not reserve its buffers under a memory limit yet (set_memory_limit!(nothing))")
     (get(params, :save_relax, false) || get(params, :Kinetic_save_relax, false)) &&
         error("the block form stores the macroscopic moments only (:save_relax is not available)")
-    context[:Storage] === Array || error("the block form runs on the host backends for now")
 
     bk = _block_form(eq, W)
     context[:Equation] = _ic_equation(eq)
@@ -177,18 +179,21 @@ function _run_bgk_blocks(params::ParamDict, context::Dict, eq, W::Int)
           (isempty(sources) ? "none (collisionless)" : HyperCloudCore._is_implicit(sources[1]) ? "implicit" : "explicit")
 
     geom = build_domain(domain_conf, context)
-    for (tag, bc) in geom.bc_map
-        bc isa MirrorBC && bc.op !== nothing &&
-            error("the block form has no kinetic walls yet (boundary tag $tag: $(nameof(typeof(bc.op))))")
-    end
+    _check_wall_ops(eq, geom)
     context[:Domain] = geom
     context[:WeightConf] = weight_conf
     pg = build_run_grid(grid_conf, context)
+    adaptivity = build_adaptivity(adapt_conf, context)
     context[:Flux]    = build_flux(flux_conf, context)
     context[:Limiter] = build_limiter(lim_conf, context)
     context[:MOOD]    = build_mood(mood_conf, context)
     context[:Scheme]  = build_scheme(scheme_conf, context)
-    method = BlockTimeStepper(bk, context[:Scheme], sources, context[:Tableau]; storage = context[:Storage])
+    # the standard stepper for one block carries the options (the volume estimator of a moving grid, the MOOD substeps, …)
+    context[:Equation] = BlockOf(bk, 1)
+    context[:ExplicitSources], context[:ImplicitSources] = (), ()
+    inner  = build_run_timestepper(context; time_conf = time_conf)
+    context[:Equation] = bk
+    method = BlockTimeStepper(bk, inner, sources)
 
     bs = BlockState(bk, pg; storage = context[:Storage])
     set_initial_conditions!(bs, bk, pg, IC)
@@ -198,9 +203,9 @@ function _run_bgk_blocks(params::ParamDict, context::Dict, eq, W::Int)
     tmax = T(get(time_conf, :tmax, params[:tmax]))
     xs_svector, us_svector, ts_full, k_step, elapsed_time = solve_equation(
         method, bk, pg, bs, tmax, dt;
-        reduce = (b, i) -> block_moments(bk, b, i),
+        reduce = (Y, N, nb, i) -> block_moments(bk, Y, N, nb, i),
         is_cfl = is_cfl, snapshots = params[:snapshots], remove_ghosts = get(params, :remove_ghosts, true),
-        show_progress = _PROGRESS_BAR[], progress_interval = _PROGRESS_INTERVAL[])
+        show_progress = _PROGRESS_BAR[], progress_interval = _PROGRESS_INTERVAL[], adaptivity = adaptivity)
     @info "BGK Simulation (block form, D=$D) finished in $(round(elapsed_time, digits=2)) seconds."
 
     valid_indices = findall(i -> isassigned(us_svector, i), 1:length(us_svector))

@@ -51,18 +51,23 @@ end
 end
 
 """
-    block_moments(bk::BGKBlocks, Y, N, nb, p) -> State{D + 2}
+    block_moments(bk::BGKBlocks, Y, N, nb, p[, blocks::UnitRange]) -> State{D + 2}
     block_moments(bk::BGKBlocks, bs::BlockState, p) -> State{D + 2}
 
 Macroscopic state `(ρ, ρu..., E)` of particle `p` from a block-major state array `Y` (block `b` at
 `Y[(b − 1) N + p]`) or a `BlockState`: the quadrature of [`moments`](@ref) over the blocks, summed in the same
-order as for a single state (the `h` value of a velocity is read from its block). Runs inside kernels.
+order as for a single state (the `h` value of a velocity is read from its block). With `blocks` the contribution of
+the velocities whose `f` lies in those blocks only (the additive form of the reduction; the `h` values are read
+from their own blocks). Runs inside kernels.
 """
-@inline function block_moments(bk::BGKBlocks{D, W, T}, Y, N::Int, nb::Int, p::Int) where {D, W, T}
+@inline block_moments(bk::BGKBlocks, Y, N::Int, nb::Int, p::Int) = block_moments(bk, Y, N, nb, p, 1:nb)
+@inline function block_moments(bk::BGKBlocks{D, W, T}, Y, N::Int, nb::Int, p::Int, blocks::UnitRange) where {D, W, T}
     eq = bk.eq
     NV = num_velocities(eq)
     m  = zero(SVector{D + 2, T})
-    @inbounds for k in 1:NV
+    k_lo = (first(blocks) - 1) * W + 1
+    k_hi = min(last(blocks) * W, NV)
+    @inbounds for k in k_lo:k_hi
         v, w = velocity_node(eq, k)
         fk = Y[((k - 1) ÷ W) * N + p][(k - 1) % W + 1]
         e  = T(0.5) * sum(abs2, v) * fk
@@ -75,6 +80,33 @@ order as for a single state (the `h` value of a velocity is read from its block)
     return m
 end
 block_moments(bk::BGKBlocks, bs::BlockState, p::Int) = block_moments(bk, parent(bs.data), bs.N[], bs.nb, p)
+
+# The Lagrangian movers of the block pipeline move the particle with the mean velocity of the moments
+@inline HyperCloudCore.block_fluid_velocity(bk::BGKBlocks{D, W, T}, Y, N::Int, nb::Int, p::Int) where {D, W, T} =
+    _primitives(bk.eq, block_moments(bk, Y, N, nb, p))[2]
+
+# The wave speed bound in a frame moving at `shift`: the exact largest relative node speed (the default `v_max + |shift|`
+# over-estimated it)
+@inline HyperCloudCore.block_max_eigenvalue(bk::BGKBlocks{D, W, T}, U::State, d::Int, b::Int, shift::Real) where {D, W, T} =
+    _max_relative_speed(bk.eq, d, T(shift))
+
+# The per-velocity upwind dissipation of a block in the moving frame, |v_k − w_d|
+@inline function (::RusanovFlux)(f_L::Flux{D, W, T}, f_R::Flux{D, W, T}, F_L::Flux{D, W, T}, F_R::Flux{D, W, T},
+                                 a::ALEFrame{D, W, T, <:BlockOf{D, W, T, <:BGKBlocks}}) where {D, W, T}
+    return Flux{D, W, T}(ntuple(Val(D)) do d
+        v = _block_speeds(a.eq.eq, a.eq.b, d)
+        T(0.5) * (F_L[d] + F_R[d] - abs.(v .- a.w[d]) .* (f_R[d] - f_L[d]))
+    end)
+end
+
+# The PAD of MOOD across the blocks: positive density and temperature of the moments (the per-block check of the
+# pipeline covers finiteness; individual f_k may dip below zero, as for the single state)
+@inline function HyperCloudCore.block_admissible(bk::BGKBlocks{D, W, T}, Y, N::Int, nb::Int, p::Int) where {D, W, T}
+    U = block_moments(bk, Y, N, nb, p)
+    all(isfinite, U) || return false
+    ρ, _, θ = _primitives(bk.eq, U)
+    return ρ > zero(T) && θ > zero(T)
+end
 
 """
     equilibrium_block(bk::BGKBlocks, U::State{D + 2}, b::Int) -> State{W}

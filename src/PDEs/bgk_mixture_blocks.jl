@@ -73,10 +73,16 @@ end
     end)
 end
 
-# Number moments of species `s` (the `moments` of its BGKEquation, summed in the same order) from the block-major array
-@inline function _species_moments_from_blocks(sp::BGKEquation{D, Ms, T, NV1, NV}, Y, N::Int, p::Int, boff::Int, ::Val{W}) where {D, Ms, T, NV1, NV, W}
+# Number moments of species `s` (the `moments` of its BGKEquation, summed in the same order) from the block-major array;
+# `blocks`: the velocities whose `f` lies in those blocks (global block indices) only (the additive form)
+@inline _species_moments_from_blocks(sp::BGKEquation{D, Ms, T, NV1, NV}, Y, N::Int, p::Int, boff::Int, ::Val{W}) where {D, Ms, T, NV1, NV, W} =
+    _species_moments_from_blocks(sp, Y, N, p, boff, Val(W), (boff + 1):(boff + cld(NV, W)))
+@inline function _species_moments_from_blocks(sp::BGKEquation{D, Ms, T, NV1, NV}, Y, N::Int, p::Int, boff::Int, ::Val{W},
+                                              blocks::UnitRange) where {D, Ms, T, NV1, NV, W}
     m = zero(SVector{D + 2, T})
-    @inbounds for k in 1:NV
+    k_lo = max(1, (first(blocks) - 1 - boff) * W + 1)
+    k_hi = min(NV, (last(blocks) - boff) * W)
+    @inbounds for k in k_lo:k_hi
         v, w = velocity_node(sp, k)
         fk = Y[(boff + (k - 1) ÷ W) * N + p][(k - 1) % W + 1]
         e  = T(0.5) * sum(abs2, v) * fk
@@ -90,15 +96,17 @@ end
 end
 
 """
-    species_block_moments(mb::MixtureBlocks, Y, N, nb, p) -> NTuple{L, SVector{D + 2}}
+    species_block_moments(mb::MixtureBlocks, Y, N, nb, p[, blocks::UnitRange]) -> NTuple{L, SVector{D + 2}}
 
 Number moments `(n_s, n_s u_s…, e_s)` of every species of particle `p` from the block-major state array `Y`
-(the [`species_moments`](@ref) of the single state). Runs inside kernels.
+(the [`species_moments`](@ref) of the single state); with `blocks` the contribution of the velocities in those blocks
+only (the additive form of the reduction). Runs inside kernels.
 """
-@inline function species_block_moments(mb::MixtureBlocks{D, W, T, NB, L}, Y, N::Int, nb::Int, p::Int) where {D, W, T, NB, L}
+@inline species_block_moments(mb::MixtureBlocks, Y, N::Int, nb::Int, p::Int) = species_block_moments(mb, Y, N, nb, p, 1:nb)
+@inline function species_block_moments(mb::MixtureBlocks{D, W, T, NB, L}, Y, N::Int, nb::Int, p::Int, blocks::UnitRange) where {D, W, T, NB, L}
     return ntuple(Val(L)) do s
         boff = @inbounds mb.block_offsets[s]
-        _select(sp -> _species_moments_from_blocks(sp, Y, N, p, boff, Val(W)), mb.mix.species, s)
+        _select(sp -> _species_moments_from_blocks(sp, Y, N, p, boff, Val(W), blocks), mb.mix.species, s)
     end
 end
 
@@ -111,6 +119,43 @@ particle `p`.
 """
 @inline block_moments(mb::MixtureBlocks, Y, N::Int, nb::Int, p::Int) = _cat(species_block_moments(mb, Y, N, nb, p))
 block_moments(mb::MixtureBlocks, bs::BlockState, p::Int) = block_moments(mb, parent(bs.data), bs.N[], bs.nb, p)
+
+# The Lagrangian movers move the particle with the mass-averaged mixture velocity
+@inline function HyperCloudCore.block_fluid_velocity(mb::MixtureBlocks{D, W, T, NB, L}, Y, N::Int, nb::Int, p::Int) where {D, W, T, NB, L}
+    moms = species_block_moments(mb, Y, N, nb, p)
+    ρ  = zero(T)
+    ρu = zero(Space{D, T})
+    @inbounds for s in 1:L
+        m = moms[s]
+        ρ  += mb.mix.masses[s] * m[1]
+        ρu += mb.mix.masses[s] * Space{D, T}(ntuple(d -> m[1 + d], Val(D)))
+    end
+    return ρu / ρ
+end
+
+@inline HyperCloudCore.block_max_eigenvalue(mb::MixtureBlocks{D, W, T}, U::State, d::Int, b::Int, shift::Real) where {D, W, T} =
+    maximum(map(sp -> _max_relative_speed(sp, d, T(shift)), mb.mix.species))
+
+@inline function (::RusanovFlux)(f_L::Flux{D, W, T}, f_R::Flux{D, W, T}, F_L::Flux{D, W, T}, F_R::Flux{D, W, T},
+                                 a::ALEFrame{D, W, T, <:BlockOf{D, W, T, <:MixtureBlocks}}) where {D, W, T}
+    return Flux{D, W, T}(ntuple(Val(D)) do d
+        v = _block_speeds(a.eq.eq, a.eq.b, d)
+        T(0.5) * (F_L[d] + F_R[d] - abs.(v .- a.w[d]) .* (f_R[d] - f_L[d]))
+    end)
+end
+
+# The PAD of MOOD across the blocks: every species with finite moments, positive density and temperature
+@inline function HyperCloudCore.block_admissible(mb::MixtureBlocks{D, W, T, NB, L}, Y, N::Int, nb::Int, p::Int) where {D, W, T, NB, L}
+    moms = species_block_moments(mb, Y, N, nb, p)
+    ok = true
+    for s in 1:L
+        m = @inbounds moms[s]
+        all(isfinite, m) || return false
+        n, _, θ = _select(sp -> _primitives(sp, m), mb.mix.species, s)
+        ok &= n > zero(T) && θ > zero(T)
+    end
+    return ok
+end
 
 # Block `bl` of the discrete Maxwellian of species `s` with the parameters α
 @inline function _species_equilibrium_block(mb::MixtureBlocks{D, W, T}, α::SVector{P, T}, s::Int, bl::Int) where {D, W, T, P}

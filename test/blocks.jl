@@ -96,6 +96,7 @@ bk_of(bs, eq) = BGKBlocks(eq, Val(length(block_view(bs, 1)[1])))
         prm = HyperCloudCore.block_reduce(st, 2, Y, 4, 4, pg, 0.0, 0.01)
         @test prm.ok && prm.alpha ≈ α && prm.lambda ≈ 0.01 / 1e-2
         @test (@inferred HyperCloudCore.block_reduce(st, 2, Y, 4, 4, pg, 0.0, 0.01)) isa HyperCloudCore.reduction_type(st)
+        @test HyperCloudCore.block_partial(st, 2, Y, 4, 4, 1:2, pg, 0.0) + HyperCloudCore.block_partial(st, 2, Y, 4, 4, 3:4, pg, 0.0) ≈ U atol = 1e-13
         alloc_reduce(st, Y, pg) = (HyperCloudCore.block_reduce(st, 2, Y, 4, 4, pg, 0.0, 0.01); @allocated HyperCloudCore.block_reduce(st, 2, Y, 4, 4, pg, 0.0, 0.01))
         alloc_solve(st, f, prm, pg) = (HyperCloudCore.block_implicit_solve(st, f, 2, prm, 0.01, 2, pg, 0.0); @allocated HyperCloudCore.block_implicit_solve(st, f, 2, prm, 0.01, 2, pg, 0.0))
         @test alloc_reduce(st, Y, pg) == 0
@@ -164,8 +165,7 @@ bk_of(bs, eq) = BGKBlocks(eq, Val(length(block_view(bs, 1)[1])))
         # refusals (the runner logs the error and returns nothing)
         for bad in (Dict{Symbol, Any}(:PDE_block_width => 5),                         # 5 does not divide 32
                     Dict{Symbol, Any}(:PDE_block_width => 8, :MOOD_criterion => :u2, :MOOD_strategy => :EPD1),
-                    Dict{Symbol, Any}(:PDE_block_width => 8, :save_relax => true),
-                    Dict{Symbol, Any}(:PDE_block_width => 8, :Grid_mover => :lagrangian))
+                    Dict{Symbol, Any}(:PDE_block_width => 8, :save_relax => true))
             @test (@test_logs (:info, r"") (:error, r"Error during BGK") match_mode = :any run_bgk_simulation(merge(p, bad))) === nothing
         end
     end
@@ -207,6 +207,11 @@ bk_of(bs, eq) = BGKBlocks(eq, Val(length(block_view(bs, 1)[1])))
             S_b = HyperCloudCore.block_source(ExplicitMixtureBlockRelaxation(mb), slice(b), b, prm0, 3, pg, 0.0)
             @test maximum(abs.(S_b - State{8, Float64}(S_full[(8b - 7):(8b)]))) < 1e-10 * maximum(abs.(S_full))
         end
+        # the additive form of the reduction: partials over block ranges add up to the species moments
+        pa = HyperCloudCore.block_partial(st, 3, Y, 4, 7, 1:3, pg, 0.0)
+        pb = HyperCloudCore.block_partial(st, 3, Y, 4, 7, 4:7, pg, 0.0)
+        @test pa + pb ≈ moments(mix, f) atol = 1e-13
+        @test HyperCloudCore.finalize_reduction(st, 3, pa + pb, pg, 0.0, Δ).ok
         # kernel rules
         alloc_r(st, Y, pg) = (HyperCloudCore.block_reduce(st, 3, Y, 4, 7, pg, 0.0, 0.01); @allocated HyperCloudCore.block_reduce(st, 3, Y, 4, 7, pg, 0.0, 0.01))
         alloc_s(st, f, prm, pg) = (HyperCloudCore.block_implicit_solve(st, f, 5, prm, 0.01, 3, pg, 0.0); @allocated HyperCloudCore.block_implicit_solve(st, f, 5, prm, 0.01, 3, pg, 0.0))
@@ -228,5 +233,143 @@ bk_of(bs, eq) = BGKBlocks(eq, Val(length(block_view(bs, 1)[1])))
             @test t1[3] + 10 * t1[6] ≈ t0[3] + 10 * t0[6] rtol = 1e-12
         end
         @test run_bgk_simulation(merge(pm, Dict{Symbol, Any}(:PDE_block_width => 16))) === nothing          # 16 ∤ 24
+    end
+
+    @testset "MOOD on the block form: U1 and PAD through the configuration pipeline, the cross-block admissibility" begin
+        nodes, w = velocity_grid(:uniform, 16, 6.0)
+        eq = BGKEquation(Val(1), nodes, w, 1.4, ConstantRelaxationTime(1e-5))
+        bk = BGKBlocks(eq, Val(8))
+        pg = bgk_block_grid(4, 8)
+        bs = BlockState(bk, pg)
+        set_block_states!((x, b) -> equilibrium_block(bk, SVector(1.0, 0.3, 2.0), b), bs, pg)
+        Y = parent(bs.data)
+        @test HyperCloudCore.block_admissible(bk, Y, 4, 4, 2)
+        Y[2] = -3 * Y[2]                                                              # block 1 of particle 2: negative mass
+        @test !HyperCloudCore.block_admissible(bk, Y, 4, 4, 2) && HyperCloudCore.block_admissible(bk, Y, 4, 4, 3)
+        lam = [19.96 1.153; 1.153 17.52]
+        mix = BGKMixture(Val(1), (1.0, 10.0), lam, (velocity_grid(:uniform, 16, 8.0), velocity_grid(:uniform, 12, 4.0)); epsilon = 1e-2)
+        mb  = MixtureBlocks(mix, Val(8))
+        bsm = BlockState(mb, pg)
+        mix_block(b) = begin
+            s, bl = species_of_block(mb, b)
+            HC._species_equilibrium_block(mb, first(equilibrium_parameters(mix.species[s], SVector(1.0, 0.0, 1.5))), s, bl)
+        end
+        set_block_states!((x, b) -> mix_block(b), bsm, pg)
+        Ym = parent(bsm.data)
+        @test HyperCloudCore.block_admissible(mb, Ym, 4, 7, 2)
+        Ym[4 * 4 + 2] = -3 * Ym[4 * 4 + 2]                                            # block 5 (species 2, its first f block: the bulk of the mass) of particle 2
+        @test !HyperCloudCore.block_admissible(mb, Ym, 4, 7, 2) && HyperCloudCore.block_admissible(mb, Ym, 4, 7, 1)
+        # the Sod tube without a limiter needs MOOD: U1 and PAD, block form against the standard run
+        p = merge(bgk_sod_params(120), Dict{Symbol, Any}(:Limiter_name => :none, :Scheme_order => 3))
+        for crit in ((:MOOD_criterion => :U1, :MOOD_strategy => :EPD1, :MOOD_delta_relax => 1e-3), (:MOOD_criterion => :PAD, :MOOD_strategy => :EPD1))
+            pm = merge(p, Dict{Symbol, Any}(crit...))
+            sim_s = run_bgk_simulation(pm)
+            sim_b = run_bgk_simulation(merge(pm, Dict{Symbol, Any}(:PDE_block_width => 8)))
+            @test sim_s !== nothing && sim_b !== nothing
+            if sim_s !== nothing && sim_b !== nothing
+                @test maximum(maximum(abs.(ub - us)) for (ub, us) in zip(sim_b.u[end], sim_s.u[end])) < 1e-8
+                @test all(u -> u[1] > 0 && 0.4 * (u[3] - 0.5 * u[2]^2 / u[1]) > 0, sim_b.u[end])
+            end
+        end
+        # U2 on blocks: the block's gradients are regathered for its curvature test; the standard run to round-off
+        pu = merge(p, Dict{Symbol, Any}(:MOOD_criterion => :U2, :MOOD_strategy => :EPD1, :MOOD_delta_relax => 1e-3))
+        sim_s = run_bgk_simulation(pu)
+        sim_b = run_bgk_simulation(merge(pu, Dict{Symbol, Any}(:PDE_block_width => 8)))
+        @test sim_s !== nothing && sim_b !== nothing
+        if sim_s !== nothing && sim_b !== nothing
+            @test maximum(maximum(abs.(ub - us)) for (ub, us) in zip(sim_b.u[end], sim_s.u[end])) < 1e-8
+        end
+    end
+
+    @testset "Moving grids on the block form: a prescribed mover as the standard run, the Lagrangian Sod in the ALE frame" begin
+        p = merge(bgk_wave_params(50; tau = 1e-2, stepper = :ARS222, order = 2),
+                  Dict{Symbol, Any}(:Grid_mover => :sinusoidal, :Grid_mover_amplitude => 0.2, :tmax => 0.1))
+        sim_s = run_sim(p)
+        sim_b = run_sim(merge(p, Dict{Symbol, Any}(:PDE_block_width => 4)))
+        @test sim_s !== nothing && sim_b !== nothing
+        if sim_s !== nothing && sim_b !== nothing
+            @test sim_b.x[end] == sim_s.x[end]                                     # the particles moved the same way
+            @test any(x -> x != sim_s.x[1][1], sim_s.x[end][1:1]) || sim_s.x[end] != sim_s.x[1]
+            @test maximum(maximum(abs.(ub - us)) for (ub, us) in zip(sim_b.u[end], sim_s.u[end])) < 1e-10
+        end
+        # the Lagrangian Sod: the block form runs in the ALE frame with the mean velocity (the frozen frame), positive and
+        # close to the standard run with the conservative Lagrangian frame
+        pl = merge(bgk_sod_params(200), Dict{Symbol, Any}(:Grid_mover => :lagrangian, :Grid_volumes => :mls, :Grid_volumes_degree => 2,
+                                                         :Grid_randomness_factor => (0.2,), :snapshots => 2))
+        sim_s = run_bgk_simulation(pl)
+        sim_b = run_bgk_simulation(merge(pl, Dict{Symbol, Any}(:PDE_block_width => 8)))
+        @test sim_s !== nothing && sim_b !== nothing
+        if sim_s !== nothing && sim_b !== nothing
+            @test sim_b.metadata[:finite] && !sim_b.metadata[:stopped_early]
+            @test all(u -> u[1] > 0 && 0.4 * (u[3] - 0.5 * u[2]^2 / u[1]) > 0, sim_b.u[end])
+            @test sim_b.x[end] != sim_b.x[1]                                        # the cloud moved
+            xs = [x[1] for x in sim_b.x[end]]; pm = sortperm(xs); xs = xs[pm]; ρ = [u[1] for u in sim_b.u[end]][pm]
+            hs = [i == 1 ? xs[2] - xs[1] : i == length(xs) ? xs[end] - xs[end - 1] : (xs[i + 1] - xs[i - 1]) / 2 for i in eachindex(xs)]
+            x0 = [x[1] for x in sim_b.x[1]]; pm0 = sortperm(x0); x0 = x0[pm0]; ρ0 = [u[1] for u in sim_b.u[1]][pm0]
+            h0 = [i == 1 ? x0[2] - x0[1] : i == length(x0) ? x0[end] - x0[end - 1] : (x0[i + 1] - x0[i - 1]) / 2 for i in eachindex(x0)]
+            @test abs(sum(hs .* ρ) - sum(h0 .* ρ0)) < 1e-2                         # the frozen frame's gain (standard: 1.3e-4 with the conservative frame)
+            # against the standard Lagrangian run, read at the block run's positions (both clouds move with the fluid)
+            xs_s = [x[1] for x in sim_s.x[end]]; ps = sortperm(xs_s); xs_s = xs_s[ps]; ρ_s = [u[1] for u in sim_s.u[end]][ps]
+            interp(x) = (k = searchsortedfirst(xs_s, x); k <= 1 ? ρ_s[1] : k > length(xs_s) ? ρ_s[end] : ρ_s[k - 1] + (ρ_s[k] - ρ_s[k - 1]) * (x - xs_s[k - 1]) / (xs_s[k] - xs_s[k - 1]))
+            @test sum(abs(ρ[i] - interp(xs[i])) for i in eachindex(xs)) / length(xs) < 0.02
+        end
+    end
+
+    @testset "Adaptivity on the block form: the Lagrangian Sod with particle management, every block managed alike" begin
+        pl = merge(bgk_sod_params(200), Dict{Symbol, Any}(:Grid_mover => :lagrangian, :Grid_volumes => :mls, :Grid_volumes_degree => 2,
+                                                         :Grid_randomness_factor => (0.2,), :snapshots => 2, :Adapt_enabled => true,
+                                                         :PDE_block_width => 8))
+        sim = run_bgk_simulation(pl)
+        @test sim !== nothing
+        if sim !== nothing
+            @test sim.metadata[:finite] && !sim.metadata[:stopped_early]
+            @test all(u -> u[1] > 0 && 0.4 * (u[3] - 0.5 * u[2]^2 / u[1]) > 0, sim.u[end])
+            xs = sort([x[1] for x in sim.x[end]])
+            hs = diff(xs)
+            @test 0.3 * (1 / 200) < minimum(hs) && maximum(hs) < 2.2 * (1 / 200)                     # the spacing rules held
+        end
+        # without the adaptivity the Lagrangian cloud violates the spacing rules (compressed at the shock, stretched in the fan)
+        sim0 = run_bgk_simulation(merge(pl, Dict{Symbol, Any}(:Adapt_enabled => false)))
+        @test sim0 !== nothing
+        if sim0 !== nothing
+            hs0 = diff(sort([x[1] for x in sim0.x[end]]))
+            @test minimum(hs0) < 0.5 * (1 / 200) || maximum(hs0) > 1.6 * (1 / 200)
+            @test length(sim0.x[end]) == length(sim0.x[1])
+        end
+    end
+
+    @testset "Specular reflection on blocks off the node grid: oblique and moving walls as the single state, also for the mixture" begin
+        nodes, w = velocity_grid(:uniform, 12, 6.0)
+        eq = BGKEquation(Val(2), nodes, w, 2.0, ConstantRelaxationTime(1e-2))            # 2-D, M = 144 (no h)
+        bk = BGKBlocks(eq, Val(16))                                                      # 9 blocks
+        f, _ = equilibrium(eq, SVector(1.2, 0.3, -0.2, 2.4))
+        f = State{144, Float64}(f .* (1 .+ 0.05 .* sin.(1:144)))
+        Y = [State{16, Float64}(f[(16b - 15):(16b)]) for b in 1:9]
+        for (n, wv) in ((SVector(1.0, 0.0), SVector(0.0, 0.0)), (SVector(1.0, 0.0), SVector(-0.5, 0.0)),
+                        (SVector(0.6, 0.8), SVector(0.0, 0.0)), (SVector(0.6, 0.8), SVector(0.1, -0.2)))
+            wall = WallPoint(SVector(0.0, 0.0), n, 0.02, wv)
+            g_std = SlipWall()(eq, f, wall)
+            prm = HyperCloudCore.block_wall_reduce(SlipWall(), bk, Y, 1, 9, 1, wall)
+            g_blk = vcat((HyperCloudCore.block_wall_apply(SlipWall(), bk, Y[b], b, prm, wall, Y, 1, 9, 1) for b in 1:9)...)
+            @test maximum(abs.(g_std - g_blk)) < 1e-13
+            @test prm.flip == (n == SVector(1.0, 0.0) && wv[1] == 0.0)
+            d_std = DiffuseWall(1.0; accommodation = 0.5)(eq, f, wall)
+            prm_d = HyperCloudCore.block_wall_reduce(DiffuseWall(1.0; accommodation = 0.5), bk, Y, 1, 9, 1, wall)
+            d_blk = vcat((HyperCloudCore.block_wall_apply(DiffuseWall(1.0; accommodation = 0.5), bk, Y[b], b, prm_d, wall, Y, 1, 9, 1) for b in 1:9)...)
+            @test maximum(abs.(d_std - d_blk)) < 1e-13
+        end
+        # the mixture at an oblique moving wall
+        lam = [19.96 1.153; 1.153 17.52]
+        mix = BGKMixture(Val(1), (1.0, 10.0), lam, (velocity_grid(:uniform, 16, 8.0), velocity_grid(:uniform, 12, 4.0)); epsilon = 1e-2)
+        mb  = MixtureBlocks(mix, Val(8))
+        U0  = mixture_state(mix, (1.0, 0.3), (0.5, -0.2), (1.0, 2.0))
+        fm  = HC._cat(ntuple(s -> first(equilibrium(mix.species[s], SVector{3}(U0[(3s - 2):(3s)]))), 2))
+        fm  = State{56, Float64}(fm .* (1 .+ 0.05 .* sin.(1:56)))
+        Ym  = [State{8, Float64}(fm[(8b - 7):(8b)]) for b in 1:7]
+        wallm = WallPoint(SVector(0.0), SVector(1.0), 0.02, SVector(-0.3))
+        g_std = SlipWall()(mix, fm, wallm)
+        prm = HyperCloudCore.block_wall_reduce(SlipWall(), mb, Ym, 1, 7, 1, wallm)
+        g_blk = vcat((HyperCloudCore.block_wall_apply(SlipWall(), mb, Ym[b], b, prm, wallm, Ym, 1, 7, 1) for b in 1:7)...)
+        @test maximum(abs.(g_std - g_blk)) < 1e-13
     end
 end

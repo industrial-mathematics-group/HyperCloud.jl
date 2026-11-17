@@ -147,8 +147,9 @@ end
     solve_equation(timestepper::BlockTimeStepper, eq, pg, bs::BlockState, tmax, dt; reduce, kwargs...)
 
 The time loop of [`solve_equation`](@ref) for the block pipeline: the block state `bs` is advanced, and the
-stored snapshots hold `reduce(bs, i)` per particle (the macroscopic moments, e.g. `(bs, i) -> block_moments(bk, bs, i)`),
-never the full distribution. Static grids, no adaptivity; the other keywords as for the standard pipeline.
+stored snapshots hold `reduce(Y, N, nb, i)` per particle from a host copy `Y` of the block-major state (the
+macroscopic moments, e.g. `(Y, N, nb, i) -> block_moments(bk, Y, N, nb, i)`), never the full distribution; `adaptivity` is applied between steps on every block. The other keywords as for the
+standard pipeline.
 """
 function solve_equation(
     timestepper::BlockTimeStepper,
@@ -162,33 +163,39 @@ function solve_equation(
     snapshots::Integer = 10,
     remove_ghosts::Bool = false,
     show_progress::Bool = true,
-    progress_interval::Real = 1.0
+    progress_interval::Real = 1.0,
+    adaptivity::Union{Nothing, ParticleAdaptivity} = nothing
 ) where {D, W, T}
     snapshots >= 1 || throw(ArgumentError("snapshots must be ≥ 1 (the number of output intervals), got $snapshots"))
-    R  = typeof(reduce(bs, 1))
+    Yh = _host_blocks(bs)
+    R  = typeof(reduce(Yh, bs.N[], bs.nb, 1))
     xs = Vector{Vector{Space{D, T}}}(undef, snapshots + 1)
     us = Vector{Vector{R}}(undef, snapshots + 1)
     ts = Vector{T}(undef, snapshots + 1)
     div_interp = timestepper.inner.divergence_interpolator
 
-    step!(t, d) = timestepper(eq, pg, bs, t, d)
+    step!(t, d) = (timestepper(eq, pg, bs, t, d);
+                   adaptivity === nothing || adapt_particles!(pg, adaptivity, _extract_order(div_interp), bs); nothing)
     save!(k, t) = (_save_block_data!(xs, us, ts, k, pg, bs, t, remove_ghosts, reduce); us[k])
-    finite()    = all(i -> all(isfinite, reduce(bs, i)), 1:pg.meta.N)
+    finite()    = (Y = _host_blocks(bs); all(i -> all(isfinite, reduce(Y, bs.N[], bs.nb, i)), 1:pg.meta.N))
     k_step, elapsed_time = _time_loop(step!, () -> get_time_step(pg, eq, div_interp, bs), save!, finite,
                                       T(tmax), T(dt), is_cfl, Int(snapshots), show_progress, progress_interval)
     return xs, us, ts, k_step, elapsed_time
 end
 
-# The stored data of a block state: positions and the per-particle reduction (a host loop)
+# The stored data of a block state: positions and the per-particle reduction of a host copy of the blocks (a host loop)
 function _save_block_data!(xs, us, ts, k::Int, pg::ParticleGrid{D, W, T}, bs::BlockState{W, T}, t, remove_ghosts::Bool, reduce) where {D, W, T}
     N  = pg.meta.N
     ts[k] = T(t)
     pos = host_view(get_positions(pg), N)
     idx = remove_ghosts ? findall(!, host_view(pg.core.is_boundary, N)) : collect(1:N)
+    Y   = _host_blocks(bs)
     xs[k] = [pos[i] for i in idx]
-    us[k] = [reduce(bs, i) for i in idx]
+    us[k] = [reduce(Y, bs.N[], bs.nb, i) for i in idx]
     return nothing
 end
+# The block-major state on the host (a view of a host array, a copy of a device array)
+_host_blocks(bs::BlockState) = host_view(parent(bs.data), bs.nb * bs.N[])
 
 # The time loop itself: `step!(t, dt)` advances, `cfl_step()` is the CFL step, `save!(k, t)` stores snapshot `k` and
 # returns the stored states, `state_finite()` says whether the current state is finite. Returns `(k_step, elapsed)`.
