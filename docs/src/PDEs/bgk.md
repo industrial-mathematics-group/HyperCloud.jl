@@ -121,6 +121,34 @@ pre-pass with the limiter, and the rest the flux pass.
 operators of `MirrorBC`; see [Walls and Moving Boundaries](@ref). A gas in equilibrium at the wall temperature is
 reflected into itself exactly.
 
+## Block form for large velocity grids
+
+Beyond a few hundred components the `SVector` state is too large (see the cost table and HyperCloudCore's
+"Block States" page). [`BGKBlocks`](@ref)`(eq, Val(W))` is the same BGK model as a block equation of
+HyperCloudCore's block pipeline: the `M` components of the state of `eq` (the `f` values, then the `h` values
+of the Chu reduction) split into `M / W` blocks of `W` consecutive components, each transported on its own
+with the per-velocity upwind dissipation of its velocities, and the collision couples them through the
+moments. [`BGKBlockRelaxation`](@ref) is the collision term in two passes: the reduction over the blocks
+of a particle gives the moments, the relaxation time and the exponential parameters ``\alpha`` of the
+conservative discrete Maxwellian ([`equilibrium_parameters`](@ref)); the update of a block then evaluates
+the Maxwellian component by component ([`equilibrium_component`](@ref)), `f = (f* + λ M) / (1 + λ)` as
+for the single state. Nothing of length `M` is ever built. A block run reproduces the `SVector` run
+(`BGKRelaxation`, same scheme and tableau) to round-off.
+
+```julia
+eq  = BGKEquation(Val(1), nodes, weights, 1.4, ConstantRelaxationTime(1e-3))    # M = 2 Nv
+bk  = BGKBlocks(eq, Val(8))                                                    # blocks of 8 components
+pg  = ParticleGrid(geom, (dx,), weight, 8)
+bs  = BlockState(bk, pg)
+set_block_states!((x, b) -> equilibrium_block(bk, U0(x), b), bs, pg)          # the Maxwellian of the macroscopic IC
+ts  = BlockTimeStepper(bk, MUSCL(Float64, 1, 8, 2, VenkatakrishnanLimiter(:hard), RusanovFlux()),
+                       (BlockSourceTerm(BGKBlockRelaxation(bk)),), IMEX_ARS222_Tableau(Float64))
+ts(bk, pg, bs, t, dt)
+U = block_moments(bk, bs, i)                                                   # (ρ, ρu, E) of particle i
+```
+
+The configuration pipeline (`run_bgk_simulation`) does not use the block form yet.
+
 ## Gas mixtures
 
 [`BGKMixture`](@ref) is the discrete-velocity model of a mixture of ``L`` species with the multi-species
@@ -200,6 +228,13 @@ ViscosityRelaxationTime
 relaxation_time
 BGKRelaxation
 ExplicitBGKRelaxation
+equilibrium_parameters
+equilibrium_component
+BGKBlocks
+equilibrium_block
+block_moments
+BGKBlockRelaxation
+ExplicitBGKBlockRelaxation
 BGKMixture
 HyperCloudCore.is_admissible(::BGKMixture{D, M, T}, ::State{M, T}) where {D, M, T}
 num_species
