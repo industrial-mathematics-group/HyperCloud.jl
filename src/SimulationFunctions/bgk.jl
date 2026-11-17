@@ -138,8 +138,9 @@ The BGK model or the mixture on HyperCloudCore's block pipeline ([`BGKBlocks`](@
 [`MixtureBlocks`](@ref), [`MixtureBlockRelaxation`](@ref)): the state of `W` components per particle and block,
 `M / W` blocks (`W` must divide the state length of every species), the collision in two passes. Every particle starts in the
 discrete Maxwellian of the `IC` state, and the snapshots hold the macroscopic moments (`:save_relax` is refused:
-the full distribution is never assembled). Static grids without MOOD and without kinetic walls (`SlipWall`,
-`DiffuseWall`), on the host backends; the other keys as for the standard form.
+the full distribution is never assembled). MOOD works with the `:U1`, `:PAD` and `:only` criteria (the admissibility
+across the blocks is the positivity of the moments; `:U2` is not available yet). Static grids without kinetic walls
+(`SlipWall`, `DiffuseWall`), on the host backends; the other keys as for the standard form.
 """
 function _run_bgk_blocks(params::ParamDict, context::Dict, eq, W::Int)
     T = context[:T]
@@ -156,7 +157,8 @@ function _run_bgk_blocks(params::ParamDict, context::Dict, eq, W::Int)
     adapt_conf  = extract_namespace(params, :Adapt)
     D = get_D(eq)
 
-    get(mood_conf, :criterion, :none) == :none || error("the block form runs without MOOD for now (:MOOD_criterion => :none)")
+    get(mood_conf, :criterion, :none) == :U2 && error("the block form has no :U2 criterion yet (its curvature test needs the gradient " *
+                                                       "cache of the checked block); use :U1 or :PAD")
     get(grid_conf, :mover, :none) == :none || error("the block form runs on static grids for now (:Grid_mover => :none)")
     isempty(adapt_conf) || error("the block form runs without particle adaptivity for now")
     (get(params, :save_relax, false) || get(params, :Kinetic_save_relax, false)) &&
@@ -188,7 +190,8 @@ function _run_bgk_blocks(params::ParamDict, context::Dict, eq, W::Int)
     context[:Limiter] = build_limiter(lim_conf, context)
     context[:MOOD]    = build_mood(mood_conf, context)
     context[:Scheme]  = build_scheme(scheme_conf, context)
-    method = BlockTimeStepper(bk, context[:Scheme], sources, context[:Tableau]; storage = context[:Storage])
+    method = BlockTimeStepper(bk, context[:Scheme], context[:MOOD], sources, context[:Tableau]; storage = context[:Storage],
+                              mood_substeps = get(time_conf, :mood_substeps, true))
 
     bs = BlockState(bk, pg; storage = context[:Storage])
     set_initial_conditions!(bs, bk, pg, IC)

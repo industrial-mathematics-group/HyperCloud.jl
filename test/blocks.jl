@@ -229,4 +229,43 @@ bk_of(bs, eq) = BGKBlocks(eq, Val(length(block_view(bs, 1)[1])))
         end
         @test run_bgk_simulation(merge(pm, Dict{Symbol, Any}(:PDE_block_width => 16))) === nothing          # 16 ∤ 24
     end
+
+    @testset "MOOD on the block form: U1 and PAD through the configuration pipeline, the cross-block admissibility" begin
+        nodes, w = velocity_grid(:uniform, 16, 6.0)
+        eq = BGKEquation(Val(1), nodes, w, 1.4, ConstantRelaxationTime(1e-5))
+        bk = BGKBlocks(eq, Val(8))
+        pg = bgk_block_grid(4, 8)
+        bs = BlockState(bk, pg)
+        set_block_states!((x, b) -> equilibrium_block(bk, SVector(1.0, 0.3, 2.0), b), bs, pg)
+        Y = parent(bs.data)
+        @test HyperCloudCore.block_admissible(bk, Y, 4, 4, 2)
+        Y[2] = -3 * Y[2]                                                              # block 1 of particle 2: negative mass
+        @test !HyperCloudCore.block_admissible(bk, Y, 4, 4, 2) && HyperCloudCore.block_admissible(bk, Y, 4, 4, 3)
+        lam = [19.96 1.153; 1.153 17.52]
+        mix = BGKMixture(Val(1), (1.0, 10.0), lam, (velocity_grid(:uniform, 16, 8.0), velocity_grid(:uniform, 12, 4.0)); epsilon = 1e-2)
+        mb  = MixtureBlocks(mix, Val(8))
+        bsm = BlockState(mb, pg)
+        mix_block(b) = begin
+            s, bl = species_of_block(mb, b)
+            HC._species_equilibrium_block(mb, first(equilibrium_parameters(mix.species[s], SVector(1.0, 0.0, 1.5))), s, bl)
+        end
+        set_block_states!((x, b) -> mix_block(b), bsm, pg)
+        Ym = parent(bsm.data)
+        @test HyperCloudCore.block_admissible(mb, Ym, 4, 7, 2)
+        Ym[4 * 4 + 2] = -3 * Ym[4 * 4 + 2]                                            # block 5 (species 2, its first f block: the bulk of the mass) of particle 2
+        @test !HyperCloudCore.block_admissible(mb, Ym, 4, 7, 2) && HyperCloudCore.block_admissible(mb, Ym, 4, 7, 1)
+        # the Sod tube without a limiter needs MOOD: U1 and PAD, block form against the standard run
+        p = merge(bgk_sod_params(120), Dict{Symbol, Any}(:Limiter_name => :none, :Scheme_order => 3))
+        for crit in ((:MOOD_criterion => :U1, :MOOD_strategy => :EPD1, :MOOD_delta_relax => 1e-3), (:MOOD_criterion => :PAD, :MOOD_strategy => :EPD1))
+            pm = merge(p, Dict{Symbol, Any}(crit...))
+            sim_s = run_bgk_simulation(pm)
+            sim_b = run_bgk_simulation(merge(pm, Dict{Symbol, Any}(:PDE_block_width => 8)))
+            @test sim_s !== nothing && sim_b !== nothing
+            if sim_s !== nothing && sim_b !== nothing
+                @test maximum(maximum(abs.(ub - us)) for (ub, us) in zip(sim_b.u[end], sim_s.u[end])) < 1e-8
+                @test all(u -> u[1] > 0 && 0.4 * (u[3] - 0.5 * u[2]^2 / u[1]) > 0, sim_b.u[end])
+            end
+        end
+        @test run_bgk_simulation(merge(p, Dict{Symbol, Any}(:PDE_block_width => 8, :MOOD_criterion => :U2, :MOOD_strategy => :EPD1, :MOOD_delta_relax => 1e-3))) === nothing
+    end
 end

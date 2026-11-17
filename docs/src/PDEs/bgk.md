@@ -149,8 +149,9 @@ U = block_moments(bk, bs, i)                                                   #
 
 From a configuration, `:PDE_block_width => W` runs the block form through `run_bgk_simulation` (also for a
 mixture, [`MixtureBlocks`](@ref) with [`MixtureBlockRelaxation`](@ref): `W` must divide every species' state
-length); the snapshots hold the macroscopic moments, `:save_relax` is refused, and for now the block form runs
-on static grids without MOOD and without kinetic walls, on the host backends.
+length); the snapshots hold the macroscopic moments, `:save_relax` is refused, MOOD works with `:U1`, `:PAD` and
+`:only` (the admissibility across the blocks is the positivity of the moments, `:U2` is not available yet), and
+for now the block form runs on static grids without kinetic walls, on the host backends.
 
 ## Gas mixtures
 

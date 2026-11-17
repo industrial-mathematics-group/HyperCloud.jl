@@ -76,6 +76,15 @@ order as for a single state (the `h` value of a velocity is read from its block)
 end
 block_moments(bk::BGKBlocks, bs::BlockState, p::Int) = block_moments(bk, parent(bs.data), bs.N[], bs.nb, p)
 
+# The PAD of MOOD across the blocks: positive density and temperature of the moments (the per-block check of the
+# pipeline covers finiteness; individual f_k may dip below zero, as for the single state)
+@inline function HyperCloudCore.block_admissible(bk::BGKBlocks{D, W, T}, Y, N::Int, nb::Int, p::Int) where {D, W, T}
+    U = block_moments(bk, Y, N, nb, p)
+    all(isfinite, U) || return false
+    ρ, _, θ = _primitives(bk.eq, U)
+    return ρ > zero(T) && θ > zero(T)
+end
+
 """
     equilibrium_block(bk::BGKBlocks, U::State{D + 2}, b::Int) -> State{W}
 

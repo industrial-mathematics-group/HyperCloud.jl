@@ -112,6 +112,19 @@ particle `p`.
 @inline block_moments(mb::MixtureBlocks, Y, N::Int, nb::Int, p::Int) = _cat(species_block_moments(mb, Y, N, nb, p))
 block_moments(mb::MixtureBlocks, bs::BlockState, p::Int) = block_moments(mb, parent(bs.data), bs.N[], bs.nb, p)
 
+# The PAD of MOOD across the blocks: every species with finite moments, positive density and temperature
+@inline function HyperCloudCore.block_admissible(mb::MixtureBlocks{D, W, T, NB, L}, Y, N::Int, nb::Int, p::Int) where {D, W, T, NB, L}
+    moms = species_block_moments(mb, Y, N, nb, p)
+    ok = true
+    for s in 1:L
+        m = @inbounds moms[s]
+        all(isfinite, m) || return false
+        n, _, θ = _select(sp -> _primitives(sp, m), mb.mix.species, s)
+        ok &= n > zero(T) && θ > zero(T)
+    end
+    return ok
+end
+
 # Block `bl` of the discrete Maxwellian of species `s` with the parameters α
 @inline function _species_equilibrium_block(mb::MixtureBlocks{D, W, T}, α::SVector{P, T}, s::Int, bl::Int) where {D, W, T, P}
     off = (bl - 1) * W
