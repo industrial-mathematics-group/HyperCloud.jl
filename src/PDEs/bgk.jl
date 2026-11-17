@@ -1,5 +1,6 @@
 export BGKEquation, RelaxationTimeModel, ConstantRelaxationTime, ViscosityRelaxationTime
 export velocity_grid, num_velocities, velocity_node, moments, equilibrium, relaxation_time, euler_limit
+export equilibrium_parameters, equilibrium_component
 
 # =========================================================================
 # RELAXATION TIME MODELS
@@ -346,11 +347,25 @@ iterations suffice). With internal degrees of freedom `h_k = (K/2) θ̂ f_k`.
 
 `ok` is `false` for a non-physical `U` (non-finite, `ρ ≤ 0` or `θ ≤ 0`); `f_eq` is meaningless then.
 If the grid cannot represent `U` (e.g. a mean velocity near `vmax`), the iteration stops at the closest
-equilibrium it reaches. Allocation free, runs inside kernels.
+equilibrium it reaches. Allocation free, runs inside kernels. [`equilibrium_parameters`](@ref) gives `α` alone
+and [`equilibrium_component`](@ref) one component of the equilibrium from it (the block pipeline never
+builds the whole state).
 """
 function equilibrium(eq::BGKEquation{D, M, T, NV1, NV}, U::SVector{P, T}) where {D, M, T, NV1, NV, P}
+    α, ok = equilibrium_parameters(eq, U)
+    ok || return zero(State{M, T}), false
+    return _equilibrium_state(eq, α), true
+end
+
+"""
+    equilibrium_parameters(eq::BGKEquation, U::State{D + 2}) -> (α::SVector{D + 2}, ok::Bool)
+
+The exponential parameters `α` of the conservative discrete Maxwellian `f_k = exp(α·ψ_k)` of
+[`equilibrium`](@ref) (the Newton iteration without building the state), `ok` as there.
+"""
+function equilibrium_parameters(eq::BGKEquation{D, M, T, NV1, NV}, U::SVector{P, T}) where {D, M, T, NV1, NV, P}
     ρ, u, θ = _primitives(eq, U)
-    (isfinite(ρ) && isfinite(θ) && all(isfinite, u) && ρ > zero(T) && θ > zero(T)) || return zero(State{M, T}), false
+    (isfinite(ρ) && isfinite(θ) && all(isfinite, u) && ρ > zero(T) && θ > zero(T)) || return zero(SVector{P, T}), false
 
     # Start: the continuous Maxwellian ρ (2πθ)^(-(D+K)/2) exp(-|v - u|²/(2θ)) in the exponential form
     α = SVector{P, T}(log(ρ) - T(0.5) * (T(D) + eq.K) * log(T(2π) * θ) - T(0.5) * sum(abs2, u) / θ,
@@ -382,18 +397,32 @@ function equilibrium(eq::BGKEquation{D, M, T, NV1, NV}, U::SVector{P, T}) where 
         end
         accepted || break        # round-off floor (or an unrepresentable state): keep the best iterate
     end
-    return _equilibrium_state(eq, α), true
+    return α, true
 end
 
 @inline function _equilibrium_state(eq::BGKEquation{D, M, T, NV1, NV}, α::SVector{P, T}) where {D, M, T, NV1, NV, P}
     θh = -one(T) / α[P]
     c  = T(0.5) * eq.K
     lognorm = c * log(T(2π) * θh)
-    return State{M, T}(ntuple(Val(M)) do k
-        v, _ = velocity_node(eq, k)
-        G = exp(dot(α, SVector{P, T}(one(T), v..., T(0.5) * sum(abs2, v))) + lognorm)
-        k > NV ? c * θh * G : G
-    end)
+    return State{M, T}(ntuple(k -> _equilibrium_value(eq, α, k, θh, c, lognorm), Val(M)))
+end
+
+"""
+    equilibrium_component(eq::BGKEquation, α::SVector{D + 2}, k::Int) -> T
+
+Component `k` of the discrete Maxwellian with the parameters `α` of [`equilibrium_parameters`](@ref)
+(`exp(α·ψ_k)` for `k ≤ NV`, the internal-energy part `(K/2) θ̂ exp(α·ψ_k)` of the Chu reduction beyond).
+"""
+@inline function equilibrium_component(eq::BGKEquation{D, M, T}, α::SVector{P, T}, k::Int) where {D, M, T, P}
+    θh = -one(T) / α[P]
+    c  = T(0.5) * eq.K
+    return _equilibrium_value(eq, α, k, θh, c, c * log(T(2π) * θh))
+end
+
+@inline function _equilibrium_value(eq::BGKEquation{D, M, T, NV1, NV}, α::SVector{P, T}, k::Int, θh::T, c::T, lognorm::T) where {D, M, T, NV1, NV, P}
+    v, _ = velocity_node(eq, k)
+    G = exp(dot(α, SVector{P, T}(one(T), v..., T(0.5) * sum(abs2, v))) + lognorm)
+    return k > NV ? c * θh * G : G
 end
 
 """
