@@ -48,7 +48,7 @@ function run_bgk_simulation(params::ParamDict)::Union{AbstractSimData, Nothing}
         eq isa DiscreteVelocityEquation ||
             error("run_bgk_simulation needs a BGK equation (:PDE_name => :bgk or :bgk_mixture), got $(typeof(eq))")
         D = get_D(eq)
-        W = Int(get(pde_conf, :block_width, 0))
+        W = _block_width(pde_conf)
         W > 0 && return _run_bgk_blocks(params, context, eq, W)
 
         context[:Equation] = _ic_equation(eq)
@@ -161,7 +161,6 @@ function _run_bgk_blocks(params::ParamDict, context::Dict, eq, W::Int)
     adapt_conf  = extract_namespace(params, :Adapt)
     D = get_D(eq)
 
-    haskey(context, :MemoryLimit) && error("the block form does not reserve its buffers under a memory limit yet (set_memory_limit!(nothing))")
     (get(params, :save_relax, false) || get(params, :Kinetic_save_relax, false)) &&
         error("the block form stores the macroscopic moments only (:save_relax is not available)")
 
@@ -174,7 +173,7 @@ function _run_bgk_blocks(params::ParamDict, context::Dict, eq, W::Int)
     context[:M] = W
 
     context[:Tableau] = build_tableau(time_conf, context)
-    sources = _block_sources(bk, context[:Tableau])
+    sources = _block_sources(bk, context[:Tableau], storage_type(context))
     @info "$(_describe(eq)), block form: $(HyperCloudCore.num_blocks(bk)) blocks of $W, collision: " *
           (isempty(sources) ? "none (collisionless)" : HyperCloudCore._is_implicit(sources[1]) ? "implicit" : "explicit")
 
@@ -191,11 +190,21 @@ function _run_bgk_blocks(params::ParamDict, context::Dict, eq, W::Int)
     # the standard stepper for one block carries the options (the volume estimator of a moving grid, the MOOD substeps, …)
     context[:Equation] = BlockOf(bk, 1)
     context[:ExplicitSources], context[:ImplicitSources] = (), ()
-    inner  = build_run_timestepper(context; time_conf = time_conf)
+    # (a memory limit reserves the block stepper and the block state below: the inner stepper alone, reserved for one
+    # block, failed at the first step)
+    limit = pop!(context, :MemoryLimit, nothing)
+    inner = build_run_timestepper(context; time_conf = time_conf)
     context[:Equation] = bk
     method = BlockTimeStepper(bk, inner, sources)
 
     bs = BlockState(bk, pg; storage = context[:Storage])
+    if limit !== nothing
+        context[:MemoryLimit] = limit
+        rkw = (; limit = limit::Integer)
+        haskey(context, :MemoryTolerance)  && (rkw = (; rkw..., tolerance = context[:MemoryTolerance]::Real))
+        haskey(context, :SlotsPerParticle) && (rkw = (; rkw..., slots_per_particle = context[:SlotsPerParticle]::Real))
+        context[:Memory] = reserve!(pg, method, bs, context[:Scheme]; rkw...)
+    end
     set_initial_conditions!(bs, bk, pg, IC)
 
     is_cfl = haskey(time_conf, :CFL)
@@ -216,26 +225,36 @@ function _run_bgk_blocks(params::ParamDict, context::Dict, eq, W::Int)
     add_stat!(sim_data, :Runtime, elapsed_time, :none)
     add_stat!(sim_data, :k_step, Float64(k_step), :none)
     add_stat!(sim_data, :final_particle_count, Float64(pg.meta.N), :none)
+    record_memory!(sim_data, context)
     return sim_data
 end
 
 _block_form(eq::BGKEquation, W::Int) = BGKBlocks(eq, Val(W))
 _block_form(eq::BGKMixture, W::Int) = MixtureBlocks(eq, Val(W))
 
-# The block sources of a run: implicit for an IMEX tableau, explicit otherwise, none when collisionless
-function _block_sources(bk::BGKBlocks, tableau::IMEXButcherTableau)
+# `:PDE_block_width`: absent or 0 is the standard form, a positive integer the block form
+function _block_width(pde_conf::Dict)
+    w = get(pde_conf, :block_width, 0)
+    (w isa Integer && w >= 0) ||
+        throw(ArgumentError(":PDE_block_width must be a non-negative integer (0: the standard form), got $(repr(w))"))
+    return Int(w)
+end
+
+# The block sources of a run: implicit for an IMEX tableau, explicit otherwise, none when collisionless (the parameter
+# arrays on the run's storage)
+function _block_sources(bk::BGKBlocks, tableau::IMEXButcherTableau, storage::Type = Array)
     eq = bk.eq
     _is_collisionless(eq.relaxation) && return ()
-    all(iszero, tableau.a) || return (BlockSourceTerm(BGKBlockRelaxation(bk)),)
+    all(iszero, tableau.a) || return (BlockSourceTerm(BGKBlockRelaxation(bk); storage = storage),)
     _is_zero_relaxation(eq.relaxation) && throw(ArgumentError(
         "BGK: the relaxation time is zero, which the explicit collision term (M[f] - f) / τ cannot handle; " *
         "use an IMEX time stepper (e.g. :ARS222) for τ = 0"))
-    return (BlockSourceTerm(ExplicitBGKBlockRelaxation(bk)),)
+    return (BlockSourceTerm(ExplicitBGKBlockRelaxation(bk); storage = storage),)
 end
-function _block_sources(mb::MixtureBlocks, tableau::IMEXButcherTableau)
+function _block_sources(mb::MixtureBlocks, tableau::IMEXButcherTableau, storage::Type = Array)
     _is_collisionless(mb.mix) && return ()
-    all(iszero, tableau.a) || return (BlockSourceTerm(MixtureBlockRelaxation(mb)),)
-    return (BlockSourceTerm(ExplicitMixtureBlockRelaxation(mb)),)
+    all(iszero, tableau.a) || return (BlockSourceTerm(MixtureBlockRelaxation(mb); storage = storage),)
+    return (BlockSourceTerm(ExplicitMixtureBlockRelaxation(mb); storage = storage),)
 end
 
 # The equation and state length the initial conditions are built for, and the log line of the run

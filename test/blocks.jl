@@ -90,6 +90,14 @@ bk_of(bs, eq) = BGKBlocks(eq, Val(length(block_view(bs, 1)[1])))
                 @test F(fL, fR, FL, FR, w_b)[1] ≈ exact
             end
         end
+        # one component per block: UpwindFlux is the per-velocity flux too (it took the scalar Murman–Roe path, which
+        # needs the velocity, and failed), and the transport matrix is the node speed
+        bk1 = BGKBlocks(eq, Val(1))
+        w1 = BlockOf(bk1, 5)
+        g = Flux{1, 1, Float64}((State{1, Float64}(1.0),))
+        G = Flux{1, 1, Float64}((HC.flux(w1, g[1])[1],))
+        @test UpwindFlux()(g, g, G, G, w1) == RusanovFlux()(g, g, G, G, w1)
+        @test HyperCloudCore.velocity(w1, g[1], 1)[1, 1] == velocity_node(eq, 5)[1][1]
         # the reduction and the solve are kernel functions: no allocation, inferred
         st = BGKBlockRelaxation(bk)
         Y  = parent(bs.data)
@@ -97,6 +105,14 @@ bk_of(bs, eq) = BGKBlocks(eq, Val(length(block_view(bs, 1)[1])))
         @test prm.ok && prm.alpha ≈ α && prm.lambda ≈ 0.01 / 1e-2
         @test (@inferred HyperCloudCore.block_reduce(st, 2, Y, 4, 4, pg, 0.0, 0.01)) isa HyperCloudCore.reduction_type(st)
         @test HyperCloudCore.block_partial(st, 2, Y, 4, 4, 1:2, pg, 0.0) + HyperCloudCore.block_partial(st, 2, Y, 4, 4, 3:4, pg, 0.0) ≈ U atol = 1e-13
+        # a partial reads its own blocks only (the f values in blocks 1:2, the h values in 3:4: a device owning some
+        # blocks has only those)
+        p34 = HyperCloudCore.block_partial(st, 2, Y, 4, 4, 3:4, pg, 0.0)
+        @test p34[1] == 0 && p34[2] == 0 && p34[3] > 0
+        Y2 = copy(Y)
+        Y2[2 * 4 + 2] = 2 * Y2[2 * 4 + 2]                                              # block 3 of particle 2
+        @test HyperCloudCore.block_partial(st, 2, Y2, 4, 4, 1:2, pg, 0.0) == HyperCloudCore.block_partial(st, 2, Y, 4, 4, 1:2, pg, 0.0)
+        @test HyperCloudCore.block_partial(st, 2, Y2, 4, 4, 3:4, pg, 0.0)[3] > p34[3]
         alloc_reduce(st, Y, pg) = (HyperCloudCore.block_reduce(st, 2, Y, 4, 4, pg, 0.0, 0.01); @allocated HyperCloudCore.block_reduce(st, 2, Y, 4, 4, pg, 0.0, 0.01))
         alloc_solve(st, f, prm, pg) = (HyperCloudCore.block_implicit_solve(st, f, 2, prm, 0.01, 2, pg, 0.0); @allocated HyperCloudCore.block_implicit_solve(st, f, 2, prm, 0.01, 2, pg, 0.0))
         @test alloc_reduce(st, Y, pg) == 0
@@ -165,8 +181,27 @@ bk_of(bs, eq) = BGKBlocks(eq, Val(length(block_view(bs, 1)[1])))
         # refusals (the runner logs the error and returns nothing)
         for bad in (Dict{Symbol, Any}(:PDE_block_width => 5),                         # 5 does not divide 32
                     Dict{Symbol, Any}(:PDE_block_width => 8, :MOOD_criterion => :u2, :MOOD_strategy => :EPD1),
-                    Dict{Symbol, Any}(:PDE_block_width => 8, :save_relax => true))
-            @test (@test_logs (:info, r"") (:error, r"Error during BGK") match_mode = :any run_bgk_simulation(merge(p, bad))) === nothing
+                    Dict{Symbol, Any}(:PDE_block_width => 8, :save_relax => true),
+                    Dict{Symbol, Any}(:PDE_block_width => -8), Dict{Symbol, Any}(:PDE_block_width => 8.5))
+            @test (@test_logs (:error, r"Error during BGK") match_mode = :any run_bgk_simulation(merge(p, bad))) === nothing
+        end
+        @test HC._block_width(Dict{Symbol, Any}()) == 0 && HC._block_width(Dict{Symbol, Any}(:block_width => 0)) == 0
+        # a width on an equation without a block form is refused, not ignored
+        p_lin = merge(linear_1d_gauss(40), UPWIND1, Dict{Symbol, Any}(:PDE_block_width => 4))
+        @test (@test_logs (:error, r"Error during Direct") match_mode = :any run_sim(p_lin)) === nothing
+        # the collision's parameter arrays follow the storage; a memory limit reserves the block stepper and the state
+        bk8 = BGKBlocks(BGKEquation(Val(1), nodes, w, 1.4, ConstantRelaxationTime(1e-2)), Val(8))
+        @test parent(HC._block_sources(bk8, IMEX_ARS222_Tableau(Float64), Array)[1].params) isa Vector
+        try
+            set_memory_limit!(64 * 2^20; tolerance = 0.1)
+            sim_m = run_bgk_simulation(merge(p, Dict{Symbol, Any}(:PDE_block_width => 8)))
+            @test sim_m !== nothing
+            if sim_m !== nothing
+                @test sim_m.stats[:reserved_particles][1] >= length(sim_m.x[end])
+                @test sim_m.stats[:reserved_bytes][1] <= 0.9 * 64 * 2^20
+            end
+        finally
+            set_memory_limit!(nothing)
         end
     end
 
