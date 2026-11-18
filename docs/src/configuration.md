@@ -27,6 +27,7 @@ parameters, so any key below may appear in either place.
 | Key | Used by | Meaning |
 |:----|:--------|:--------|
 | `:name` | all | `:linear`, `:burgers`, `:euler`, `:bgk` or `:bgk_mixture` (keys of the last two: [`build_equation`](@ref)). Required. |
+| `:blocks_per_launch` | `:bgk`, `:bgk_mixture` | Block form only: how many blocks one launch of the passes with per-particle scratch (the scheme's pre-pass and flux pass) covers, HyperCloudCore's `blocks_per_launch`; `32` by default, `0` all blocks at once. Every other pass runs in one launch over all blocks. The scratch is replicated once per block of a launch (memory), a small value runs more launches (a GPU wants many work-items per launch). |
 | `:block_width` | `:bgk`, `:bgk_mixture` | Runs the block form (HyperCloudCore's block pipeline) with `W` components per block; `0` (the default) is the standard form, other equations refuse a width. The width enters the parameter hash like every key, so a block run is stored apart from the standard run of the same configuration. See [BGK](PDEs/bgk.md). |
 | `:D` | `:burgers`, `:euler`, `:bgk`, `:bgk_mixture` | Spatial dimension. Linear advection infers `D` from `:velocities`. |
 | `:velocities` | `:linear` | One entry per dimension describing ``A_d``; see [Linear Advection](PDEs/advection.md). |

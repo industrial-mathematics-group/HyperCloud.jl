@@ -195,7 +195,7 @@ function _run_bgk_blocks(params::ParamDict, context::Dict, eq, W::Int)
     limit = pop!(context, :MemoryLimit, nothing)
     inner = build_run_timestepper(context; time_conf = time_conf)
     context[:Equation] = bk
-    method = BlockTimeStepper(bk, inner, sources)
+    method = BlockTimeStepper(bk, inner, sources; blocks_per_launch = _blocks_per_launch(pde_conf))
 
     bs = BlockState(bk, pg; storage = context[:Storage])
     if limit !== nothing
@@ -238,6 +238,15 @@ function _block_width(pde_conf::Dict)
     (w isa Integer && w >= 0) ||
         throw(ArgumentError(":PDE_block_width must be a non-negative integer (0: the standard form), got $(repr(w))"))
     return Int(w)
+end
+
+# `:PDE_blocks_per_launch`: the blocks one launch of the passes with per-particle scratch covers (HyperCloudCore's
+# `blocks_per_launch`; 0: all blocks at once); absent is the stepper's default
+function _blocks_per_launch(pde_conf::Dict)
+    n = get(pde_conf, :blocks_per_launch, 32)
+    (n isa Integer && n >= 0) ||
+        throw(ArgumentError(":PDE_blocks_per_launch must be a non-negative integer (0: all blocks in one launch), got $(repr(n))"))
+    return Int(n)
 end
 
 # The block sources of a run: implicit for an IMEX tableau, explicit otherwise, none when collisionless (the parameter

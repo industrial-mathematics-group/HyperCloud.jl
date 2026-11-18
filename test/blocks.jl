@@ -186,6 +186,16 @@ bk_of(bs, eq) = BGKBlocks(eq, Val(length(block_view(bs, 1)[1])))
             @test (@test_logs (:error, r"Error during BGK") match_mode = :any run_bgk_simulation(merge(p, bad))) === nothing
         end
         @test HC._block_width(Dict{Symbol, Any}()) == 0 && HC._block_width(Dict{Symbol, Any}(:block_width => 0)) == 0
+        # the blocks per launch of the passes with scratch: any value gives the same run (bit for bit: the same arithmetic
+        # per particle and block), a negative one is refused
+        sim_1 = run_bgk_simulation(merge(p, Dict{Symbol, Any}(:PDE_block_width => 8, :PDE_blocks_per_launch => 1)))
+        sim_0 = run_bgk_simulation(merge(p, Dict{Symbol, Any}(:PDE_block_width => 8, :PDE_blocks_per_launch => 0)))
+        @test sim_1 !== nothing && sim_0 !== nothing && sim_b !== nothing
+        if sim_1 !== nothing && sim_0 !== nothing && sim_b !== nothing
+            @test sim_1.u[end] == sim_b.u[end] && sim_0.u[end] == sim_b.u[end]
+        end
+        @test (@test_logs (:error, r"Error during BGK") match_mode = :any run_bgk_simulation(merge(p, Dict{Symbol, Any}(:PDE_block_width => 8, :PDE_blocks_per_launch => -1)))) === nothing
+        @test HC._blocks_per_launch(Dict{Symbol, Any}()) == 32 && HC._blocks_per_launch(Dict{Symbol, Any}(:blocks_per_launch => 0)) == 0
         # a width on an equation without a block form is refused, not ignored
         p_lin = merge(linear_1d_gauss(40), UPWIND1, Dict{Symbol, Any}(:PDE_block_width => 4))
         @test (@test_logs (:error, r"Error during Direct") match_mode = :any run_sim(p_lin)) === nothing
