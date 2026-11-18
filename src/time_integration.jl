@@ -192,6 +192,30 @@ function solve_equation(
     return xs, us, ts, k_step, elapsed_time
 end
 
+"""
+    solve_equation(devs::BlockDevices, eq, tmax, dt; reduce_partial, partial_type, kwargs...)
+
+The time loop of a block state split over devices: `devs(t, dt)` advances, and the stored snapshots hold the sum
+over the parts of `reduce_partial(Y, N, nb, blocks, i)` (a kernel function of a part's blocks, the moments of a block
+range: `(Y, N, nb, blocks, i) -> block_moments(bk, Y, N, nb, i, blocks)`), of type `partial_type`, computed on every
+device and summed on the host (`host_reduction`). No adaptivity. The other keywords as for the block state.
+"""
+function solve_equation(devs::BlockDevices{D, W, T}, eq, tmax::Real, dt::Real; reduce_partial, partial_type::Type{P}, is_cfl::Bool = false,
+                        snapshots::Integer = 10, remove_ghosts::Bool = false, show_progress::Bool = true, progress_interval::Real = 1.0) where {D, W, T, P}
+    snapshots >= 1 || throw(ArgumentError("snapshots must be ≥ 1 (the number of output intervals), got $snapshots"))
+    pg = first(devs.parts).pg
+    xs = Vector{Vector{Space{D, T}}}(undef, snapshots + 1)
+    us = Vector{Vector{P}}(undef, snapshots + 1)
+    ts = Vector{T}(undef, snapshots + 1)
+    moments()   = host_reduction(reduce_partial, devs, P)
+    step!(t, d) = (devs(t, d); nothing)
+    save!(k, t) = (_save_block_data!(xs, us, ts, k, pg, t, remove_ghosts, moments()); us[k])
+    finite()    = all(m -> all(isfinite, m), moments())
+    k_step, elapsed_time = _time_loop(step!, () -> get_time_step(devs), save!, finite,
+                                      T(tmax), T(dt), is_cfl, Int(snapshots), show_progress, progress_interval)
+    return xs, us, ts, k_step, elapsed_time
+end
+
 # Kernel body (see HyperCloudCore's Backend.jl): the reduction of particle `i` over its blocks
 @inline function _block_reduce_all!(i, out, Y, N, nb, reduce)
     @inbounds out[i] = reduce(Y, N, nb, i)

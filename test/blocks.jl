@@ -208,6 +208,29 @@ end
         end
         @test (@test_logs (:error, r"Error during BGK") match_mode = :any run_bgk_simulation(merge(p, Dict{Symbol, Any}(:PDE_block_width => 8, :PDE_blocks_per_launch => -1)))) === nothing
         @test HC._blocks_per_launch(Dict{Symbol, Any}()) === :auto && HC._blocks_per_launch(Dict{Symbol, Any}(:blocks_per_launch => 0)) == 0
+        # the blocks split over host parts (:PDE_devices on the Array storage): the single block run to round-off (the
+        # collision's moments are summed in a different order), the same cloud
+        for nd in (2, 3)
+            sim_d = run_bgk_simulation(merge(p, Dict{Symbol, Any}(:PDE_block_width => 8, :PDE_devices => nd)))
+            @test sim_d !== nothing && sim_b !== nothing
+            if sim_d !== nothing && sim_b !== nothing
+                @test maximum(maximum(abs.(ud - ub)) for (ud, ub) in zip(sim_d.u[end], sim_b.u[end])) < 1e-10
+                @test sim_d.x[end] == sim_b.x[end] && sim_d.t[end] == sim_b.t[end]
+            end
+        end
+        @test HC._block_devices(Dict{Symbol, Any}(:devices => 3)) == [0, 1, 2] && HC._block_devices(Dict{Symbol, Any}(:devices => [1, 3])) == [1, 3]
+        @test HC._block_devices(Dict{Symbol, Any}()) === nothing && HC._device_ranges(7, 3) == [1:3, 4:5, 6:7]
+        @test (@test_logs (:error, r"Error during BGK") match_mode = :any run_bgk_simulation(merge(p, Dict{Symbol, Any}(:PDE_block_width => 8, :PDE_devices => 0)))) === nothing
+        # the additive forms of the single gas: the moments of two block ranges add up, the velocity and the admissibility
+        # follow from the sum
+        bkd = BGKBlocks(BGKEquation(Val(1), nodes, w, 1.4, ConstantRelaxationTime(1e-2)), Val(8))
+        nbd = HyperCloudCore.num_blocks(bkd)
+        Yd  = [equilibrium_block(bkd, SVector(1.2, 0.3, 2.0), b) for b in 1:nbd]            # one particle, N = 1
+        pv  = HyperCloudCore.block_fluid_velocity_partial(bkd, Yd, 1, nbd, 1:2, 1) + HyperCloudCore.block_fluid_velocity_partial(bkd, Yd, 1, nbd, 3:nbd, 1)
+        @test pv ≈ block_moments(bkd, Yd, 1, nbd, 1) atol = 1e-14
+        @test HyperCloudCore.finalize_fluid_velocity(bkd, pv) ≈ HyperCloudCore.block_fluid_velocity(bkd, Yd, 1, nbd, 1)
+        @test HyperCloudCore.finalize_admissible(bkd, pv) == HyperCloudCore.block_admissible(bkd, Yd, 1, nbd, 1) == true
+        @test !HyperCloudCore.finalize_admissible(bkd, -pv)
         # a width on an equation without a block form is refused, not ignored
         p_lin = merge(linear_1d_gauss(40), UPWIND1, Dict{Symbol, Any}(:PDE_block_width => 4))
         @test (@test_logs (:error, r"Error during Direct") match_mode = :any run_sim(p_lin)) === nothing
@@ -269,6 +292,11 @@ end
         pa = HyperCloudCore.block_partial(st, 3, Y, 4, 7, 1:3, pg, 0.0)
         pb = HyperCloudCore.block_partial(st, 3, Y, 4, 7, 4:7, pg, 0.0)
         @test pa + pb ≈ moments(mix, f) atol = 1e-13
+        # the additive forms of the velocity and the admissibility (a split state): the same sums, the same results
+        pv = HyperCloudCore.block_fluid_velocity_partial(mb, Y, 4, 7, 1:3, 3) + HyperCloudCore.block_fluid_velocity_partial(mb, Y, 4, 7, 4:7, 3)
+        @test pv ≈ pa + pb atol = 1e-13
+        @test HyperCloudCore.finalize_fluid_velocity(mb, pv) ≈ HyperCloudCore.block_fluid_velocity(mb, Y, 4, 7, 3)
+        @test HyperCloudCore.finalize_admissible(mb, pv) == HyperCloudCore.block_admissible(mb, Y, 4, 7, 3) == true
         @test HyperCloudCore.finalize_reduction(st, 3, pa + pb, pg, 0.0, Δ).ok
         # kernel rules
         alloc_r(st, Y, pg) = (HyperCloudCore.block_reduce(st, 3, Y, 4, 7, pg, 0.0, 0.01); @allocated HyperCloudCore.block_reduce(st, 3, Y, 4, 7, pg, 0.0, 0.01))
@@ -291,6 +319,12 @@ end
             @test t1[3] + 10 * t1[6] ≈ t0[3] + 10 * t0[6] rtol = 1e-12
         end
         @test run_bgk_simulation(merge(pm, Dict{Symbol, Any}(:PDE_block_width => 16))) === nothing          # 16 ∤ 24
+        # the mixture split over two host parts (a species' blocks on both): the single block run to round-off
+        sim_d = run_bgk_simulation(merge(pm, Dict{Symbol, Any}(:PDE_block_width => 8, :PDE_devices => 2)))
+        @test sim_d !== nothing && sim_b !== nothing
+        if sim_d !== nothing && sim_b !== nothing
+            @test maximum(maximum(abs.(ud - ub)) for (ud, ub) in zip(sim_d.u[end], sim_b.u[end])) < 1e-10
+        end
     end
 
     @testset "MOOD on the block form: U1 and PAD through the configuration pipeline, the cross-block admissibility" begin

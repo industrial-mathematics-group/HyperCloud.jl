@@ -110,6 +110,20 @@ block_moments(bk::BGKBlocks, bs::BlockState, p::Int) = block_moments(bk, parent(
 # The Lagrangian movers of the block pipeline move the particle with the mean velocity of the moments
 @inline HyperCloudCore.block_fluid_velocity(bk::BGKBlocks{D, W, T}, Y, N::Int, nb::Int, p::Int) where {D, W, T} =
     _primitives(bk.eq, block_moments(bk, Y, N, nb, p))[2]
+# The additive forms for a state split over devices (HyperCloudCore's `BlockDevices`): the moments of a block range,
+# the velocity and the admissibility from the summed moments
+HyperCloudCore.fluid_velocity_partial_type(::BGKBlocks{D, W, T}) where {D, W, T} = SVector{D + 2, T}
+@inline HyperCloudCore.block_fluid_velocity_partial(bk::BGKBlocks, Y, N::Int, nb::Int, blocks::UnitRange, p::Int) =
+    block_moments(bk, Y, N, nb, p, blocks)
+@inline HyperCloudCore.finalize_fluid_velocity(bk::BGKBlocks, U::SVector) = _primitives(bk.eq, U)[2]
+HyperCloudCore.admissible_partial_type(::BGKBlocks{D, W, T}) where {D, W, T} = SVector{D + 2, T}
+@inline HyperCloudCore.block_admissible_partial(bk::BGKBlocks, Y, N::Int, nb::Int, blocks::UnitRange, p::Int) =
+    block_moments(bk, Y, N, nb, p, blocks)
+@inline function HyperCloudCore.finalize_admissible(bk::BGKBlocks{D, W, T}, U::SVector) where {D, W, T}
+    all(isfinite, U) || return false
+    ρ, _, θ = _primitives(bk.eq, U)
+    return ρ > zero(T) && θ > zero(T)
+end
 
 # The wave speed bound in a frame moving at `shift`: the exact largest relative node speed (the default `v_max + |shift|`
 # over-estimated it)
@@ -163,6 +177,7 @@ function set_initial_conditions!(bs::BlockState{W, T}, bk::BGKBlocks{D, W, T}, p
     eq  = bk.eq
     N   = pg.meta.N
     nb  = bs.nb
+    off = first(bs.blocks) - 1
     pos = host_view(pg.core.positions, N)
     buf = Vector{State{W, T}}(undef, nb * N)
     n_bad, worst = 0, zero(T)
@@ -178,7 +193,7 @@ function set_initial_conditions!(bs::BlockState{W, T}, bk::BGKBlocks{D, W, T}, p
         r = _scaled_residual(m - Uv, scale)
         r > sqrt(eps(T)) && (n_bad += 1; worst = max(worst, r))
         for b in 1:nb
-            buf[(b - 1) * N + i] = _equilibrium_block(bk, α, b)
+            buf[(b - 1) * N + i] = _equilibrium_block(bk, α, b + off)          # (the global block: `bs` may hold a range)
         end
     end
     bs.N[] = N

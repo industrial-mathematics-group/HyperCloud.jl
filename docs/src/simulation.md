@@ -144,6 +144,7 @@ run_direct_simulation
 run_kinetic_simulation
 extract_namespace
 storage_for
+set_device_selector!
 with_backend
 set_memory_limit!
 get_memory_limit

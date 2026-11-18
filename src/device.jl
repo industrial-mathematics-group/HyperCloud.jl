@@ -1,4 +1,4 @@
-export storage_for, with_backend, set_memory_limit!, get_memory_limit
+export storage_for, with_backend, set_memory_limit!, get_memory_limit, set_device_selector!
 
 # =========================================================================
 # DEVICE RUNS
@@ -42,6 +42,48 @@ end
 function build_run_grid(grid_conf::Dict, context::Dict)
     host_backend = storage_type(context) === Array ? get_backend() : PolyesterBackend()
     return with_backend(() -> build_particle_grid(grid_conf, context), host_backend)
+end
+
+"""
+    set_device_selector!(f)
+
+The function that makes device `d` of `:PDE_devices` current before a part of a split block state is built and
+stepped (`set_device_selector!(CUDA.device!)` for CUDA; the ids of `:PDE_devices` are what it takes). `nothing`, the
+default: a run on the `Array` storage splits the state over host parts whatever the ids (tests), a run on a device
+storage refuses `:PDE_devices`.
+"""
+set_device_selector!(f) = (_DEVICE_SELECTOR[] = f; nothing)
+const _DEVICE_SELECTOR = Ref{Any}(nothing)
+# The `activate` of a part: nothing on the host, the selector bound to the id on a device
+function _device_activator(dev::Int, storage::Type)
+    storage === Array && return nothing
+    f = _DEVICE_SELECTOR[]
+    f === nothing && error(":PDE_devices on a device storage needs the device selector: set_device_selector!(CUDA.device!)")
+    return () -> (f(dev); nothing)
+end
+# `:PDE_devices`: absent is a single state; a positive integer `n` the devices `0:n−1`, a vector the device ids
+function _block_devices(pde_conf::Dict)
+    d = get(pde_conf, :devices, nothing)
+    d === nothing && return nothing
+    if d isa Integer
+        d >= 1 || throw(ArgumentError(":PDE_devices must be a positive integer (the number of devices, ids 0:n−1) or a vector of device ids, got $(repr(d))"))
+        return collect(0:(Int(d) - 1))
+    end
+    (d isa AbstractVector && !isempty(d) && all(x -> x isa Integer, d)) ||
+        throw(ArgumentError(":PDE_devices must be a positive integer (the number of devices, ids 0:n−1) or a vector of device ids, got $(repr(d))"))
+    return Int.(collect(d))
+end
+# The block ranges of `n` parts over `nb` blocks: as even as possible, the first parts one block longer
+function _device_ranges(nb::Int, n::Int)
+    base, extra = divrem(nb, n)
+    ranges = UnitRange{Int}[]
+    b0 = 1
+    for k in 1:n
+        len = base + (k <= extra ? 1 : 0)
+        push!(ranges, b0:(b0 + len - 1))
+        b0 += len
+    end
+    return ranges
 end
 
 "The first `n` entries of a grid array on the host: a view of a host array, a copy of a device array."
