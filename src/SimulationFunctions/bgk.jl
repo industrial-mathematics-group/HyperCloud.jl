@@ -241,11 +241,12 @@ function _block_width(pde_conf::Dict)
 end
 
 # `:PDE_blocks_per_launch`: the blocks one launch of the passes with per-particle scratch covers (HyperCloudCore's
-# `blocks_per_launch`; 0: all blocks at once); absent is the stepper's default
+# `blocks_per_launch`; `:auto`, the default: 256 ÷ W; 0: all blocks at once)
 function _blocks_per_launch(pde_conf::Dict)
-    n = get(pde_conf, :blocks_per_launch, 32)
+    n = get(pde_conf, :blocks_per_launch, :auto)
+    n === :auto && return :auto
     (n isa Integer && n >= 0) ||
-        throw(ArgumentError(":PDE_blocks_per_launch must be a non-negative integer (0: all blocks in one launch), got $(repr(n))"))
+        throw(ArgumentError(":PDE_blocks_per_launch must be :auto, 0 (all blocks in one launch) or a positive integer, got $(repr(n))"))
     return Int(n)
 end
 

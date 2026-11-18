@@ -195,7 +195,7 @@ bk_of(bs, eq) = BGKBlocks(eq, Val(length(block_view(bs, 1)[1])))
             @test sim_1.u[end] == sim_b.u[end] && sim_0.u[end] == sim_b.u[end]
         end
         @test (@test_logs (:error, r"Error during BGK") match_mode = :any run_bgk_simulation(merge(p, Dict{Symbol, Any}(:PDE_block_width => 8, :PDE_blocks_per_launch => -1)))) === nothing
-        @test HC._blocks_per_launch(Dict{Symbol, Any}()) == 32 && HC._blocks_per_launch(Dict{Symbol, Any}(:blocks_per_launch => 0)) == 0
+        @test HC._blocks_per_launch(Dict{Symbol, Any}()) === :auto && HC._blocks_per_launch(Dict{Symbol, Any}(:blocks_per_launch => 0)) == 0
         # a width on an equation without a block form is refused, not ignored
         p_lin = merge(linear_1d_gauss(40), UPWIND1, Dict{Symbol, Any}(:PDE_block_width => 4))
         @test (@test_logs (:error, r"Error during Direct") match_mode = :any run_sim(p_lin)) === nothing
