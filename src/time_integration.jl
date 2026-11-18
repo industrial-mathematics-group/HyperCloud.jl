@@ -147,8 +147,9 @@ end
     solve_equation(timestepper::BlockTimeStepper, eq, pg, bs::BlockState, tmax, dt; reduce, kwargs...)
 
 The time loop of [`solve_equation`](@ref) for the block pipeline: the block state `bs` is advanced, and the
-stored snapshots hold `reduce(Y, N, nb, i)` per particle from a host copy `Y` of the block-major state (the
-macroscopic moments, e.g. `(Y, N, nb, i) -> block_moments(bk, Y, N, nb, i)`), never the full distribution; `adaptivity` is applied between steps on every block. The other keywords as for the
+stored snapshots hold `reduce(Y, N, nb, i)` per particle (the macroscopic moments, e.g.
+`(Y, N, nb, i) -> block_moments(bk, Y, N, nb, i)`; a kernel function, run on the storage of the state and copied to the
+host), never the full distribution; `adaptivity` is applied between steps on every block. The other keywords as for the
 standard pipeline.
 """
 function solve_equation(
@@ -167,31 +168,43 @@ function solve_equation(
     adaptivity::Union{Nothing, ParticleAdaptivity} = nothing
 ) where {D, W, T}
     snapshots >= 1 || throw(ArgumentError("snapshots must be ≥ 1 (the number of output intervals), got $snapshots"))
-    Yh = _host_blocks(bs)
-    R  = typeof(reduce(Yh, bs.N[], bs.nb, 1))
+    R  = typeof(reduce(_host_blocks(bs), bs.N[], bs.nb, 1))     # (one host copy, for the type of the reduction)
     xs = Vector{Vector{Space{D, T}}}(undef, snapshots + 1)
     us = Vector{Vector{R}}(undef, snapshots + 1)
     ts = Vector{T}(undef, snapshots + 1)
     div_interp = timestepper.inner.divergence_interpolator
+    # the reduction of every particle on the storage of the state (a kernel), copied to the host: a snapshot moves
+    # (D + 2) N values, not the state
+    moments = HyperCloudCore.Growable{R}(typeof(parent(bs.data)).name.wrapper)
+    function reduce_all!()
+        N = pg.meta.N
+        HyperCloudCore.ensure_capacity!(moments, N)
+        foreach_particle(_block_reduce_all!, get_backend(), N, (moments, bs.data, bs.N[], bs.nb, reduce))
+        return host_view(parent(moments), N)
+    end
 
     step!(t, d) = (timestepper(eq, pg, bs, t, d);
                    adaptivity === nothing || adapt_particles!(pg, adaptivity, _extract_order(div_interp), bs); nothing)
-    save!(k, t) = (_save_block_data!(xs, us, ts, k, pg, bs, t, remove_ghosts, reduce); us[k])
-    finite()    = (Y = _host_blocks(bs); all(i -> all(isfinite, reduce(Y, bs.N[], bs.nb, i)), 1:pg.meta.N))
+    save!(k, t) = (_save_block_data!(xs, us, ts, k, pg, t, remove_ghosts, reduce_all!()); us[k])
+    finite()    = all(m -> all(isfinite, m), reduce_all!())
     k_step, elapsed_time = _time_loop(step!, () -> get_time_step(pg, eq, div_interp, bs), save!, finite,
                                       T(tmax), T(dt), is_cfl, Int(snapshots), show_progress, progress_interval)
     return xs, us, ts, k_step, elapsed_time
 end
 
-# The stored data of a block state: positions and the per-particle reduction of a host copy of the blocks (a host loop)
-function _save_block_data!(xs, us, ts, k::Int, pg::ParticleGrid{D, W, T}, bs::BlockState{W, T}, t, remove_ghosts::Bool, reduce) where {D, W, T}
+# Kernel body (see HyperCloudCore's Backend.jl): the reduction of particle `i` over its blocks
+@inline function _block_reduce_all!(i, out, Y, N, nb, reduce)
+    @inbounds out[i] = reduce(Y, N, nb, i)
+    return nothing
+end
+# The stored data of a block state: positions and the per-particle reductions (`moments`, on the host)
+function _save_block_data!(xs, us, ts, k::Int, pg::ParticleGrid{D, W, T}, t, remove_ghosts::Bool, moments) where {D, W, T}
     N  = pg.meta.N
     ts[k] = T(t)
     pos = host_view(get_positions(pg), N)
     idx = remove_ghosts ? findall(!, host_view(pg.core.is_boundary, N)) : collect(1:N)
-    Y   = _host_blocks(bs)
     xs[k] = [pos[i] for i in idx]
-    us[k] = [reduce(Y, bs.N[], bs.nb, i) for i in idx]
+    us[k] = [moments[i] for i in idx]
     return nothing
 end
 # The block-major state on the host (a view of a host array, a copy of a device array)
