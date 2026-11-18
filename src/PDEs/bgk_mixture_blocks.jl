@@ -138,6 +138,7 @@ The species' number moments one after the other (the macroscopic state of [`mome
 particle `p`.
 """
 @inline block_moments(mb::MixtureBlocks, Y, N::Int, nb::Int, p::Int) = _cat(species_block_moments(mb, Y, N, nb, p))
+@inline block_moments(mb::MixtureBlocks, Y, N::Int, nb::Int, p::Int, blocks::UnitRange) = _cat(species_block_moments(mb, Y, N, nb, p, blocks))
 block_moments(mb::MixtureBlocks, bs::BlockState, p::Int) = block_moments(mb, parent(bs.data), bs.N[], bs.nb, p)
 
 # The Lagrangian movers move the particle with the mass-averaged mixture velocity
@@ -155,6 +156,37 @@ end
 
 @inline HyperCloudCore.block_max_eigenvalue(mb::MixtureBlocks{D, W, T}, U::State, d::Int, b::Int, shift::Real) where {D, W, T} =
     maximum(map(sp -> _max_relative_speed(sp, d, T(shift)), mb.mix.species))
+
+# The additive forms for a state split over devices: the species' moments of a block range (flattened), the
+# mass-averaged velocity and the admissibility of every species from the sums
+HyperCloudCore.fluid_velocity_partial_type(::MixtureBlocks{D, W, T, NB, L}) where {D, W, T, NB, L} = SVector{L * (D + 2), T}
+@inline HyperCloudCore.block_fluid_velocity_partial(mb::MixtureBlocks, Y, N::Int, nb::Int, blocks::UnitRange, p::Int) =
+    block_moments(mb, Y, N, nb, p, blocks)
+@inline function HyperCloudCore.finalize_fluid_velocity(mb::MixtureBlocks{D, W, T, NB, L}, v::SVector) where {D, W, T, NB, L}
+    moms = _split_species(mb, v)
+    ρ  = zero(T)
+    ρu = zero(Space{D, T})
+    @inbounds for s in 1:L
+        m = moms[s]
+        ρ  += mb.mix.masses[s] * m[1]
+        ρu += mb.mix.masses[s] * Space{D, T}(ntuple(d -> m[1 + d], Val(D)))
+    end
+    return ρu / ρ
+end
+HyperCloudCore.admissible_partial_type(::MixtureBlocks{D, W, T, NB, L}) where {D, W, T, NB, L} = SVector{L * (D + 2), T}
+@inline HyperCloudCore.block_admissible_partial(mb::MixtureBlocks, Y, N::Int, nb::Int, blocks::UnitRange, p::Int) =
+    block_moments(mb, Y, N, nb, p, blocks)
+@inline function HyperCloudCore.finalize_admissible(mb::MixtureBlocks{D, W, T, NB, L}, v::SVector) where {D, W, T, NB, L}
+    moms = _split_species(mb, v)
+    ok = true
+    for s in 1:L
+        m = @inbounds moms[s]
+        all(isfinite, m) || return false
+        n, _, θ = _select(sp -> _primitives(sp, m), mb.mix.species, s)
+        ok &= n > zero(T) && θ > zero(T)
+    end
+    return ok
+end
 
 @inline function (::RusanovFlux)(f_L::Flux{D, W, T}, f_R::Flux{D, W, T}, F_L::Flux{D, W, T}, F_R::Flux{D, W, T},
                                  a::ALEFrame{D, W, T, <:BlockOf{D, W, T, <:MixtureBlocks}}) where {D, W, T}
@@ -193,6 +225,7 @@ function set_initial_conditions!(bs::BlockState{W, T}, mb::MixtureBlocks{D, W, T
                                  IC::InitialCondition) where {D, W, T, NB, L}
     N   = pg.meta.N
     nb  = bs.nb
+    b0  = first(bs.blocks) - 1                   # (the blocks before the range `bs` holds)
     P   = L * (D + 2)
     pos = host_view(pg.core.positions, N)
     buf = Vector{State{W, T}}(undef, nb * N)
@@ -212,7 +245,8 @@ function set_initial_conditions!(bs::BlockState{W, T}, mb::MixtureBlocks{D, W, T
             r = _scaled_residual(m - Us, scale)
             r > sqrt(eps(T)) && (n_bad += 1; worst = max(worst, r))
             for bl in 1:mb.nblocks[s]
-                buf[(mb.block_offsets[s] + bl - 1) * N + i] = _species_equilibrium_block(mb, α, s, bl)
+                gb = mb.block_offsets[s] + bl                         # (the global block: `bs` may hold a range)
+                gb in bs.blocks && (buf[(gb - b0 - 1) * N + i] = _species_equilibrium_block(mb, α, s, bl))
             end
         end
     end

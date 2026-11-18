@@ -138,8 +138,10 @@ The BGK model or the mixture on HyperCloudCore's block pipeline ([`BGKBlocks`](@
 [`MixtureBlocks`](@ref), [`MixtureBlockRelaxation`](@ref)): the state of `W` components per particle and block,
 `M / W` blocks (`W` must divide the state length of every species), the collision in two passes. Every particle starts in the
 discrete Maxwellian of the `IC` state, and the snapshots hold the macroscopic moments (`:save_relax` is refused:
-the full distribution is never assembled). MOOD works with every criterion (the admissibility across the blocks is the
-positivity of the moments). Moving grids run in the ALE frame
+the full distribution is never assembled). `:PDE_devices => n` (or a vector of device ids) splits the blocks over the
+devices of one node (HyperCloudCore's `BlockDevices`; `set_device_selector!(CUDA.device!)` first; on the `Array` storage
+host parts), without the particle adaptivity and a memory limit. MOOD works with every criterion (the admissibility
+across the blocks is the positivity of the moments). Moving grids run in the ALE frame
 with the mean velocity of the moments as the particle velocity (the Lagrangian movers; no conservative Lagrangian
 frame on blocks), the kinetic walls (`SlipWall`, `DiffuseWall`) act in two passes (the specular reflection as the exact
 node flip where it applies, the reflection off the node grid otherwise). Moving boundary pieces are swept with every
@@ -193,6 +195,8 @@ function _run_bgk_blocks(params::ParamDict, context::Dict, eq, W::Int)
     # (a memory limit reserves the block stepper and the block state below: the inner stepper alone, reserved for one
     # block, failed at the first step)
     limit = pop!(context, :MemoryLimit, nothing)
+    devices = _block_devices(pde_conf)
+    devices === nothing || return _run_bgk_devices(params, context, eq, bk, IC, pg, geom, adaptivity, devices, limit, time_conf, pde_conf)
     inner = build_run_timestepper(context; time_conf = time_conf)
     context[:Equation] = bk
     method = BlockTimeStepper(bk, inner, sources; blocks_per_launch = _blocks_per_launch(pde_conf))
@@ -225,6 +229,61 @@ function _run_bgk_blocks(params::ParamDict, context::Dict, eq, W::Int)
     add_stat!(sim_data, :Runtime, elapsed_time, :none)
     add_stat!(sim_data, :k_step, Float64(k_step), :none)
     add_stat!(sim_data, :final_particle_count, Float64(pg.meta.N), :none)
+    record_memory!(sim_data, context)
+    return sim_data
+end
+
+# The block form split over devices (`:PDE_devices`, HyperCloudCore's `BlockDevices`): a part per device with a copy of
+# the cloud, its own stepper, sources and state over its block range; the snapshots reduce the moments on every part
+# and sum them on the host
+function _run_bgk_devices(params::ParamDict, context::Dict, eq, bk, IC, pg, geom, adaptivity, devices::Vector{Int}, limit, time_conf::Dict, pde_conf::Dict)
+    T = context[:T]
+    D = get_D(eq)
+    storage = storage_type(context)
+    adaptivity === nothing || error("the particle adaptivity is not available on a state split over devices")
+    limit === nothing || error("a memory limit is not available on a state split over devices yet (set_memory_limit!(nothing))")
+    nb = HyperCloudCore.num_blocks(bk)
+    length(devices) <= nb || error(":PDE_devices names $(length(devices)) devices for $nb blocks")
+    ranges  = _device_ranges(nb, length(devices))
+    pg_host = storage === Array ? pg : device_grid(Array, pg)
+    bpl     = _blocks_per_launch(pde_conf)
+    parts = map(zip(devices, ranges)) do (dev, r)
+        activate = _device_activator(dev, storage)
+        activate === nothing || activate()
+        pg_d = storage === Array ? deepcopy(pg_host) : device_grid(storage, pg_host)
+        context[:Grid] = pg_d
+        context[:Equation] = BlockOf(bk, 1)
+        context[:ExplicitSources], context[:ImplicitSources] = (), ()
+        inner = build_run_timestepper(context; time_conf = time_conf)
+        context[:Equation] = bk
+        ts = BlockTimeStepper(bk, inner, _block_sources(bk, context[:Tableau], storage); blocks_per_launch = bpl, blocks = r)
+        bs = BlockState(bk, pg_d; storage = storage, blocks = r)
+        set_initial_conditions!(bs, bk, pg_d, IC)
+        BlockPart(pg_d, ts, bs; activate = activate)
+    end
+    devs = BlockDevices(bk, parts)
+    @info "$(length(devices)) part(s) on the devices $devices: the blocks $(join(string.(ranges), ", "))"
+    context[:Grid] = first(parts).pg
+
+    is_cfl = haskey(time_conf, :CFL)
+    dt = is_cfl ? T(time_conf[:CFL]) : T(time_conf[:dt])
+    tmax = T(get(time_conf, :tmax, params[:tmax]))
+    xs_svector, us_svector, ts_full, k_step, elapsed_time = solve_equation(
+        devs, bk, tmax, dt;
+        reduce_partial = (Y, N, nb, blocks, i) -> block_moments(bk, Y, N, nb, i, blocks),
+        partial_type = HyperCloudCore.fluid_velocity_partial_type(bk),
+        is_cfl = is_cfl, snapshots = params[:snapshots], remove_ghosts = get(params, :remove_ghosts, true),
+        show_progress = _PROGRESS_BAR[], progress_interval = _PROGRESS_INTERVAL[])
+    @info "BGK Simulation (block form on $(length(devices)) device part(s), D=$D) finished in $(round(elapsed_time, digits=2)) seconds."
+
+    valid_indices = findall(i -> isassigned(us_svector, i), 1:length(us_svector))
+    us_final = us_svector[valid_indices]
+    sim_data = create_sim_data(xs_svector[valid_indices], us_final, ts_full[valid_indices], params; xmins=Tuple(geom.mins), xmaxs=Tuple(geom.maxs), tmin=zero(T), tmax=tmax,
+                               metadata = run_metadata(context, k_step, ts_full[last(valid_indices)], tmax;
+                                                       final_state = last(us_final)))
+    add_stat!(sim_data, :Runtime, elapsed_time, :none)
+    add_stat!(sim_data, :k_step, Float64(k_step), :none)
+    add_stat!(sim_data, :final_particle_count, Float64(first(parts).pg.meta.N), :none)
     record_memory!(sim_data, context)
     return sim_data
 end

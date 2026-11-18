@@ -151,7 +151,9 @@ From a configuration, `:PDE_block_width => W` runs the block form through `run_b
 mixture, [`MixtureBlocks`](@ref) with [`MixtureBlockRelaxation`](@ref): `W` must divide every species' state
 length; `:PDE_blocks_per_launch` sets how many blocks one launch of the scheme's pre-pass and flux pass covers,
 HyperCloudCore's `blocks_per_launch`, the scratch of those passes being replicated that many times); the snapshots
-hold the macroscopic moments, `:save_relax` is refused, MOOD works with every criterion (the
+hold the macroscopic moments; `:PDE_devices` splits the blocks over the GPUs of one node, every device holding the
+whole cloud and a range of blocks and the devices exchanging the moments of their blocks per stage (the collision's
+parameters, the frame velocity, the admissibility; the kinetic walls' ghost rows), see HyperCloudCore's `BlockDevices`; `:save_relax` is refused, MOOD works with every criterion (the
 admissibility across the blocks is the positivity of the moments), a moving
 grid runs in the ALE frame with the mean velocity of the moments as the particle velocity (the Lagrangian movers;
 the conservative Lagrangian frame of the single state has no block form), and the kinetic walls act in two passes
