@@ -58,16 +58,18 @@ end
 @inline function _block_speeds(mb::MixtureBlocks{D, W, T}, b::Int, d::Int) where {D, W, T}
     s, bl = species_of_block(mb, b)
     off = (bl - 1) * W
-    return _select(sp -> State{W, T}(ntuple(j -> _velocity_component(sp, off + j, d), Val(W))), mb.mix.species, s)
+    return _select(@inline(sp -> State{W, T}(ntuple(@inline(j -> _velocity_component(sp, off + j, d)), Val(W)))), mb.mix.species, s)
 end
 
+# (`@inline` closures in the kernel functions: see the BGK blocks)
 @inline HyperCloudCore.block_flux(mb::MixtureBlocks{D, W, T}, U::State{W, T}, b::Int) where {D, W, T} =
-    Flux{D, W, T}(ntuple(d -> _block_speeds(mb, b, d) .* U, Val(D)))
+    Flux{D, W, T}(ntuple(@inline(d -> _block_speeds(mb, b, d) .* U), Val(D)))
 @inline HyperCloudCore.block_max_eigenvalue(mb::MixtureBlocks, U::State, d::Int, b::Int) = @inbounds mb.mix.max_speed[d]
 
 @inline function (::RusanovFlux)(f_L::Flux{D, W, T}, f_R::Flux{D, W, T}, F_L::Flux{D, W, T}, F_R::Flux{D, W, T},
                                  w::BlockOf{D, W, T, <:MixtureBlocks}) where {D, W, T}
     return Flux{D, W, T}(ntuple(Val(D)) do d
+        @inline
         v = _block_speeds(w.eq, w.b, d)
         T(0.5) * (F_L[d] + F_R[d] - abs.(v) .* (f_R[d] - f_L[d]))
     end)
@@ -154,11 +156,12 @@ block_moments(mb::MixtureBlocks, bs::BlockState, p::Int) = block_moments(mb, par
 end
 
 @inline HyperCloudCore.block_max_eigenvalue(mb::MixtureBlocks{D, W, T}, U::State, d::Int, b::Int, shift::Real) where {D, W, T} =
-    maximum(map(sp -> _max_relative_speed(sp, d, T(shift)), mb.mix.species))
+    maximum(map(@inline(sp -> _max_relative_speed(sp, d, T(shift))), mb.mix.species))
 
 @inline function (::RusanovFlux)(f_L::Flux{D, W, T}, f_R::Flux{D, W, T}, F_L::Flux{D, W, T}, F_R::Flux{D, W, T},
                                  a::ALEFrame{D, W, T, <:BlockOf{D, W, T, <:MixtureBlocks}}) where {D, W, T}
     return Flux{D, W, T}(ntuple(Val(D)) do d
+        @inline
         v = _block_speeds(a.eq.eq, a.eq.b, d)
         T(0.5) * (F_L[d] + F_R[d] - abs.(v .- a.w[d]) .* (f_R[d] - f_L[d]))
     end)
@@ -180,7 +183,7 @@ end
 # Block `bl` of the discrete Maxwellian of species `s` with the parameters α
 @inline function _species_equilibrium_block(mb::MixtureBlocks{D, W, T}, α::SVector{P, T}, s::Int, bl::Int) where {D, W, T, P}
     off = (bl - 1) * W
-    return _select(sp -> State{W, T}(ntuple(j -> equilibrium_component(sp, α, off + j), Val(W))), mb.mix.species, s)
+    return _select(@inline(sp -> State{W, T}(ntuple(@inline(j -> equilibrium_component(sp, α, off + j)), Val(W)))), mb.mix.species, s)
 end
 
 """
