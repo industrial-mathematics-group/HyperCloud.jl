@@ -34,17 +34,21 @@ num_velocities(bk::BGKBlocks) = num_velocities(bk.eq)
 # The velocities of the components of block `b` along axis `d` (node-table lookups with a run-time offset)
 @inline function _block_speeds(bk::BGKBlocks{D, W, T}, b::Int, d::Int) where {D, W, T}
     off = (b - 1) * W
-    return State{W, T}(ntuple(j -> _velocity_component(bk.eq, off + j, d), Val(W)))
+    return State{W, T}(ntuple(@inline(j -> _velocity_component(bk.eq, off + j, d)), Val(W)))
 end
 
+# (The closures of the block's kernel functions are `@inline`: one that the compiler kept as a call captured the whole
+# equation, and on a GPU every call built that closure in local memory, a copy of the equation per pair and axis; the
+# flux pass of a 3600-component mixture spent 15 ms per block in it; `closure_calls` in the tests checks them.)
 @inline HyperCloudCore.block_flux(bk::BGKBlocks{D, W, T}, U::State{W, T}, b::Int) where {D, W, T} =
-    Flux{D, W, T}(ntuple(d -> _block_speeds(bk, b, d) .* U, Val(D)))
+    Flux{D, W, T}(ntuple(@inline(d -> _block_speeds(bk, b, d) .* U), Val(D)))
 @inline HyperCloudCore.block_max_eigenvalue(bk::BGKBlocks, U::State, d::Int, b::Int) = @inbounds bk.eq.max_speed[d]
 
 # The per-velocity upwind flux of a block (UpwindFlux and AlignedRusanovFlux fall back to RusanovFlux)
 @inline function (::RusanovFlux)(f_L::Flux{D, W, T}, f_R::Flux{D, W, T}, F_L::Flux{D, W, T}, F_R::Flux{D, W, T},
                                  w::BlockOf{D, W, T, <:BGKBlocks}) where {D, W, T}
     return Flux{D, W, T}(ntuple(Val(D)) do d
+        @inline
         v = _block_speeds(w.eq, w.b, d)
         T(0.5) * (F_L[d] + F_R[d] - abs.(v) .* (f_R[d] - f_L[d]))
     end)
@@ -116,6 +120,7 @@ block_moments(bk::BGKBlocks, bs::BlockState, p::Int) = block_moments(bk, parent(
 @inline function (::RusanovFlux)(f_L::Flux{D, W, T}, f_R::Flux{D, W, T}, F_L::Flux{D, W, T}, F_R::Flux{D, W, T},
                                  a::ALEFrame{D, W, T, <:BlockOf{D, W, T, <:BGKBlocks}}) where {D, W, T}
     return Flux{D, W, T}(ntuple(Val(D)) do d
+        @inline
         v = _block_speeds(a.eq.eq, a.eq.b, d)
         T(0.5) * (F_L[d] + F_R[d] - abs.(v .- a.w[d]) .* (f_R[d] - f_L[d]))
     end)
@@ -143,7 +148,7 @@ function equilibrium_block(bk::BGKBlocks{D, W, T}, U::SVector{P, T}, b::Int) whe
 end
 @inline function _equilibrium_block(bk::BGKBlocks{D, W, T}, α::SVector{P, T}, b::Int) where {D, W, T, P}
     off = (b - 1) * W
-    return State{W, T}(ntuple(j -> equilibrium_component(bk.eq, α, off + j), Val(W)))
+    return State{W, T}(ntuple(@inline(j -> equilibrium_component(bk.eq, α, off + j)), Val(W)))
 end
 
 """

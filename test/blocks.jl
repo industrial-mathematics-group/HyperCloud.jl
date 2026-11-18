@@ -50,6 +50,17 @@ end
 
 bk_of(bs, eq) = BGKBlocks(eq, Val(length(block_view(bs, 1)[1])))
 
+# Calls left in the optimised code of `f(types...)`: the kernel functions of the blocks must inline their closures (one kept
+# as a call captured the equation, and on a GPU the closure was built in local memory at every call)
+noninlined_calls(f, types) = count(s -> s isa Expr && s.head === :invoke, first(Base.code_typed(f, types))[1].code)
+function closure_calls(w::BlockOf{D, W, T}) where {D, W, T}
+    U = State{W, T}(ntuple(i -> T(i), W)); F = HC.flux(w, U)
+    a = HyperCloudCore.ALEFrame(w, zero(SVector{D, T}))
+    return (noninlined_calls(HC.flux, (typeof(w), typeof(U))),
+            noninlined_calls((x...) -> RusanovFlux()(x...), (typeof(F), typeof(F), typeof(F), typeof(F), typeof(w))),
+            noninlined_calls((x...) -> RusanovFlux()(x...), (typeof(F), typeof(F), typeof(F), typeof(F), typeof(a))))
+end
+
 @testset "BGK on the block pipeline" begin
     nodes, w = velocity_grid(:uniform, 16, 6.0)
 
@@ -90,6 +101,7 @@ bk_of(bs, eq) = BGKBlocks(eq, Val(length(block_view(bs, 1)[1])))
                 @test F(fL, fR, FL, FR, w_b)[1] ≈ exact
             end
         end
+        @test closure_calls(BlockOf(bk, 2)) == (0, 0, 0)
         # one component per block: UpwindFlux is the per-velocity flux too (it took the scalar Murman–Roe path, which
         # needs the velocity, and failed), and the transport matrix is the node speed
         bk1 = BGKBlocks(eq, Val(1))
@@ -211,6 +223,7 @@ bk_of(bs, eq) = BGKBlocks(eq, Val(length(block_view(bs, 1)[1])))
         @test_throws ArgumentError MixtureBlocks(mix, Val(16))                                  # 16 does not divide 24
         mb = MixtureBlocks(mix, Val(8))                                                           # 4 + 3 blocks
         @test mb isa HyperbolicPDE{1, 8, Float64} && HyperCloudCore.num_blocks(mb) == 7 && HC.num_species(mb) == 2
+        @test closure_calls(BlockOf(mb, 6)) == (0, 0, 0)
         @test [species_of_block(mb, b) for b in 1:7] == [(1, 1), (1, 2), (1, 3), (1, 4), (2, 1), (2, 2), (2, 3)]
         U0 = mixture_state(mix, (1.0, 0.3), (0.5, -0.2), (1.0, 2.0))
         f  = HC._cat(ntuple(s -> first(equilibrium(mix.species[s], SVector{3}(U0[(3s - 2):(3s)]))), 2))
