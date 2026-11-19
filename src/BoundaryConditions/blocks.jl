@@ -183,14 +183,16 @@ end
 end
 
 HyperCloudCore.wall_reduction_type(::DiffuseWall, ::BGKBlocks{D, W, T}) where {D, W, T} = DiffuseBlockParams{1, D + 2, T}
-@inline function HyperCloudCore.block_wall_reduce(wd::DiffuseWall, bk::BGKBlocks{D, W, T}, Y, N, nb, g, wall) where {D, W, T}
+# (the seven-argument form balances at the mirror point, as the operator on its own)
+@inline HyperCloudCore.block_wall_reduce(wd::DiffuseWall, bk::BGKBlocks, Y, N, nb, g, wall) = HyperCloudCore.block_wall_reduce(wd, bk, Y, N, nb, g, wall, Y)
+@inline function HyperCloudCore.block_wall_reduce(wd::DiffuseWall, bk::BGKBlocks{D, W, T}, Y, N, nb, g, wall, Yw) where {D, W, T}
     eq = bk.eq
     n  = wall.normal
     w  = wall.velocity + _slip_velocity(wd, Val(D), T)
     θw = T(wd.temperature)
     Uw = SVector{D + 2, T}(one(T), w..., T(0.5) * sum(abs2, w) + T(0.5) * (T(D) + eq.K) * θw)
     α, ok = equilibrium_parameters(eq, Uw)
-    ρw = ok ? _block_wall_density(eq, α, Y, N, g, 0, w, n, Val(W)) : zero(T)
+    ρw = ok ? _block_wall_density(eq, α, Yw, N, g, 0, w, n, Val(W)) : zero(T)      # (the incident flux at the wall point)
     spec = _diffuse_specular(wd, eq, block_moments(bk, Y, N, nb, g), Y, N, g, 0, w, n, Val(W))
     return DiffuseBlockParams{1, D + 2, T}(SVector{1}(α), SVector{1}(ρw), ok, SVector{1}(spec))
 end
@@ -201,7 +203,8 @@ end
 end
 
 HyperCloudCore.wall_reduction_type(::DiffuseWall, ::MixtureBlocks{D, W, T, NB, L}) where {D, W, T, NB, L} = DiffuseBlockParams{L, D + 2, T}
-@inline function HyperCloudCore.block_wall_reduce(wd::DiffuseWall, mb::MixtureBlocks{D, W, T, NB, L}, Y, N, nb, g, wall) where {D, W, T, NB, L}
+@inline HyperCloudCore.block_wall_reduce(wd::DiffuseWall, mb::MixtureBlocks, Y, N, nb, g, wall) = HyperCloudCore.block_wall_reduce(wd, mb, Y, N, nb, g, wall, Y)
+@inline function HyperCloudCore.block_wall_reduce(wd::DiffuseWall, mb::MixtureBlocks{D, W, T, NB, L}, Y, N, nb, g, wall, Yw) where {D, W, T, NB, L}
     mix = mb.mix
     n   = wall.normal
     w   = wall.velocity + _slip_velocity(wd, Val(D), T)
@@ -213,7 +216,7 @@ HyperCloudCore.wall_reduction_type(::DiffuseWall, ::MixtureBlocks{D, W, T, NB, L
             Uw = SVector{D + 2, T}(one(T), w..., T(0.5) * sum(abs2, w) + T(0.5) * (T(D) + sp.K) * θw)
             α, ok = equilibrium_parameters(sp, Uw)
             spec = _diffuse_specular(wd, sp, _species_moments_from_blocks(sp, Y, N, g, boff, Val(W)), Y, N, g, boff, w, n, Val(W))
-            (α, ok ? _block_wall_density(sp, α, Y, N, g, boff, w, n, Val(W)) : zero(T), ok, spec)
+            (α, ok ? _block_wall_density(sp, α, Yw, N, g, boff, w, n, Val(W)) : zero(T), ok, spec)
         end
     end
     return DiffuseBlockParams{L, D + 2, T}(SVector{L}(map(first, res)), SVector{L}(map(r -> r[2], res)), all(map(r -> r[3], res)),

@@ -179,8 +179,14 @@ Operator of a diffusely reflecting wall at the temperature `θ_w = p / ρ` for t
 [`MirrorBC`](@extref HyperCloudCore HyperCloudCore.MirrorBC) ([`diffuse_wall`](@ref) builds the condition). The
 components of the ghost state whose velocity points out of the wall into the fluid (relative to the wall,
 `(v - w) ⋅ n < 0`) are the discrete Maxwellian at the wall temperature and velocity, with the density that
-makes the mass flux through the wall vanish (the incident flux of the mirrored interior distribution returns);
-the components pointing into the wall keep the mirrored interior values. The wall velocity `w` is the piece's
+makes the mass flux through the wall vanish: the incident flux **of the interior distribution at the wall point**
+returns (the fit of the mirror image evaluated at the wall, `uses_wall_state`); the components pointing into the
+wall keep the mirrored interior values. Balanced at the ghost's mirror point instead, the returning density differed
+from ghost to ghost by the depth of its mirror point, which doubled the scheme's mass flux through the wall out of
+equilibrium (the 1-D tube between a cold gas and warm walls at N = 50/100/200/400: 1.15e-2/7.1e-3/4.2e-3/2.4e-3 of
+the mass before, 7.0e-3/3.6e-3/1.9e-3/9.8e-4 now). What remains is the first-order mismatch between the ghost's
+balance point and the depth of its interior partners in the per-velocity upwind flux; the specular wall, an exact
+node flip, conserves to the scheme's order. The wall velocity `w` is the piece's
 velocity from the `WallPoint` plus `velocity` (a tangential sliding velocity, e.g. the plates of a Couette
 flow; a tuple of length `D`). With an `accommodation` coefficient `α < 1` (Maxwell's model) the emitted
 distribution is `α` times the diffuse one plus `1 - α` times the specular reflection of [`SlipWall`](@ref).
@@ -204,7 +210,11 @@ end
 @inline _slip_velocity(::DiffuseWall{Tw, Nothing}, ::Val{D}, ::Type{T}) where {Tw, D, T} = zero(Space{D, T})
 @inline _slip_velocity(w::DiffuseWall{Tw, <:SVector{D}}, ::Val{D}, ::Type{T}) where {Tw, D, T} = Space{D, T}(w.velocity)
 
-@inline function (wd::DiffuseWall)(eq::BGKEquation{D, M, T, NV1, NV}, f::State{M, T}, wall::WallPoint{D, T}) where {D, M, T, NV1, NV}
+HyperCloudCore.uses_wall_state(::DiffuseWall) = true
+# (the three-argument form balances at the mirror point: the operator on its own, outside a `MirrorBC`)
+@inline (wd::DiffuseWall)(eq::BGKEquation{D, M, T}, f::State{M, T}, wall::WallPoint{D, T}) where {D, M, T} = wd(eq, f, wall, f)
+# (`fw` is the interior at the wall point: its incident flux returns; `f`, the mirror image, gives the incident components)
+@inline function (wd::DiffuseWall)(eq::BGKEquation{D, M, T, NV1, NV}, f::State{M, T}, wall::WallPoint{D, T}, fw::State{M, T}) where {D, M, T, NV1, NV}
     n  = wall.normal
     w  = wall.velocity + _slip_velocity(wd, Val(D), T)
     θw = T(wd.temperature)
@@ -213,13 +223,13 @@ end
     Uw = SVector{D + 2, T}(one(T), w..., T(0.5) * sum(abs2, w) + T(0.5) * (T(D) + eq.K) * θw)
     Mw, ok = equilibrium(eq, Uw)
     ok || return f                     # no wall Maxwellian on the grid: the runners refuse such a wall before the run
-    # Flux balance of the relative normal velocity: what the fluid sends into the wall comes back
+    # Flux balance of the relative normal velocity at the wall: what the fluid sends into the wall comes back
     Φin, Φout = zero(T), zero(T)
     @inbounds for k in 1:NV
         v, wk = velocity_node(eq, k)
         c = sum((v - w) .* n)
         if c > zero(T)
-            Φin += wk * c * f[k]
+            Φin += wk * c * fw[k]
         else
             Φout += wk * c * Mw[k]
         end
@@ -242,9 +252,10 @@ end
 @inline (::SlipWall)(eq::BGKMixture{D, M, T}, f::State{M, T}, wall::WallPoint{D, T}) where {D, M, T} =
     _cat(map((s, b) -> _specular(s, b, wall.normal, wall.velocity), eq.species, _blocks(eq, f)))
 
-@inline function (wd::DiffuseWall)(eq::BGKMixture{D, M, T}, f::State{M, T}, wall::WallPoint{D, T}) where {D, M, T}
-    return _cat(map(eq.species, _blocks(eq, f), Tuple(eq.masses)) do s, b, m
-        _species_wall(wd, eq, m)(s, b, wall)
+@inline (wd::DiffuseWall)(eq::BGKMixture{D, M, T}, f::State{M, T}, wall::WallPoint{D, T}) where {D, M, T} = wd(eq, f, wall, f)
+@inline function (wd::DiffuseWall)(eq::BGKMixture{D, M, T}, f::State{M, T}, wall::WallPoint{D, T}, fw::State{M, T}) where {D, M, T}
+    return _cat(map(eq.species, _blocks(eq, f), _blocks(eq, fw), Tuple(eq.masses)) do s, b, bw, m
+        _species_wall(wd, eq, m)(s, b, wall, bw)
     end)
 end
 
