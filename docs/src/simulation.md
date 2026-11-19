@@ -100,6 +100,39 @@ grids.
     The runners compare the grid before and after the reservation and refuse to run when it changed.
     Until this is fixed upstream, start reserved GPU runs in a fresh session.
 
+### Checkpoints
+
+A run on a preemptible cluster partition can be killed at any time. With `set_checkpointing!(dir)` every
+following run of the runners saves its state to `dir/<hash>.jld2` (the hash of its parameters, the name
+of its result file) every `every` seconds of wall time, a run that finds its file resumes from it, and the
+file is removed when the run is done:
+
+```julia
+set_checkpointing!("results/checkpoints"; every = 20 * 60)   # every 20 minutes
+sim = run_direct_simulation(params)    # killed, started again with the same parameters: resumes
+set_checkpointing!(nothing)
+```
+
+- **Exact.** The resumed run ends with the result of a run that went through, bit for bit (on the same
+  backend and device model; a GPU of another model may round differently): the state at the end of a
+  step is saved with HyperCloudCore's [`checkpoint_state`](@extref HyperCloudCore HyperCloudCore.checkpoint_state)
+  (the states, the particle set with its volumes: moving grids, adaptivity, moving pieces and block states
+  included), together with the time loop's own state and the snapshots stored so far; everything else is
+  rebuilt from the configuration.
+- **Safe to kill at any time.** A checkpoint is written to a temporary file and then renamed, so the file is
+  always complete; the steps after the last checkpoint are computed again.
+- **Records.** The steps and the wall time (`:Runtime`) count all attempts, and `metadata[:restarts]` is the
+  number of resumes. A file written with other package versions or another backend is resumed with a
+  warning (the run continues, not necessarily bit for bit); an unreadable one is moved aside
+  (`.unreadable`) and the run starts from ``t = 0``.
+- **Size.** A checkpoint holds the full state (a block state of many velocities is large: about
+  ``8 N M`` bytes in `Float64`) and the snapshots stored so far (for the kinetic runners without blocks,
+  the full distributions).
+
+Like the memory limit it is a session setting, not a parameter, so it does not change the run hash.
+`solve_equation` takes a [`Checkpointing`](@ref) directly (`checkpoint = Checkpointing(path; every)`) for
+scripts that drive the time loop themselves.
+
 ## Direct simulation
 
 [`run_direct_simulation`](@ref) evolves the PDE given in the `PDE` namespace.
@@ -148,4 +181,8 @@ set_device_selector!
 with_backend
 set_memory_limit!
 get_memory_limit
+set_checkpointing!
+get_checkpointing
+Checkpointing
+remove_checkpoint
 ```

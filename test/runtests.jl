@@ -215,7 +215,7 @@ const TEST_GROUPS = [
     "sims-bgk" => ["sims_bgk.jl", "blocks.jl"],
     "sweep-a"  => ["sims_sweep.jl"],
     "sweep-b"  => ["sims_sweep.jl"],
-    "sims"     => ["sims.jl"],
+    "sims"     => ["sims.jl", "checkpoint.jl"],
     "walls"    => ["sims_walls.jl"],
     "examples" => ["examples.jl"],
 ]

@@ -103,9 +103,14 @@ The primary simulation orchestrator governing the main time-stepping loop.
 - `show_progress::Bool`: Toggles visual progress tracking.
 - `progress_interval::Real`: Sets the refresh rate (in seconds) for logging the simulation's progress and calculating the ETA.
 - `adaptivity`: a `ParticleAdaptivity` applied between steps (particle insertion/merging on moving grids), or `nothing`.
+- `checkpoint`: a [`Checkpointing`](@ref) (or `nothing`): the state of the run is saved to its file every `every` seconds
+  of wall time, and a run that finds the file resumes from it (the grid, the states and the snapshots stored so far are
+  restored before the first step; the initial conditions set before are overwritten) and continues bit for bit as the
+  run that wrote it would have. The file stays after the run (`remove_checkpoint`).
 
 # Returns
-- A tuple containing: `(position_history, state_history, time_history, total_steps, elapsed_wall_time)`.
+- A tuple containing: `(position_history, state_history, time_history, total_steps, elapsed_wall_time)`. A resumed run
+  counts the steps and the wall time of all its attempts.
 
 The loop stops early with a warning that gives the time reached if the time step collapses (below `1e-12 tmax`)
 or is not finite, or if a stored snapshot is not finite (a blown-up state; this also covers fixed time steps
@@ -127,7 +132,8 @@ function solve_equation(
     remove_ghosts::Bool = false,
     show_progress::Bool = true,
     progress_interval::Real = 1.0,
-    adaptivity::Union{Nothing, ParticleAdaptivity} = nothing
+    adaptivity::Union{Nothing, ParticleAdaptivity} = nothing,
+    checkpoint::Union{Nothing, Checkpointing} = nothing
 ) where {D, M, T}
     snapshots >= 1 || throw(ArgumentError("snapshots must be ≥ 1 (the number of output intervals), got $snapshots"))
     xs = Vector{Vector{Space{D, T}}}(undef, snapshots + 1)
@@ -137,11 +143,19 @@ function solve_equation(
 
     step!(t, d) = (timestepper(eq, pg, t, d); adaptivity === nothing || adapt_particles!(pg, adaptivity, _extract_order(div_interp)); nothing)
     save!(k, t) = (saveData!(xs, us, ts, k, pg, t, remove_ghosts); us[k])
+    resume = _resume!(ck -> restore_checkpoint!(pg, ck), checkpoint, xs, us, ts)
     k_step, elapsed_time = _time_loop(step!, () -> get_time_step(pg, eq, div_interp), save!,
                                       () -> isfinite(_max_abs(host_view(pg.rhos, pg.meta.N))),
-                                      T(tmax), T(dt), is_cfl, Int(snapshots), show_progress, progress_interval)
+                                      T(tmax), T(dt), is_cfl, Int(snapshots), show_progress, progress_interval;
+                                      _checkpoint_kw(checkpoint, () -> checkpoint_state(pg), xs, us, ts, resume)...)
     return xs, us, ts, k_step, elapsed_time
 end
+
+# The checkpoint keywords of `_time_loop`: the resumed loop state, the writer of a checkpoint (the solver state from
+# `state()`) and its interval
+_checkpoint_kw(::Nothing, state, xs, us, ts, resume) = (; resume)
+_checkpoint_kw(ck::Checkpointing, state, xs, us, ts, resume) =
+    (; resume, checkpoint! = loop -> _write_checkpoint(ck, state(), loop, xs, us, ts), every = ck.every)
 
 """
     solve_equation(timestepper::BlockTimeStepper, eq, pg, bs::BlockState, tmax, dt; reduce, kwargs...)
@@ -150,7 +164,7 @@ The time loop of [`solve_equation`](@ref) for the block pipeline: the block stat
 stored snapshots hold `reduce(Y, N, nb, i)` per particle (the macroscopic moments, e.g.
 `(Y, N, nb, i) -> block_moments(bk, Y, N, nb, i)`; a kernel function, run on the storage of the state and copied to the
 host), never the full distribution; `adaptivity` is applied between steps on every block. The other keywords as for the
-standard pipeline.
+standard pipeline (a `checkpoint` saves and restores the block state with the grid).
 """
 function solve_equation(
     timestepper::BlockTimeStepper,
@@ -165,7 +179,8 @@ function solve_equation(
     remove_ghosts::Bool = false,
     show_progress::Bool = true,
     progress_interval::Real = 1.0,
-    adaptivity::Union{Nothing, ParticleAdaptivity} = nothing
+    adaptivity::Union{Nothing, ParticleAdaptivity} = nothing,
+    checkpoint::Union{Nothing, Checkpointing} = nothing
 ) where {D, W, T}
     snapshots >= 1 || throw(ArgumentError("snapshots must be ≥ 1 (the number of output intervals), got $snapshots"))
     # the type of the reduction from particle 1's blocks (a host copy of nb states, not of the state)
@@ -188,8 +203,10 @@ function solve_equation(
                    adaptivity === nothing || adapt_particles!(pg, adaptivity, _extract_order(div_interp), bs); nothing)
     save!(k, t) = (_save_block_data!(xs, us, ts, k, pg, t, remove_ghosts, reduce_all!()); us[k])
     finite()    = all(m -> all(isfinite, m), reduce_all!())
+    resume = _resume!(ck -> restore_checkpoint!(pg, bs, ck), checkpoint, xs, us, ts)
     k_step, elapsed_time = _time_loop(step!, () -> get_time_step(pg, eq, div_interp, bs), save!, finite,
-                                      T(tmax), T(dt), is_cfl, Int(snapshots), show_progress, progress_interval)
+                                      T(tmax), T(dt), is_cfl, Int(snapshots), show_progress, progress_interval;
+                                      _checkpoint_kw(checkpoint, () -> checkpoint_state(pg, bs), xs, us, ts, resume)...)
     return xs, us, ts, k_step, elapsed_time
 end
 
@@ -199,10 +216,12 @@ end
 The time loop of a block state split over devices: `devs(t, dt)` advances, and the stored snapshots hold the sum
 over the parts of `reduce_partial(Y, N, nb, blocks, i)` (a kernel function of a part's blocks, the moments of a block
 range: `(Y, N, nb, blocks, i) -> block_moments(bk, Y, N, nb, i, blocks)`), of type `partial_type`, computed on every
-device and summed on the host (`host_reduction`). No adaptivity. The other keywords as for the block state.
+device and summed on the host (`host_reduction`). No adaptivity. The other keywords as for the block state (a
+`checkpoint` holds the blocks of all parts: it resumes on any split, or on a single block state).
 """
 function solve_equation(devs::BlockDevices{D, W, T}, eq, tmax::Real, dt::Real; reduce_partial, partial_type::Type{P}, is_cfl::Bool = false,
-                        snapshots::Integer = 10, remove_ghosts::Bool = false, show_progress::Bool = true, progress_interval::Real = 1.0) where {D, W, T, P}
+                        snapshots::Integer = 10, remove_ghosts::Bool = false, show_progress::Bool = true, progress_interval::Real = 1.0,
+                        checkpoint::Union{Nothing, Checkpointing} = nothing) where {D, W, T, P}
     snapshots >= 1 || throw(ArgumentError("snapshots must be ≥ 1 (the number of output intervals), got $snapshots"))
     pg = first(devs.parts).pg
     xs = Vector{Vector{Space{D, T}}}(undef, snapshots + 1)
@@ -212,8 +231,10 @@ function solve_equation(devs::BlockDevices{D, W, T}, eq, tmax::Real, dt::Real; r
     step!(t, d) = (devs(t, d); nothing)
     save!(k, t) = (_save_block_data!(xs, us, ts, k, pg, t, remove_ghosts, moments()); us[k])
     finite()    = all(m -> all(isfinite, m), moments())
+    resume = _resume!(ck -> restore_checkpoint!(devs, ck), checkpoint, xs, us, ts)
     k_step, elapsed_time = _time_loop(step!, () -> get_time_step(devs), save!, finite,
-                                      T(tmax), T(dt), is_cfl, Int(snapshots), show_progress, progress_interval)
+                                      T(tmax), T(dt), is_cfl, Int(snapshots), show_progress, progress_interval;
+                                      _checkpoint_kw(checkpoint, () -> checkpoint_state(devs), xs, us, ts, resume)...)
     return xs, us, ts, k_step, elapsed_time
 end
 
@@ -235,18 +256,35 @@ end
 # The block-major state on the host (a view of a host array, a copy of a device array)
 _host_blocks(bs::BlockState) = host_view(parent(bs.data), bs.nb * bs.N[])
 
+# A test hook: the time loop throws an `InterruptException` right after the step with this number (counted over all
+# attempts of a resumed run), before that step's snapshot and checkpoint, as a run that is killed there (0: never)
+const _INTERRUPT_AT_STEP = Ref(0)
+
 # The time loop itself: `step!(t, dt)` advances, `cfl_step()` is the CFL step, `save!(k, t)` stores snapshot `k` and
 # returns the stored states, `state_finite()` says whether the current state is finite. Returns `(k_step, elapsed)`.
+# Checkpoints: `resume` is the loop state of a checkpoint (`_resume!`; the solver state and the snapshots are restored
+# already), `checkpoint!(loop)` writes one with the loop state `loop`, every `every` seconds of wall time at the end of a
+# step (not after a stop). `elapsed` includes the wall time of the attempts before a resume.
 function _time_loop(step!, cfl_step, save!, state_finite, tmax_val::T, dt_inp::T, is_cfl::Bool, snapshots::Int,
-                    show_progress::Bool, progress_interval::Real) where {T}
+                    show_progress::Bool, progress_interval::Real; resume = nothing, checkpoint! = nothing,
+                    every::Real = Inf) where {T}
     t_snap = range(zero(T), tmax_val, length=snapshots+1)
-    snap_counter = 1
-    t = zero(T)
-    k_step = 0
+    if resume === nothing
+        snap_counter = 1
+        t = zero(T)
+        k_step = 0
 
-    u0_scale = _max_abs(save!(snap_counter, t))
-    snap_counter += 1
-    growth_warned = false
+        u0_scale = _max_abs(save!(snap_counter, t))
+        snap_counter += 1
+        growth_warned = false
+        elapsed_before, restarts = 0.0, 0
+    else
+        t, k_step, snap_counter = T(resume.t), Int(resume.k_step), Int(resume.snap_counter)
+        u0_scale, growth_warned = resume.u0_scale, Bool(resume.growth_warned)
+        elapsed_before, restarts = Float64(resume.elapsed), Int(resume.restarts) + 1
+    end
+    t_start = time()
+    last_checkpoint = t_start
 
     @info "Using $(nameof(typeof(get_backend()))) for parallel runs!"
 
@@ -286,7 +324,8 @@ function _time_loop(step!, cfl_step, save!, state_finite, tmax_val::T, dt_inp::T
 
         t += dt_val
         k_step += 1
-        
+        k_step == _INTERRUPT_AT_STEP[] && throw(InterruptException())      # (tests: killed before the snapshot and checkpoint)
+
         blown_up = false
         while snap_counter <= snapshots && t >= t_snap[snap_counter]
             state = save!(snap_counter, t)
@@ -295,6 +334,11 @@ function _time_loop(step!, cfl_step, save!, state_finite, tmax_val::T, dt_inp::T
             blown_up && break
         end
         blown_up && (stopped = true; break)
+
+        if checkpoint! !== nothing && time() - last_checkpoint >= every
+            checkpoint!((; t, k_step, snap_counter, u0_scale, growth_warned, elapsed = elapsed_before + (time() - t_start), restarts))
+            last_checkpoint = time()
+        end
 
         if show_progress
             current_progress = ceil(Int, (t / tmax_val) * 10000)
@@ -339,5 +383,5 @@ function _time_loop(step!, cfl_step, save!, state_finite, tmax_val::T, dt_inp::T
         stopped || _check_snapshot(state, t, tmax_val, k_step, u0_scale, growth_warned; final = true)
     end
 
-    return k_step, elapsed_time
+    return k_step, elapsed_before + elapsed_time
 end

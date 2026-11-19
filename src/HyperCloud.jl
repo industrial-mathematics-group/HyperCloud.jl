@@ -12,6 +12,7 @@ using LinearAlgebra
 using Random
 using ProgressMeter
 using Dates
+import JLD2
 
 const _PROGRESS_BAR = Ref(true)
 const _PROGRESS_INTERVAL= Ref(1.)
@@ -20,6 +21,7 @@ enable_progress_bar!(b::Bool) = (_PROGRESS_BAR[] = b)
 set_progress_interval!(t::Real) = (_PROGRESS_INTERVAL[] = Float64(t))
 
 include("device.jl")
+include("checkpoint.jl")
 include("ICs/_main.jl")
 include("PDEs/_main.jl")
 include("BoundaryConditions/_main.jl")
