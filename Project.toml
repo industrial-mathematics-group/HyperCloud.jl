@@ -1,6 +1,6 @@
 name = "HyperCloud"
 uuid = "46243fee-3493-4f45-a265-764054f6ddcc"
-version = "0.7.4"
+version = "0.7.5"
 authors = ["Pascal Jung <dev@blackslash.win>"]
 
 [deps]
@@ -16,7 +16,7 @@ StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [compat]
 Dates = "1"
-HyperCloudCore = "0.9.6"
+HyperCloudCore = "0.9.7"
 JLD2 = "0.6, 1"
 LinearAlgebra = "1.12"
 PDEStudioCore = "0.5, 0.6"
