@@ -220,6 +220,13 @@ end
         end
         @test HC._block_devices(Dict{Symbol, Any}(:devices => 3)) == [0, 1, 2] && HC._block_devices(Dict{Symbol, Any}(:devices => [1, 3])) == [1, 3]
         @test HC._block_devices(Dict{Symbol, Any}()) === nothing && HC._device_ranges(7, 3) == [1:3, 4:5, 6:7]
+        for bad in (true, [0, 0], [-1], Int[])
+            @test_throws ArgumentError HC._block_devices(Dict{Symbol, Any}(:devices => bad))
+        end
+        # the keys of the block form without a block width are refused (they were ignored: one device, the standard form)
+        for kv in (:PDE_devices => 2, :PDE_blocks_per_launch => 4)
+            @test (@test_logs (:error, r"Error during BGK") match_mode = :any run_bgk_simulation(merge(p, Dict{Symbol, Any}(kv)))) === nothing
+        end
         @test (@test_logs (:error, r"Error during BGK") match_mode = :any run_bgk_simulation(merge(p, Dict{Symbol, Any}(:PDE_block_width => 8, :PDE_devices => 0)))) === nothing
         # the additive forms of the single gas: the moments of two block ranges add up, the velocity and the admissibility
         # follow from the sum
@@ -319,8 +326,9 @@ end
             @test t1[3] + 10 * t1[6] ≈ t0[3] + 10 * t0[6] rtol = 1e-12
         end
         @test run_bgk_simulation(merge(pm, Dict{Symbol, Any}(:PDE_block_width => 16))) === nothing          # 16 ∤ 24
-        # the mixture split over two host parts (a species' blocks on both): the single block run to round-off
-        sim_d = run_bgk_simulation(merge(pm, Dict{Symbol, Any}(:PDE_block_width => 8, :PDE_devices => 2)))
+        # the mixture split over three host parts (ranges 1:3, 4:5, 6:7: the first species' blocks on two parts, the
+        # second's too): the single block run to round-off
+        sim_d = run_bgk_simulation(merge(pm, Dict{Symbol, Any}(:PDE_block_width => 8, :PDE_devices => 3)))
         @test sim_d !== nothing && sim_b !== nothing
         if sim_d !== nothing && sim_b !== nothing
             @test maximum(maximum(abs.(ud - ub)) for (ud, ub) in zip(sim_d.u[end], sim_b.u[end])) < 1e-10
