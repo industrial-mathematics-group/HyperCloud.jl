@@ -176,7 +176,7 @@ function _grid_fingerprint(pg::ParticleGrid)
 end
 
 """
-    run_metadata(context, k_step, t_final, tmax; final_state = nothing) -> Dict{Symbol, Any}
+    run_metadata(context, k_step, t_final, tmax; final_state = nothing, checkpoint = nothing) -> Dict{Symbol, Any}
 
 What a runner stores in the dataset's `metadata` (PDEStudioCore ≥ 0.5; not data, so never plotted as a statistic):
 the HyperCloudCore version (PDEStudioCore's `:provenance` names only the solver's own package, HyperCloud), the
@@ -184,11 +184,12 @@ execution backend, the float type, the number of steps, the time the run reached
 `tmax` (`:stopped_early`) and, given the last stored state, whether that state is finite (`:finite`). A blown-up
 run is stored like any other (`solve_equation` warns); these two flags keep it findable later. Both are needed: a
 blow-up the time step does not see (fixed `dt`, constant wave speeds) is only detected at stored snapshots, so with
-`snapshots = 1` the run reaches `tmax` with a non-finite state.
+`snapshots = 1` the run reaches `tmax` with a non-finite state. With a `checkpoint` ([`Checkpointing`](@ref)), `:restarts`
+is the number of times the run was resumed from it (0: it ran in one go).
 """
-function run_metadata(context::Dict, k_step::Integer, t_final::Real, tmax::Real; final_state = nothing)
+function run_metadata(context::Dict, k_step::Integer, t_final::Real, tmax::Real; final_state = nothing, checkpoint = nothing)
     T = get(context, :T, Float64)
-    return Dict{Symbol, Any}(
+    meta = Dict{Symbol, Any}(
         :hypercloudcore => string(pkgversion(HyperCloudCore)),
         :backend        => _backend_name(get_backend()),
         :float_type     => string(T),
@@ -198,6 +199,8 @@ function run_metadata(context::Dict, k_step::Integer, t_final::Real, tmax::Real;
         :stopped_early  => tmax - t_final > 2 * max(1e-12, 4 * eps(T)) * tmax,
         :finite         => final_state === nothing || all(u -> all(isfinite, u), final_state),
     )
+    checkpoint === nothing || (meta[:restarts] = restarts(checkpoint))
+    return meta
 end
 
 # The execution backend, with the KernelAbstractions device ("KABackend(POCLBackend)" is the CPU check through PoCL,

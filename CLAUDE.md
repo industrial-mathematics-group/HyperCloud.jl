@@ -38,6 +38,7 @@ with `ka_cpu` too when a change touches anything that ends up in a kernel.
 | `src/Builder/` | `build_equation`, kinetic system builder, reference solutions |
 | `src/SimulationFunctions/` | `run_direct_simulation`, `run_kinetic_simulation` |
 | `src/device.jl` | Device runs: `storage_for`, `with_backend`, host/device copies, memory limit |
+| `src/checkpoint.jl` | Checkpoints for exact restarts (`set_checkpointing!`, `Checkpointing`, JLD2 files keyed by the run hash) |
 | `src/inbuilt_methods.jl` | `create_method`, master method dictionary |
 | `src/Examples/` | Exported example functions (`euler_1d_sod`, …) used by `@sim`/`@plot` |
 | `src/macros.jl` | `@sim`, `@plot`, `@backup`, Bonito/config path settings |

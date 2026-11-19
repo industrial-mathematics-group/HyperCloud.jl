@@ -76,6 +76,7 @@ Every available key is listed in the [Configuration Reference](configuration.md)
 | `ICs/` | Initial conditions: Gaussian pulse, box, sine wave and three Riemann variants. |
 | `Builder/` | The physics builders (`build_equation`, `build_kinetic_system`) and the exact references; the numerical builders come from HyperCloudCore (see [Builder API](builder.md)). |
 | `device.jl` | GPU placement and memory limit of the runners ([`storage_for`](@ref), [`set_memory_limit!`](@ref)). |
+| `checkpoint.jl` | Checkpoints of runs for exact restarts after a preemption ([`set_checkpointing!`](@ref), [`Checkpointing`](@ref)). |
 | `inbuilt_methods.jl` | [`create_method`](@ref), [`get_master_method_dict`](@ref), [`generate_relax_params`](@ref). |
 | `SimulationFunctions/` | The pipelines [`run_direct_simulation`](@ref) and [`run_kinetic_simulation`](@ref). |
 | `time_integration.jl` | The time loop [`solve_equation`](@ref) and snapshot storage. |
