@@ -189,7 +189,10 @@ function _run_bgk_blocks(params::ParamDict, context::Dict, eq, W::Int)
     _check_wall_ops(eq, geom)
     context[:Domain] = geom
     context[:WeightConf] = weight_conf
-    pg = build_run_grid(grid_conf, context)
+    # (the host grid of a split state on a device storage is built on a CPU backend, as `build_run_grid` builds any device
+    # grid: the run's backend is the device's, which refuses the host arrays)
+    pg = devices !== nothing && device_storage !== Array ? with_backend(() -> build_run_grid(grid_conf, context), PolyesterBackend()) :
+                                                           build_run_grid(grid_conf, context)
     adaptivity = build_adaptivity(adapt_conf, context)
     context[:Flux]    = build_flux(flux_conf, context)
     context[:Limiter] = build_limiter(lim_conf, context)
