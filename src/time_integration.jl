@@ -168,7 +168,8 @@ function solve_equation(
     adaptivity::Union{Nothing, ParticleAdaptivity} = nothing
 ) where {D, W, T}
     snapshots >= 1 || throw(ArgumentError("snapshots must be ≥ 1 (the number of output intervals), got $snapshots"))
-    R  = typeof(reduce(_host_blocks(bs), bs.N[], bs.nb, 1))     # (one host copy, for the type of the reduction)
+    # the type of the reduction from particle 1's blocks (a host copy of nb states, not of the state)
+    R  = typeof(reduce(Array(copy(view(parent(bs.data), 1:bs.N[]:(bs.nb * bs.N[])))), 1, bs.nb, 1))
     xs = Vector{Vector{Space{D, T}}}(undef, snapshots + 1)
     us = Vector{Vector{R}}(undef, snapshots + 1)
     ts = Vector{T}(undef, snapshots + 1)

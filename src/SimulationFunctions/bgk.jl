@@ -50,6 +50,7 @@ function run_bgk_simulation(params::ParamDict)::Union{AbstractSimData, Nothing}
         D = get_D(eq)
         W = _block_width(pde_conf)
         W > 0 && return _run_bgk_blocks(params, context, eq, W)
+        _refuse_block_keys(pde_conf)
 
         context[:Equation] = _ic_equation(eq)
         context[:D] = D
@@ -175,6 +176,11 @@ function _run_bgk_blocks(params::ParamDict, context::Dict, eq, W::Int)
     context[:M] = W
 
     context[:Tableau] = build_tableau(time_conf, context)
+    # a split state builds the grid and the scheme of the setup on the host (every part copies the grid to its device and
+    # builds its own scheme there): built on the device storage they stayed on the default device for the whole run
+    devices = _block_devices(pde_conf)
+    device_storage = context[:Storage]
+    devices === nothing || (context[:Storage] = Array)
     sources = _block_sources(bk, context[:Tableau], storage_type(context))
     @info "$(_describe(eq)), block form: $(HyperCloudCore.num_blocks(bk)) blocks of $W, collision: " *
           (isempty(sources) ? "none (collisionless)" : HyperCloudCore._is_implicit(sources[1]) ? "implicit" : "explicit")
@@ -183,7 +189,10 @@ function _run_bgk_blocks(params::ParamDict, context::Dict, eq, W::Int)
     _check_wall_ops(eq, geom)
     context[:Domain] = geom
     context[:WeightConf] = weight_conf
-    pg = build_run_grid(grid_conf, context)
+    # (the host grid of a split state on a device storage is built on a CPU backend, as `build_run_grid` builds any device
+    # grid: the run's backend is the device's, which refuses the host arrays)
+    pg = devices !== nothing && device_storage !== Array ? with_backend(() -> build_run_grid(grid_conf, context), PolyesterBackend()) :
+                                                           build_run_grid(grid_conf, context)
     adaptivity = build_adaptivity(adapt_conf, context)
     context[:Flux]    = build_flux(flux_conf, context)
     context[:Limiter] = build_limiter(lim_conf, context)
@@ -195,8 +204,10 @@ function _run_bgk_blocks(params::ParamDict, context::Dict, eq, W::Int)
     # (a memory limit reserves the block stepper and the block state below: the inner stepper alone, reserved for one
     # block, failed at the first step)
     limit = pop!(context, :MemoryLimit, nothing)
-    devices = _block_devices(pde_conf)
-    devices === nothing || return _run_bgk_devices(params, context, eq, bk, IC, pg, geom, adaptivity, devices, limit, time_conf, pde_conf)
+    if devices !== nothing
+        context[:Storage] = device_storage
+        return _run_bgk_devices(params, context, eq, bk, IC, pg, geom, adaptivity, devices, limit, time_conf, pde_conf)
+    end
     inner = build_run_timestepper(context; time_conf = time_conf)
     context[:Equation] = bk
     method = BlockTimeStepper(bk, inner, sources; blocks_per_launch = _blocks_per_launch(pde_conf))
@@ -245,13 +256,17 @@ function _run_bgk_devices(params::ParamDict, context::Dict, eq, bk, IC, pg, geom
     nb = HyperCloudCore.num_blocks(bk)
     length(devices) <= nb || error(":PDE_devices names $(length(devices)) devices for $nb blocks")
     ranges  = _device_ranges(nb, length(devices))
-    pg_host = storage === Array ? pg : device_grid(Array, pg)
+    pg_host = pg                                                   # (built on the host, see `_run_bgk_blocks`)
     bpl     = _blocks_per_launch(pde_conf)
+    scheme_conf = extract_namespace(params, :Scheme)
     parts = map(zip(devices, ranges)) do (dev, r)
         activate = _device_activator(dev, storage)
         activate === nothing || activate()
-        pg_d = storage === Array ? deepcopy(pg_host) : device_grid(storage, pg_host)
+        pg_d = storage === Array ? deepcopy(pg_host) : HyperCloudCore.device_grid(storage, pg_host)
         context[:Grid] = pg_d
+        # a scheme per part, built on its device: the scheme's caches (the MLS and slot weights) are device arrays, and
+        # the one built before the split lives on the default device (every other part's kernels read it there)
+        context[:Scheme] = build_scheme(scheme_conf, context)
         context[:Equation] = BlockOf(bk, 1)
         context[:ExplicitSources], context[:ImplicitSources] = (), ()
         inner = build_run_timestepper(context; time_conf = time_conf)
@@ -297,6 +312,14 @@ function _block_width(pde_conf::Dict)
     (w isa Integer && w >= 0) ||
         throw(ArgumentError(":PDE_block_width must be a non-negative integer (0: the standard form), got $(repr(w))"))
     return Int(w)
+end
+
+# The keys of the block form are refused without a block width (they were ignored: one device, the standard form)
+function _refuse_block_keys(pde_conf::Dict)
+    for k in (:devices, :blocks_per_launch)
+        haskey(pde_conf, k) && throw(ArgumentError(":PDE_$k needs the block form of the BGK models (:PDE_block_width)"))
+    end
+    return nothing
 end
 
 # `:PDE_blocks_per_launch`: the blocks one launch of the passes with per-particle scratch covers (HyperCloudCore's

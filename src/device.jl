@@ -48,7 +48,9 @@ end
     set_device_selector!(f)
 
 The function that makes device `d` of `:PDE_devices` current before a part of a split block state is built and
-stepped (`set_device_selector!(CUDA.device!)` for CUDA; the ids of `:PDE_devices` are what it takes). `nothing`, the
+stepped (`set_device_selector!(CUDA.device!)` for CUDA; the ids of `:PDE_devices` are passed to it unchanged: `n` stands
+for the ids `0:n−1`, CUDA's numbering; give the ids explicitly for another package). After a split run the device of the
+last part is the current one. `nothing`, the
 default: a run on the `Array` storage splits the state over host parts whatever the ids (tests), a run on a device
 storage refuses `:PDE_devices`.
 """
@@ -65,12 +67,12 @@ end
 function _block_devices(pde_conf::Dict)
     d = get(pde_conf, :devices, nothing)
     d === nothing && return nothing
-    if d isa Integer
-        d >= 1 || throw(ArgumentError(":PDE_devices must be a positive integer (the number of devices, ids 0:n−1) or a vector of device ids, got $(repr(d))"))
+    msg = ":PDE_devices must be a positive integer (the number of devices, ids 0:n−1) or a vector of distinct non-negative device ids, got $(repr(d))"
+    if d isa Integer && !(d isa Bool)
+        d >= 1 || throw(ArgumentError(msg))
         return collect(0:(Int(d) - 1))
     end
-    (d isa AbstractVector && !isempty(d) && all(x -> x isa Integer, d)) ||
-        throw(ArgumentError(":PDE_devices must be a positive integer (the number of devices, ids 0:n−1) or a vector of device ids, got $(repr(d))"))
+    (d isa AbstractVector && !isempty(d) && all(x -> x isa Integer && !(x isa Bool) && x >= 0, d) && allunique(d)) || throw(ArgumentError(msg))
     return Int.(collect(d))
 end
 # The block ranges of `n` parts over `nb` blocks: as even as possible, the first parts one block longer
