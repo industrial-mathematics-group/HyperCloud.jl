@@ -370,7 +370,9 @@ end
             @test all(x -> 0.99 < x < 2.0, θ.(us)) && θ(us[end - 5]) > θ(us[5])    # (the profile is not strictly monotone: 1e-3 ripples at the cold wall)
             push!(drift, abs(mass_change(sim)))
         end
-        length(drift) == 2 && @test drift[2] < 0.8 * drift[1] && drift[2] < 0.01   # measured 1.15e-2 / 7.1e-3 / 4.2e-3 (N = 50 / 100 / 200)
+        # measured 7.0e-3 / 3.6e-3 / 1.9e-3 / 9.8e-4 (N = 50 / 100 / 200 / 400) with the balance at the wall point, twice that
+        # (1.15e-2 / 7.1e-3 / 4.2e-3 / 2.4e-3) at the mirror point: first order either way
+        length(drift) == 2 && @test drift[2] < 0.6 * drift[1] && drift[2] < 5e-3
     end
 
     @testset "BGK: a piston (τ = 1e-4, isothermal diffuse wall) reproduces the Euler plateau within 1 %" begin
