@@ -71,21 +71,25 @@ end
                                                  SVector{L * L, T}(map(x -> x[2], pairs)), good && all(map(last, pairs)))
 end
 
+# The species of a block as a static value (`Val(s)`, an unrolled chain over the run-time `s`), and the loops over the
+# partner species unrolled (`_species_fold`): the pair parameters `prm.alpha[(s − 1) L + r]` are then read at constant
+# positions. With run-time positions the parameters of the particle sat in local memory, a stack of 2.5 KB per work-item
+# of the implicit step on a GPU.
 @inline function HyperCloudCore.block_implicit_solve(st::MixtureBlockRelaxation, f::State{W, T}, b::Int, prm::MixtureBlockParams,
                                                      dt_coeff, p, pg, t) where {W, T}
     prm.ok || return f
     mb = st.blocks
-    L  = num_species(mb)
     s, bl = species_of_block(mb, b)
-    Δ   = T(dt_coeff)
-    num = f
-    den = one(T)
-    @inbounds for r in 1:L
+    Δ = T(dt_coeff)
+    return _static_species(@inline(vs -> _implicit_species(mb, f, prm, vs, bl, Δ)), s, Val(num_species(mb)))
+end
+@inline function _implicit_species(mb::MixtureBlocks{D, W, T, NB, L}, f::State{W, T}, prm, ::Val{s}, bl::Int, Δ::T) where {D, W, T, NB, L, s}
+    num, den = _species_fold((f, one(T)), Val(L)) do (num, den), r
+        @inline
         i = (s - 1) * L + r
-        rate = Δ * prm.rate[i]
-        rate > zero(T) || continue
-        num += rate * _species_equilibrium_block(mb, prm.alpha[i], s, bl)
-        den += rate
+        rate = Δ * (@inbounds prm.rate[i])
+        rate > zero(T) || return (num, den)
+        (num + rate * _species_equilibrium_block(mb, (@inbounds prm.alpha[i]), s, bl), den + rate)
     end
     return num / den
 end
@@ -93,14 +97,27 @@ end
 @inline function HyperCloudCore.block_source(st::_MixtureBlockCollision, f::State{W, T}, b::Int, prm::MixtureBlockParams, p, pg, t) where {W, T}
     prm.ok || return zero(f)
     mb = st.blocks
-    L  = num_species(mb)
     s, bl = species_of_block(mb, b)
-    acc = zero(f)
-    @inbounds for r in 1:L
-        i = (s - 1) * L + r
-        rate = prm.rate[i]
-        rate > zero(T) || continue
-        acc += rate * (_species_equilibrium_block(mb, prm.alpha[i], s, bl) - f)
-    end
-    return acc
+    return _static_species(@inline(vs -> _source_species(mb, f, prm, vs, bl)), s, Val(num_species(mb)))
 end
+@inline function _source_species(mb::MixtureBlocks{D, W, T, NB, L}, f::State{W, T}, prm, ::Val{s}, bl::Int) where {D, W, T, NB, L, s}
+    return _species_fold(zero(f), Val(L)) do acc, r
+        @inline
+        i = (s - 1) * L + r
+        rate = @inbounds prm.rate[i]
+        rate > zero(T) || return acc
+        acc + rate * (_species_equilibrium_block(mb, (@inbounds prm.alpha[i]), s, bl) - f)
+    end
+end
+
+# `g(Val(s))` for a run-time species `s ∈ 1:L` (an unrolled chain of comparisons)
+@inline _static_species(g::G, s::Int, ::Val{L}) where {G, L} = _static_species(g, s, Val(1), Val(L))
+@inline _static_species(g::G, s::Int, ::Val{L}, ::Val{L}) where {G, L} = g(Val(L))      # (the last species)
+@inline function _static_species(g::G, s::Int, ::Val{k}, ::Val{L}) where {G, k, L}
+    s == k && return g(Val(k))
+    return _static_species(g, s, Val(k + 1), Val(L))
+end
+# `op(…op(op(init, 1), 2)…, L)`, unrolled (`r` a constant in every call)
+@inline _species_fold(op::F, init, ::Val{L}) where {F, L} = _species_fold(op, init, Val(1), Val(L))
+@inline _species_fold(op::F, acc, ::Val{L}, ::Val{L}) where {F, L} = op(acc, L)
+@inline _species_fold(op::F, acc, ::Val{r}, ::Val{L}) where {F, r, L} = _species_fold(op, op(acc, r), Val(r + 1), Val(L))
