@@ -18,6 +18,7 @@ parameters, so any key below may appear in either place.
 | `:tmax` | — | Final time. `:Time_tmax` overrides it. |
 | `:snapshots` | — | Number of output intervals (≥ 1); `snapshots + 1` states are stored, including `t = 0`. |
 | `:remove_ghosts` | `true` | Drop boundary/ghost particles from the stored snapshots. |
+| `:snapshot_fields` | `(:volumes, :particle_orders)` | Per-particle arrays of the grid stored with every snapshot as statistics (`:volumes`, `:particle_orders`, `:neighbor_counts`, `:is_boundary`, `:tags`, `:wall_distances`, see [`snapshot_field`](@ref)); a name, a tuple or a vector; `()` stores none. Runs that save the full kinetic states (`:save_relax`) store none by default. |
 | `:T` | `Float64` | Floating-point type of the simulation. |
 | `:real_type` | `Float64` | Floating-point type of the exact reference (`analytical_solution`). |
 | `:save_relax` | `false` | Kinetic and BGK runs only: store the raw kinetic variables (distributions) instead of the macroscopic state. |

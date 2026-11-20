@@ -76,24 +76,16 @@ function run_direct_simulation(params::ParamDict)::Union{AbstractSimData, Nothin
         
         # 8. Execution
         ck = run_checkpoint(params)                       # set_checkpointing!: resume, save every `every` s
-        xs_svector, us_svector, ts_full, k_step, elapsed_time = solve_equation(
+        # (the run as a dataset: the snapshots, the metadata and the statistics of the run, see `solve_equation`)
+        sim_data = solve_equation(
             method, eq, pg, tmax, dt; 
             is_cfl = is_cfl, snapshots = params[:snapshots], 
             remove_ghosts = get(params, :remove_ghosts, true), 
             show_progress = _PROGRESS_BAR[], progress_interval = _PROGRESS_INTERVAL[],
-            adaptivity = adaptivity, checkpoint = ck
+            adaptivity = adaptivity, checkpoint = ck, snapshot_fields = _snapshot_fields(params),
+            params = params, xmins = geom.mins, xmaxs = geom.maxs
         )
-        
-        @info "Direct Simulation (D=$D) finished in$(round(elapsed_time, digits=2)) seconds."
-
-        # 9. Data Packaging
-        valid_indices = findall(i -> isassigned(us_svector, i), 1:length(us_svector))
-        sim_data = create_sim_data(xs_svector[valid_indices], us_svector[valid_indices], ts_full[valid_indices], params; xmins=Tuple(geom.mins), xmaxs=Tuple(geom.maxs), tmin=zero(T), tmax=tmax,
-                                   metadata = run_metadata(context, k_step, ts_full[last(valid_indices)], tmax;
-                                                           final_state = us_svector[last(valid_indices)], checkpoint = ck))
-        add_stat!(sim_data, :Runtime, elapsed_time, :none)
-        add_stat!(sim_data, :k_step, Float64(k_step), :none)
-        add_stat!(sim_data, :final_particle_count, Float64(pg.meta.N), :none)
+        @info "Direct Simulation (D=$D) finished in $(round(sim_data.stats[:Runtime][1], digits=2)) seconds."
         record_memory!(sim_data, context)
         
         remove_checkpoint(ck)                              # the run is done        

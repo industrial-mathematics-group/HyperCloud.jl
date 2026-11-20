@@ -96,30 +96,21 @@ function run_bgk_simulation(params::ParamDict)::Union{AbstractSimData, Nothing}
 
         # 9. Execution
         ck = run_checkpoint(params)                       # set_checkpointing!: resume, save every `every` s
-        xs_svector, us_svector, ts_full, k_step, elapsed_time = solve_equation(
+        save_relax = get(params, :save_relax, false) || get(params, :Kinetic_save_relax, false)
+        # (the run as a dataset, see `solve_equation`: a snapshot stores the macroscopic moments unless the distributions
+        # are asked for, as the kinetic runner)
+        sim_data = solve_equation(
             method, eq, pg, tmax, dt;
             is_cfl = is_cfl, snapshots = params[:snapshots],
             remove_ghosts = get(params, :remove_ghosts, true),
             show_progress = _PROGRESS_BAR[], progress_interval = _PROGRESS_INTERVAL[],
-            adaptivity = adaptivity, checkpoint = ck
+            adaptivity = adaptivity, checkpoint = ck,
+            snapshot_state = save_relax ? identity : (u -> moments(eq, u)),
+            # (a per-particle statistic is stored with the dataset's component count: none by default for the distributions)
+            snapshot_fields = _snapshot_fields(params, save_relax ? () : DEFAULT_SNAPSHOT_FIELDS),
+            params = params, xmins = geom.mins, xmaxs = geom.maxs
         )
-
-        @info "BGK Simulation (D=$D) finished in $(round(elapsed_time, digits=2)) seconds."
-
-        # 10. Data Packaging: macroscopic moments unless the distributions are requested
-        valid_indices = findall(i -> isassigned(us_svector, i), 1:length(us_svector))
-        us_final = if get(params, :save_relax, false) || get(params, :Kinetic_save_relax, false)   # as the kinetic runner
-            us_svector[valid_indices]
-        else
-            [[moments(eq, u) for u in snap] for snap in us_svector[valid_indices]]
-        end
-
-        sim_data = create_sim_data(xs_svector[valid_indices], us_final, ts_full[valid_indices], params; xmins=Tuple(geom.mins), xmaxs=Tuple(geom.maxs), tmin=zero(T), tmax=tmax,
-                                   metadata = run_metadata(context, k_step, ts_full[last(valid_indices)], tmax;
-                                                           final_state = last(us_final), checkpoint = ck))
-        add_stat!(sim_data, :Runtime, elapsed_time, :none)
-        add_stat!(sim_data, :k_step, Float64(k_step), :none)
-        add_stat!(sim_data, :final_particle_count, Float64(pg.meta.N), :none)
+        @info "BGK Simulation (D=$D) finished in $(round(sim_data.stats[:Runtime][1], digits=2)) seconds."
         record_memory!(sim_data, context)
 
         remove_checkpoint(ck)                              # the run is done
@@ -228,21 +219,13 @@ function _run_bgk_blocks(params::ParamDict, context::Dict, eq, W::Int)
     dt = is_cfl ? T(time_conf[:CFL]) : T(time_conf[:dt])
     tmax = T(get(time_conf, :tmax, params[:tmax]))
     ck = run_checkpoint(params)                       # set_checkpointing!: resume, save every `every` s
-    xs_svector, us_svector, ts_full, k_step, elapsed_time = solve_equation(
+    sim_data = solve_equation(                        # (the run as a dataset, see `solve_equation`)
         method, bk, pg, bs, tmax, dt;
         reduce = (Y, N, nb, i) -> block_moments(bk, Y, N, nb, i),
         is_cfl = is_cfl, snapshots = params[:snapshots], remove_ghosts = get(params, :remove_ghosts, true),
-        show_progress = _PROGRESS_BAR[], progress_interval = _PROGRESS_INTERVAL[], adaptivity = adaptivity, checkpoint = ck)
-    @info "BGK Simulation (block form, D=$D) finished in $(round(elapsed_time, digits=2)) seconds."
-
-    valid_indices = findall(i -> isassigned(us_svector, i), 1:length(us_svector))
-    us_final = us_svector[valid_indices]
-    sim_data = create_sim_data(xs_svector[valid_indices], us_final, ts_full[valid_indices], params; xmins=Tuple(geom.mins), xmaxs=Tuple(geom.maxs), tmin=zero(T), tmax=tmax,
-                               metadata = run_metadata(context, k_step, ts_full[last(valid_indices)], tmax;
-                                                       final_state = last(us_final), checkpoint = ck))
-    add_stat!(sim_data, :Runtime, elapsed_time, :none)
-    add_stat!(sim_data, :k_step, Float64(k_step), :none)
-    add_stat!(sim_data, :final_particle_count, Float64(pg.meta.N), :none)
+        show_progress = _PROGRESS_BAR[], progress_interval = _PROGRESS_INTERVAL[], adaptivity = adaptivity, checkpoint = ck,
+        snapshot_fields = _snapshot_fields(params), params = params, xmins = geom.mins, xmaxs = geom.maxs)
+    @info "BGK Simulation (block form, D=$D) finished in $(round(sim_data.stats[:Runtime][1], digits=2)) seconds."
     record_memory!(sim_data, context)
     remove_checkpoint(ck)                              # the run is done
     return sim_data
@@ -288,22 +271,14 @@ function _run_bgk_devices(params::ParamDict, context::Dict, eq, bk, IC, pg, geom
     dt = is_cfl ? T(time_conf[:CFL]) : T(time_conf[:dt])
     tmax = T(get(time_conf, :tmax, params[:tmax]))
     ck = run_checkpoint(params)                       # set_checkpointing!: resume, save every `every` s
-    xs_svector, us_svector, ts_full, k_step, elapsed_time = solve_equation(
+    sim_data = solve_equation(                        # (the run as a dataset, see `solve_equation`)
         devs, bk, tmax, dt;
         reduce_partial = (Y, N, nb, blocks, i) -> block_moments(bk, Y, N, nb, i, blocks),
         partial_type = HyperCloudCore.fluid_velocity_partial_type(bk),
         is_cfl = is_cfl, snapshots = params[:snapshots], remove_ghosts = get(params, :remove_ghosts, true),
-        show_progress = _PROGRESS_BAR[], progress_interval = _PROGRESS_INTERVAL[], checkpoint = ck)
-    @info "BGK Simulation (block form on $(length(devices)) device part(s), D=$D) finished in $(round(elapsed_time, digits=2)) seconds."
-
-    valid_indices = findall(i -> isassigned(us_svector, i), 1:length(us_svector))
-    us_final = us_svector[valid_indices]
-    sim_data = create_sim_data(xs_svector[valid_indices], us_final, ts_full[valid_indices], params; xmins=Tuple(geom.mins), xmaxs=Tuple(geom.maxs), tmin=zero(T), tmax=tmax,
-                               metadata = run_metadata(context, k_step, ts_full[last(valid_indices)], tmax;
-                                                       final_state = last(us_final), checkpoint = ck))
-    add_stat!(sim_data, :Runtime, elapsed_time, :none)
-    add_stat!(sim_data, :k_step, Float64(k_step), :none)
-    add_stat!(sim_data, :final_particle_count, Float64(first(parts).pg.meta.N), :none)
+        show_progress = _PROGRESS_BAR[], progress_interval = _PROGRESS_INTERVAL[], checkpoint = ck,
+        snapshot_fields = _snapshot_fields(params), params = params, xmins = geom.mins, xmaxs = geom.maxs)
+    @info "BGK Simulation (block form on $(length(devices)) device part(s), D=$D) finished in $(round(sim_data.stats[:Runtime][1], digits=2)) seconds."
     record_memory!(sim_data, context)
     remove_checkpoint(ck)                              # the run is done
     return sim_data

@@ -13,7 +13,8 @@ export Checkpointing, set_checkpointing!, get_checkpointing, remove_checkpoint
 # =========================================================================
 
 # The layout of the file (the keys below); a file of another layout is not resumed
-const _CHECKPOINT_FILE_FORMAT = 1
+# (2: the snapshot fields of `solve_equation` stored with the snapshots)
+const _CHECKPOINT_FILE_FORMAT = 2
 
 """
     Checkpointing(path; every = 1200, key = "")
@@ -83,13 +84,14 @@ end
 
 # Writes the checkpoint: the solver state (`checkpoint_state`), the loop state and the snapshots stored so far (only the
 # assigned slots), to a temporary file that then replaces the old checkpoint
-function _write_checkpoint(ck::Checkpointing, state, loop, xs, us, ts)
+function _write_checkpoint(ck::Checkpointing, state, loop, xs, us, ts, fields = ())
     dir = dirname(ck.path)
     isempty(dir) || mkpath(dir)
     taken = findall(k -> isassigned(us, k), eachindex(us))
     tmp = ck.path * ".tmp"
     JLD2.jldsave(tmp; format = _CHECKPOINT_FILE_FORMAT, key = ck.key, state, loop,
                  snapshot_slots = taken, xs = xs[taken], us = us[taken], ts = ts[taken],
+                 fields = Dict{Symbol, Any}(name => store[taken] for (name, store) in fields),
                  hypercloud = string(pkgversion(@__MODULE__)), hypercloudcore = string(pkgversion(HyperCloudCore)),
                  backend = _backend_name(get_backend()), written = string(Dates.now()))
     mv(tmp, ck.path; force = true)
@@ -127,15 +129,24 @@ function _set_aside(ck::Checkpointing, why::String)
 end
 
 # The resumed part of `solve_equation`: restores the solver state with `restore!(state)` and the stored snapshots into
-# `xs`, `us`, `ts`; returns the loop state to resume with, or `nothing` (no checkpoint: the run starts at t = 0)
-function _resume!(restore!, ck::Union{Nothing, Checkpointing}, xs, us, ts)
+# `xs`, `us`, `ts` and the snapshot fields; returns the loop state to resume with, or `nothing` (no checkpoint: the run
+# starts at t = 0)
+function _resume!(restore!, ck::Union{Nothing, Checkpointing}, xs, us, ts, fields = ())
     ck === nothing && return nothing
     data = _read_checkpoint(ck)
     data === nothing && return nothing
+    stored = data["fields"]
+    for (name, _) in fields
+        haskey(stored, name) || throw(ArgumentError("the checkpoint $(ck.path) holds the snapshot fields $(sort!(collect(keys(stored)))), " *
+                                                    "not :$name (the run asks for $(first.(fields)))"))
+    end
     restore!(data["state"])
     for (j, k) in enumerate(data["snapshot_slots"])
         k <= length(us) || throw(ArgumentError("the checkpoint $(ck.path) holds snapshot $k, the run stores $(length(us))"))
         xs[k], us[k], ts[k] = data["xs"][j], data["us"][j], data["ts"][j]
+        for (name, store) in fields
+            store[k] = stored[name][j]
+        end
     end
     loop = data["loop"]
     ck.restarts[] = loop.restarts + 1

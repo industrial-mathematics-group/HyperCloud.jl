@@ -2,6 +2,46 @@
 # backend helpers, the memory limit, spherical WENO, the run_all_simulations driver.
 
 @testset "Simulations" begin
+    @testset "The run as a dataset: solve_equation's statistics and metadata, the snapshot fields (:snapshot_fields)" begin
+        params = merge(linear_2d_base(true), Dict{Symbol, Any}(:IC_name => :gauss, :IC_a => (1.0,), :IC_b => (0.5, 0.5), :IC_width => 0.1),
+                       UPWIND1)
+        sim = run_direct_simulation(params)
+        @test sim !== nothing
+        reg = sim.domain.stat_registry
+        @test reg[:Runtime] == Symbol[] && reg[:k_step] == Symbol[] && reg[:final_particle_count] == Symbol[]
+        @test reg[:particle_count] == :time && reg[:volumes] == :all && reg[:particle_orders] == :all
+        @test sim.stats[:k_step][1] > 0 && sim.stats[:final_particle_count][1] >= length(sim.x[end])
+        @test all(k -> sim.stats[:particle_count][k][1] == length(sim.x[k]), eachindex(sim.t))
+        @test length(sim.stats[:volumes]) == length(sim.t)
+        @test all(k -> length(sim.stats[:volumes][k]) == length(sim.x[k]) == length(sim.stats[:particle_orders][k]), eachindex(sim.t))
+        @test sum(v[1] for v in sim.stats[:volumes][end]) ≈ 1.0 rtol = 1e-2         # (the unit square, periodic)
+        @test all(o -> o[1] >= 1 && isinteger(o[1]), sim.stats[:particle_orders][end])
+        @test calculate_hash(params) == calculate_hash(merge(params, Dict{Symbol, Any}()))   # (the default enters no parameter)
+        # the fields named by the key (a name, a tuple, none); an unknown one fails the run
+        sim2 = run_direct_simulation(merge(params, Dict{Symbol, Any}(:snapshot_fields => (:neighbor_counts, :tags))))
+        @test sim2 !== nothing && !haskey(sim2.stats, :volumes) && haskey(sim2.stats, :tags)
+        @test all(c -> c[1] > 0, sim2.stats[:neighbor_counts][1]) && all(t -> t[1] == 0, sim2.stats[:tags][1])   # (interior only)
+        sim3 = run_direct_simulation(merge(params, Dict{Symbol, Any}(:snapshot_fields => ())))
+        @test sim3 !== nothing && !haskey(sim3.stats, :volumes) && !haskey(sim3.stats, :particle_orders) && haskey(sim3.stats, :Runtime)
+        sim4 = run_direct_simulation(merge(params, Dict{Symbol, Any}(:snapshot_fields => :volumes, :remove_ghosts => false)))
+        @test sim4 !== nothing && haskey(sim4.stats, :volumes) && length(sim4.stats[:volumes][1]) == length(sim4.x[1])
+        bad = @test_logs (:error,) match_mode = :any run_direct_simulation(merge(params, Dict{Symbol, Any}(:snapshot_fields => (:nope,))))
+        @test bad === nothing
+        @test_throws ArgumentError HC._snapshot_fields(Dict{Symbol, Any}(:snapshot_fields => "volumes"))
+        # a field of one's own: a method of `snapshot_field` (here the first coordinate, aligned with the stored positions)
+        @eval HC.snapshot_field(::Val{:x1_test}, pg::ParticleGrid) = [p[1] for p in HC.host_view(pg.core.positions, pg.meta.N)]
+        sim5 = run_direct_simulation(merge(params, Dict{Symbol, Any}(:snapshot_fields => (:x1_test,))))
+        @test sim5 !== nothing && all(k -> [v[1] for v in sim5.stats[:x1_test][k]] == [x[1] for x in sim5.x[k]], eachindex(sim5.t))
+        # the dataset is solve_equation's: the run's parameters, its metadata, the extent of the grid's domain
+        @test sim isa LSimData && sim.params == params
+        @test sim.metadata[:steps] == sim.stats[:k_step][1] && sim.metadata[:finite] && !sim.metadata[:stopped_early]
+        @test sim.domain.mins[1:2] == [0.0, 0.0] && sim.domain.maxs[1:2] == [1.0, 1.0]           # (then the time axis)
+        # what a snapshot stores of a state (`snapshot_state`: the kinetic and BGK runners store the moments)
+        st = [State{2, Float64}(1.0, 2.0), State{2, Float64}(3.0, 4.0)]
+        @test HC._stored_states(identity, view(st, 1:2)) == st
+        @test HC._stored_states(u -> SVector(sum(u)), view(st, 1:2)) == [SVector(3.0), SVector(7.0)]
+    end
+
     @testset "Initial conditions (2D linear advection)" begin
         cases = [
             ("Box", true, Dict{Symbol, Any}(:IC_name => :box, :IC_u_bg => (0.1,), :IC_u_box => (1.0,),

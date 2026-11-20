@@ -176,9 +176,9 @@ function _grid_fingerprint(pg::ParticleGrid)
 end
 
 """
-    run_metadata(context, k_step, t_final, tmax; final_state = nothing, checkpoint = nothing) -> Dict{Symbol, Any}
+    run_metadata(T, k_step, t_final, tmax; final_state = nothing, checkpoint = nothing) -> Dict{Symbol, Any}
 
-What a runner stores in the dataset's `metadata` (PDEStudioCore ≥ 0.5; not data, so never plotted as a statistic):
+What [`solve_equation`](@ref) stores in the dataset's `metadata` (`T`: the float type of the run) (PDEStudioCore ≥ 0.5; not data, so never plotted as a statistic):
 the HyperCloudCore version (PDEStudioCore's `:provenance` names only the solver's own package, HyperCloud), the
 execution backend, the float type, the number of steps, the time the run reached, whether it stopped before
 `tmax` (`:stopped_early`) and, given the last stored state, whether that state is finite (`:finite`). A blown-up
@@ -187,8 +187,7 @@ blow-up the time step does not see (fixed `dt`, constant wave speeds) is only de
 `snapshots = 1` the run reaches `tmax` with a non-finite state. With a `checkpoint` ([`Checkpointing`](@ref)), `:restarts`
 is the number of times the run was resumed from it (0: it ran in one go).
 """
-function run_metadata(context::Dict, k_step::Integer, t_final::Real, tmax::Real; final_state = nothing, checkpoint = nothing)
-    T = get(context, :T, Float64)
+function run_metadata(::Type{T}, k_step::Integer, t_final::Real, tmax::Real; final_state = nothing, checkpoint = nothing) where {T}
     meta = Dict{Symbol, Any}(
         :hypercloudcore => string(pkgversion(HyperCloudCore)),
         :backend        => _backend_name(get_backend()),

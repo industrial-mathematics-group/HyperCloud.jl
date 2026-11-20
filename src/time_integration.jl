@@ -1,4 +1,4 @@
-export solve_equation, saveData!
+export solve_equation, saveData!, snapshot_field, DEFAULT_SNAPSHOT_FIELDS
 
 """
     NoFallbackGrad <: DivergenceInterpolator
@@ -11,6 +11,87 @@ struct NoFallbackGrad <: DivergenceInterpolator end
 HyperCloudCore._extract_order(::NoFallbackGrad) = 1
 HyperCloudCore._divergence_degree(::NoFallbackGrad) = 1
 HyperCloudCore.update_size!(::NoFallbackGrad, ::Int) = nothing
+
+# =========================================================================
+# WHAT A RUN STORES BESIDES THE STATES: PER-PARTICLE ARRAYS OF THE GRID
+# =========================================================================
+"""
+    snapshot_field(::Val{name}, pg::ParticleGrid) -> AbstractVector
+
+The per-particle array of the grid that [`solve_equation`](@ref) stores with every snapshot for `name` in its
+`snapshot_fields` (as a statistic that keeps all dimensions, converted to the run's float type; the ghosts are left out
+with the positions when `remove_ghosts` is set). The array may live on a device and be longer than the particle count
+(the first `pg.meta.N` entries are read). Defined names:
+
+- `:volumes`: the particle volumes (`Σ V u` is the discrete mass of a moving or adapted cloud);
+- `:particle_orders`: the consistency order of every particle after the last step (lowered by MOOD);
+- `:neighbor_counts`: the number of neighbours;
+- `:is_boundary`: 1 for a ghost (boundary) particle, 0 for an interior one;
+- `:tags`: the boundary tag (0 for an interior particle);
+- `:wall_distances`: the distance of a ghost to its wall.
+
+A method for another `name` makes it available (`HyperCloud.snapshot_field(::Val{:my_field}, pg) = …`).
+"""
+snapshot_field(::Val{name}, pg::ParticleGrid) where {name} =
+    throw(ArgumentError("no snapshot field :$name (defined: :volumes, :particle_orders, :neighbor_counts, :is_boundary, :tags, " *
+                        ":wall_distances; add a method of HyperCloud.snapshot_field for another one)"))
+snapshot_field(::Val{:volumes}, pg::ParticleGrid) = pg.core.volumes
+snapshot_field(::Val{:particle_orders}, pg::ParticleGrid) = pg.core.particle_orders
+snapshot_field(::Val{:neighbor_counts}, pg::ParticleGrid) = pg.neighbor.counts
+snapshot_field(::Val{:is_boundary}, pg::ParticleGrid) = pg.core.is_boundary
+snapshot_field(::Val{:tags}, pg::ParticleGrid) = pg.core.tags
+snapshot_field(::Val{:wall_distances}, pg::ParticleGrid) = pg.core.wall_distances
+
+"The per-particle arrays [`solve_equation`](@ref) stores with every snapshot by default: `(:volumes, :particle_orders)`."
+const DEFAULT_SNAPSHOT_FIELDS = (:volumes, :particle_orders)
+
+# `:snapshot_fields` of a runner's parameters (a name, or a tuple or vector of names; `default` without the key)
+function _snapshot_fields(params::AbstractDict, default = DEFAULT_SNAPSHOT_FIELDS)
+    f = get(params, :snapshot_fields, default)
+    f isa Symbol && (f = (f,))
+    (f isa Union{Tuple, AbstractVector} && all(x -> x isa Symbol, f)) ||
+        throw(ArgumentError(":snapshot_fields must be a field name or a tuple or vector of names (Symbols), got $(repr(f))"))
+    return Tuple(f)
+end
+
+# The storage of the snapshot fields, one slot per snapshot (in the order of `names`; an unknown name fails here, before
+# the run)
+function _field_storage(names, pg::ParticleGrid{D, M, T}, nslots::Int) where {D, M, T}
+    all(n -> n isa Symbol, names) || throw(ArgumentError("snapshot_fields must be field names (Symbols), got $(repr(names))"))
+    allunique(names) || throw(ArgumentError("snapshot_fields names a field twice: $(repr(names))"))
+    foreach(n -> snapshot_field(Val(n), pg), names)
+    return [n => Vector{Vector{T}}(undef, nslots) for n in names]
+end
+# Stores the snapshot fields of slot `k`: the particles `idx` of every field (the same as the positions)
+function _save_fields!(fields, k::Int, pg::ParticleGrid{D, M, T}, idx) where {D, M, T}
+    for (name, store) in fields
+        a = host_view(snapshot_field(Val(name), pg), pg.meta.N)
+        store[k] = T[T(a[i]) for i in idx]
+    end
+    return nothing
+end
+# The dataset of a run (PDEStudioCore's `LSimData`): the stored snapshots (the slots that were reached), the run's
+# metadata and its statistics with the dimensions each keeps
+function _run_result(xs, us, ts, fields, k_step::Int, elapsed::Real, pg::ParticleGrid, tmax::Real, params, checkpoint, xmins, xmaxs)
+    taken = findall(k -> isassigned(us, k), eachindex(us))
+    xs, us, ts = xs[taken], us[taken], ts[taken]
+    T = eltype(ts)
+    mins = something(xmins, _domain_bounds(pg)[1])
+    maxs = something(xmaxs, _domain_bounds(pg)[2])
+    sim = create_sim_data(xs, us, ts, params; xmins = Tuple(mins), xmaxs = Tuple(maxs), tmin = zero(T), tmax = tmax,
+                          metadata = run_metadata(T, k_step, last(ts), tmax; final_state = last(us), checkpoint = checkpoint))
+    add_stat!(sim, :Runtime, Float64(elapsed), Symbol[])
+    add_stat!(sim, :k_step, k_step, Symbol[])
+    add_stat!(sim, :final_particle_count, pg.meta.N, Symbol[])
+    add_stat!(sim, :particle_count, [length(x) for x in xs], :time)
+    for (name, store) in fields
+        add_stat!(sim, name, store[taken], :all)
+    end
+    return sim
+end
+# The bounds of the domain (the dataset's extent): the geometry's box, else the canvas of the computational domain
+_domain_bounds(pg::ParticleGrid) = hasproperty(pg.geometry, :mins) ? (pg.geometry.mins, pg.geometry.maxs) :
+                                                                      (pg.domain.canvas_mins, pg.domain.canvas_maxs)
 
 # Largest absolute component of a stored state (NaN or Inf if any component is not finite).
 function _max_abs(states::AbstractVector)
@@ -39,7 +120,7 @@ function _check_snapshot(state, t, tmax, k_step, u0_scale, growth_warned::Bool; 
 end
 
 """
-    saveData!(xs_storage, us_storage, ts_storage, snap_idx, pg, current_t, remove_ghosts)
+    saveData!(xs_storage, us_storage, ts_storage, snap_idx, pg, current_t, remove_ghosts; fields = (), snapshot_state = identity)
 
 Extracts and archives the simulation state at a specific snapshot index.
 
@@ -47,6 +128,10 @@ Extracts and archives the simulation state at a specific snapshot index.
 - Records the current time into `ts_storage`.
 - If `remove_ghosts` is true, it filters out boundary particles and saves only the active domain core. Otherwise, it copies the entire grid.
 - Allocates new state and position vectors for the targeted snapshot and copies the corresponding views from the particle grid.
+- `fields`: `name => storage` pairs; slot `snap_idx` of each storage gets the grid's [`snapshot_field`](@ref) `name` of the
+  same particles.
+- `snapshot_state`: the stored value of a particle's state `u` is `snapshot_state(u)` (e.g. the macroscopic moments of
+  a kinetic state); `identity` stores the state.
 """
 function saveData!(
     xs_storage::AbstractVector, 
@@ -55,8 +140,10 @@ function saveData!(
     snap_idx::Int, 
     pg::ParticleGrid{D, M, T}, 
     current_t::Real, 
-    remove_ghosts::Bool
-) where {D, M, T}
+    remove_ghosts::Bool;
+    fields = (),
+    snapshot_state::F = identity
+) where {D, M, T, F}
     
     ts_storage[snap_idx] = T(current_t)
     N_active = pg.meta.N 
@@ -69,23 +156,26 @@ function saveData!(
         N_save = length(indices)
         
         xs_storage[snap_idx] = Vector{Space{D, T}}(undef, N_save)
-        us_storage[snap_idx] = Vector{State{M, T}}(undef, N_save)
-        
         copyto!(xs_storage[snap_idx], view(pos_array, indices))
-        copyto!(us_storage[snap_idx], view(rho_array, indices))
+        us_storage[snap_idx] = _stored_states(snapshot_state, view(rho_array, indices))
+        _save_fields!(fields, snap_idx, pg, indices)
     else
         N_save = N_active
         
         xs_storage[snap_idx] = Vector{Space{D, T}}(undef, N_save)
-        us_storage[snap_idx] = Vector{State{M, T}}(undef, N_save)
-        
         copyto!(xs_storage[snap_idx], view(pos_array, 1:N_save))
-        copyto!(us_storage[snap_idx], view(rho_array, 1:N_save))
+        us_storage[snap_idx] = _stored_states(snapshot_state, view(rho_array, 1:N_save))
+        _save_fields!(fields, snap_idx, pg, 1:N_save)
     end
+    return nothing
 end
 
+# The stored values of a snapshot's states: a copy of the states, or `f` of each
+_stored_states(::typeof(identity), states) = collect(states)
+_stored_states(f::F, states) where {F} = [f(u) for u in states]
+
 """
-    solve_equation(timestepper, eq, pg, tmax, dt; kwargs...)
+    solve_equation(timestepper, eq, pg, tmax, dt; kwargs...) -> LSimData
 
 The primary simulation orchestrator governing the main time-stepping loop. 
 
@@ -107,16 +197,26 @@ The primary simulation orchestrator governing the main time-stepping loop.
   of wall time, and a run that finds the file resumes from it (the grid, the states and the snapshots stored so far are
   restored before the first step; the initial conditions set before are overwritten) and continues bit for bit as the
   run that wrote it would have. The file stays after the run (`remove_checkpoint`).
+- `snapshot_fields`: the per-particle arrays of the grid stored with every snapshot ([`snapshot_field`](@ref) names,
+  default [`DEFAULT_SNAPSHOT_FIELDS`](@ref) `= (:volumes, :particle_orders)`; `()` stores none).
+- `snapshot_state`: what is stored of a particle's state `u`: `snapshot_state(u)` (default `identity`, the state; e.g.
+  `u -> moments(eq, u)` stores the macroscopic moments of a kinetic state). The blow-up check runs on the stored values.
+- `params`: the parameters of the run, the dataset's `params` (they name its cache file in PDEStudioCore's pipeline).
+- `xmins`, `xmaxs`: the extent of the dataset (default: the box of the grid's geometry).
 
 # Returns
-- A tuple containing: `(position_history, state_history, time_history, total_steps, elapsed_wall_time)`. A resumed run
-  counts the steps and the wall time of all its attempts.
+- The run as a PDEStudioCore `LSimData`: `sim.x[k]`, `sim.u[k]`, `sim.t[k]` of the stored snapshots (the ones reached: a
+  run that stopped early has fewer than `snapshots + 1`), the metadata of the run (`run_metadata`: versions, backend,
+  steps, the time reached, `:stopped_early`, `:finite`, `:restarts`) and its statistics, each registered with the
+  dimensions it keeps: `:Runtime` (wall time of the loop in seconds) and `:k_step` (steps), both over all attempts of a
+  resumed run, `:final_particle_count` (numbers), `:particle_count` (the particles stored per snapshot) and every name
+  of `snapshot_fields` (one value per particle and snapshot, aligned with `sim.x[k]`).
 
 The loop stops early with a warning that gives the time reached if the time step collapses (below `1e-12 tmax`)
 or is not finite, or if a stored snapshot is not finite (a blown-up state; this also covers fixed time steps
 and equations with constant wave speeds, whose step never collapses). Every stored snapshot is checked,
 the final one included. The last stored state is the one at that time, and the snapshots that were not
-reached are left unassigned. Each blow-up is reported once (the final slot of a stopped run is not checked again).
+reached are not part of the dataset. Each blow-up is reported once (the final slot of a stopped run is not checked again).
 A snapshot that grew by more than a factor `1e8` over the initial state gives a warning (once) but does not stop
 the run. An infinite CFL step with a finite state and a finite CFL number (no wave moves) advances straight to
 `tmax`; an infinite CFL number (or fixed step) stops at once.
@@ -133,29 +233,38 @@ function solve_equation(
     show_progress::Bool = true,
     progress_interval::Real = 1.0,
     adaptivity::Union{Nothing, ParticleAdaptivity} = nothing,
-    checkpoint::Union{Nothing, Checkpointing} = nothing
-) where {D, M, T}
+    checkpoint::Union{Nothing, Checkpointing} = nothing,
+    snapshot_fields = DEFAULT_SNAPSHOT_FIELDS,
+    snapshot_state::F = identity,
+    params::AbstractDict = ParamDict(),
+    xmins = nothing,
+    xmaxs = nothing
+) where {D, M, T, F}
     snapshots >= 1 || throw(ArgumentError("snapshots must be ≥ 1 (the number of output intervals), got $snapshots"))
+    # the stored value of a state (the state, or `snapshot_state` of it: e.g. the moments of a kinetic state)
+    R  = snapshot_state === identity ? State{M, T} : Base.promote_op(snapshot_state, State{M, T})
+    isconcretetype(R) || (R = typeof(snapshot_state(zero(State{M, T}))))
     xs = Vector{Vector{Space{D, T}}}(undef, snapshots + 1)
-    us = Vector{Vector{State{M, T}}}(undef, snapshots + 1)
+    us = Vector{Vector{R}}(undef, snapshots + 1)
     ts = Vector{T}(undef, snapshots + 1)
+    fields = _field_storage(snapshot_fields, pg, snapshots + 1)
     div_interp = hasproperty(timestepper, :divergence_interpolator) ? timestepper.divergence_interpolator : NoFallbackGrad()
 
     step!(t, d) = (timestepper(eq, pg, t, d); adaptivity === nothing || adapt_particles!(pg, adaptivity, _extract_order(div_interp)); nothing)
-    save!(k, t) = (saveData!(xs, us, ts, k, pg, t, remove_ghosts); us[k])
-    resume = _resume!(ck -> restore_checkpoint!(pg, ck), checkpoint, xs, us, ts)
+    save!(k, t) = (saveData!(xs, us, ts, k, pg, t, remove_ghosts; fields, snapshot_state); us[k])
+    resume = _resume!(ck -> restore_checkpoint!(pg, ck), checkpoint, xs, us, ts, fields)
     k_step, elapsed_time = _time_loop(step!, () -> get_time_step(pg, eq, div_interp), save!,
                                       () -> isfinite(_max_abs(host_view(pg.rhos, pg.meta.N))),
                                       T(tmax), T(dt), is_cfl, Int(snapshots), show_progress, progress_interval;
-                                      _checkpoint_kw(checkpoint, () -> checkpoint_state(pg), xs, us, ts, resume)...)
-    return xs, us, ts, k_step, elapsed_time
+                                      _checkpoint_kw(checkpoint, () -> checkpoint_state(pg), xs, us, ts, fields, resume)...)
+    return _run_result(xs, us, ts, fields, k_step, elapsed_time, pg, tmax, params, checkpoint, xmins, xmaxs)
 end
 
 # The checkpoint keywords of `_time_loop`: the resumed loop state, the writer of a checkpoint (the solver state from
 # `state()`) and its interval
-_checkpoint_kw(::Nothing, state, xs, us, ts, resume) = (; resume)
-_checkpoint_kw(ck::Checkpointing, state, xs, us, ts, resume) =
-    (; resume, checkpoint! = loop -> _write_checkpoint(ck, state(), loop, xs, us, ts), every = ck.every)
+_checkpoint_kw(::Nothing, state, xs, us, ts, fields, resume) = (; resume)
+_checkpoint_kw(ck::Checkpointing, state, xs, us, ts, fields, resume) =
+    (; resume, checkpoint! = loop -> _write_checkpoint(ck, state(), loop, xs, us, ts, fields), every = ck.every)
 
 """
     solve_equation(timestepper::BlockTimeStepper, eq, pg, bs::BlockState, tmax, dt; reduce, kwargs...)
@@ -163,8 +272,9 @@ _checkpoint_kw(ck::Checkpointing, state, xs, us, ts, resume) =
 The time loop of [`solve_equation`](@ref) for the block pipeline: the block state `bs` is advanced, and the
 stored snapshots hold `reduce(Y, N, nb, i)` per particle (the macroscopic moments, e.g.
 `(Y, N, nb, i) -> block_moments(bk, Y, N, nb, i)`; a kernel function, run on the storage of the state and copied to the
-host), never the full distribution; `adaptivity` is applied between steps on every block. The other keywords as for the
-standard pipeline (a `checkpoint` saves and restores the block state with the grid).
+host), never the full distribution; `adaptivity` is applied between steps on every block. The other keywords and the
+returned `LSimData` as for the standard pipeline (a `checkpoint` saves and restores the block state with the
+grid).
 """
 function solve_equation(
     timestepper::BlockTimeStepper,
@@ -180,7 +290,11 @@ function solve_equation(
     show_progress::Bool = true,
     progress_interval::Real = 1.0,
     adaptivity::Union{Nothing, ParticleAdaptivity} = nothing,
-    checkpoint::Union{Nothing, Checkpointing} = nothing
+    checkpoint::Union{Nothing, Checkpointing} = nothing,
+    snapshot_fields = DEFAULT_SNAPSHOT_FIELDS,
+    params::AbstractDict = ParamDict(),
+    xmins = nothing,
+    xmaxs = nothing
 ) where {D, W, T}
     snapshots >= 1 || throw(ArgumentError("snapshots must be ≥ 1 (the number of output intervals), got $snapshots"))
     # the type of the reduction from particle 1's blocks (a host copy of nb states, not of the state)
@@ -188,6 +302,7 @@ function solve_equation(
     xs = Vector{Vector{Space{D, T}}}(undef, snapshots + 1)
     us = Vector{Vector{R}}(undef, snapshots + 1)
     ts = Vector{T}(undef, snapshots + 1)
+    fields = _field_storage(snapshot_fields, pg, snapshots + 1)
     div_interp = timestepper.inner.divergence_interpolator
     # the reduction of every particle on the storage of the state (a kernel), copied to the host: a snapshot moves
     # (D + 2) N values, not the state
@@ -201,13 +316,13 @@ function solve_equation(
 
     step!(t, d) = (timestepper(eq, pg, bs, t, d);
                    adaptivity === nothing || adapt_particles!(pg, adaptivity, _extract_order(div_interp), bs); nothing)
-    save!(k, t) = (_save_block_data!(xs, us, ts, k, pg, t, remove_ghosts, reduce_all!()); us[k])
+    save!(k, t) = (_save_block_data!(xs, us, ts, fields, k, pg, t, remove_ghosts, reduce_all!()); us[k])
     finite()    = all(m -> all(isfinite, m), reduce_all!())
-    resume = _resume!(ck -> restore_checkpoint!(pg, bs, ck), checkpoint, xs, us, ts)
+    resume = _resume!(ck -> restore_checkpoint!(pg, bs, ck), checkpoint, xs, us, ts, fields)
     k_step, elapsed_time = _time_loop(step!, () -> get_time_step(pg, eq, div_interp, bs), save!, finite,
                                       T(tmax), T(dt), is_cfl, Int(snapshots), show_progress, progress_interval;
-                                      _checkpoint_kw(checkpoint, () -> checkpoint_state(pg, bs), xs, us, ts, resume)...)
-    return xs, us, ts, k_step, elapsed_time
+                                      _checkpoint_kw(checkpoint, () -> checkpoint_state(pg, bs), xs, us, ts, fields, resume)...)
+    return _run_result(xs, us, ts, fields, k_step, elapsed_time, pg, tmax, params, checkpoint, xmins, xmaxs)
 end
 
 """
@@ -216,26 +331,29 @@ end
 The time loop of a block state split over devices: `devs(t, dt)` advances, and the stored snapshots hold the sum
 over the parts of `reduce_partial(Y, N, nb, blocks, i)` (a kernel function of a part's blocks, the moments of a block
 range: `(Y, N, nb, blocks, i) -> block_moments(bk, Y, N, nb, i, blocks)`), of type `partial_type`, computed on every
-device and summed on the host (`host_reduction`). No adaptivity. The other keywords as for the block state (a
-`checkpoint` holds the blocks of all parts: it resumes on any split, or on a single block state).
+device and summed on the host (`host_reduction`). No adaptivity. The other keywords and the returned
+`LSimData` as for the block state (a `checkpoint` holds the blocks of all parts: it resumes on any split, or on
+a single block state; the snapshot fields are those of the first part's grid, the same cloud on every part).
 """
 function solve_equation(devs::BlockDevices{D, W, T}, eq, tmax::Real, dt::Real; reduce_partial, partial_type::Type{P}, is_cfl::Bool = false,
                         snapshots::Integer = 10, remove_ghosts::Bool = false, show_progress::Bool = true, progress_interval::Real = 1.0,
-                        checkpoint::Union{Nothing, Checkpointing} = nothing) where {D, W, T, P}
+                        checkpoint::Union{Nothing, Checkpointing} = nothing, snapshot_fields = DEFAULT_SNAPSHOT_FIELDS,
+                        params::AbstractDict = ParamDict(), xmins = nothing, xmaxs = nothing) where {D, W, T, P}
     snapshots >= 1 || throw(ArgumentError("snapshots must be ≥ 1 (the number of output intervals), got $snapshots"))
-    pg = first(devs.parts).pg
+    pg = first(devs.parts).pg                         # (every part holds the same cloud: the fields are read from the first)
     xs = Vector{Vector{Space{D, T}}}(undef, snapshots + 1)
     us = Vector{Vector{P}}(undef, snapshots + 1)
     ts = Vector{T}(undef, snapshots + 1)
+    fields = _field_storage(snapshot_fields, pg, snapshots + 1)
     moments()   = host_reduction(reduce_partial, devs, P)
     step!(t, d) = (devs(t, d); nothing)
-    save!(k, t) = (_save_block_data!(xs, us, ts, k, pg, t, remove_ghosts, moments()); us[k])
+    save!(k, t) = (_save_block_data!(xs, us, ts, fields, k, pg, t, remove_ghosts, moments()); us[k])
     finite()    = all(m -> all(isfinite, m), moments())
-    resume = _resume!(ck -> restore_checkpoint!(devs, ck), checkpoint, xs, us, ts)
+    resume = _resume!(ck -> restore_checkpoint!(devs, ck), checkpoint, xs, us, ts, fields)
     k_step, elapsed_time = _time_loop(step!, () -> get_time_step(devs), save!, finite,
                                       T(tmax), T(dt), is_cfl, Int(snapshots), show_progress, progress_interval;
-                                      _checkpoint_kw(checkpoint, () -> checkpoint_state(devs), xs, us, ts, resume)...)
-    return xs, us, ts, k_step, elapsed_time
+                                      _checkpoint_kw(checkpoint, () -> checkpoint_state(devs), xs, us, ts, fields, resume)...)
+    return _run_result(xs, us, ts, fields, k_step, elapsed_time, pg, tmax, params, checkpoint, xmins, xmaxs)
 end
 
 # Kernel body (see HyperCloudCore's Backend.jl): the reduction of particle `i` over its blocks
@@ -243,14 +361,15 @@ end
     @inbounds out[i] = reduce(Y, N, nb, i)
     return nothing
 end
-# The stored data of a block state: positions and the per-particle reductions (`moments`, on the host)
-function _save_block_data!(xs, us, ts, k::Int, pg::ParticleGrid{D, W, T}, t, remove_ghosts::Bool, moments) where {D, W, T}
+# The stored data of a block state: positions, the per-particle reductions (`moments`, on the host) and the snapshot fields
+function _save_block_data!(xs, us, ts, fields, k::Int, pg::ParticleGrid{D, W, T}, t, remove_ghosts::Bool, moments) where {D, W, T}
     N  = pg.meta.N
     ts[k] = T(t)
     pos = host_view(get_positions(pg), N)
     idx = remove_ghosts ? findall(!, host_view(pg.core.is_boundary, N)) : collect(1:N)
     xs[k] = [pos[i] for i in idx]
     us[k] = [moments[i] for i in idx]
+    _save_fields!(fields, k, pg, idx)
     return nothing
 end
 # The block-major state on the host (a view of a host array, a copy of a device array)
