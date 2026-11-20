@@ -82,33 +82,33 @@ function run_kinetic_simulation(params::ParamDict)::Union{AbstractSimData, Nothi
         
         # 9. Execution
         ck = run_checkpoint(params)                       # set_checkpointing!: resume, save every `every` s
-        xs_svector, us_svector, ts_full, k_step, elapsed_time = solve_equation(
+        save_relax = get(params, :save_relax, false) || get(kin_conf, :save_relax, false)
+        xs_svector, us_svector, ts_full, stats = solve_equation(
             method, eq_kin, pg, tmax, dt; 
             is_cfl = is_cfl, snapshots = params[:snapshots], 
             remove_ghosts = get(params, :remove_ghosts, true), 
             show_progress = _PROGRESS_BAR[], progress_interval = _PROGRESS_INTERVAL[],
-            adaptivity = adaptivity, checkpoint = ck
+            adaptivity = adaptivity, checkpoint = ck,
+            # (a per-particle statistic is stored with the dataset's component count: none by default for the kinetic states)
+            snapshot_fields = _snapshot_fields(params, save_relax ? () : DEFAULT_SNAPSHOT_FIELDS)
         )
         
-        @info "Kinetic Simulation (D=$D) finished in$(round(elapsed_time, digits=2)) seconds."
+        @info "Kinetic Simulation (D=$D) finished in $(round(stats[:Runtime], digits=2)) seconds."
 
         # 10. Data Packaging & Macroscopic Collapse
-        valid_indices = findall(i -> isassigned(us_svector, i), 1:length(us_svector))
         
-        if get(params, :save_relax, false) || get(kin_conf, :save_relax, false)
-            us_final = us_svector[valid_indices]
+        if save_relax
+            us_final = us_svector
         else
             # Extract km directly from the returned source_term
             km = source_term.km
-            us_final = [[km(u) for u in snap] for snap in us_svector[valid_indices]]
+            us_final = [[km(u) for u in snap] for snap in us_svector]
         end
         
-        sim_data = create_sim_data(xs_svector[valid_indices], us_final, ts_full[valid_indices], params; xmins=Tuple(geom.mins), xmaxs=Tuple(geom.maxs), tmin=zero(T), tmax=tmax,
-                                   metadata = run_metadata(context, k_step, ts_full[last(valid_indices)], tmax;
+        sim_data = create_sim_data(xs_svector, us_final, ts_full, params; xmins=Tuple(geom.mins), xmaxs=Tuple(geom.maxs), tmin=zero(T), tmax=tmax,
+                                   metadata = run_metadata(context, stats[:k_step], last(ts_full), tmax;
                                                            final_state = last(us_final), checkpoint = ck))
-        add_stat!(sim_data, :Runtime, elapsed_time, :none)
-        add_stat!(sim_data, :k_step, Float64(k_step), :none)
-        add_stat!(sim_data, :final_particle_count, Float64(pg.meta.N), :none)
+        add_stats!(sim_data, stats)                       # the run's statistics (the time, the steps, the snapshot fields)
         record_memory!(sim_data, context)
         
         remove_checkpoint(ck)                              # the run is done

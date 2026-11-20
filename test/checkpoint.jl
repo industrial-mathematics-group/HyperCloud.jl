@@ -21,7 +21,10 @@ function killed_and_resumed(params, dir; kills = (7,))
         set_checkpointing!(nothing)
     end
 end
-same_result(a, b) = a !== nothing && b !== nothing && isequal(a.x, b.x) && isequal(a.u, b.u) && isequal(a.t, b.t)
+# (with the run's per-snapshot statistics: the snapshot fields are restored from the checkpoint with the snapshots)
+same_stats(a, b) = all(n -> haskey(a.stats, n) == haskey(b.stats, n) && (!haskey(a.stats, n) || isequal(a.stats[n], b.stats[n])),
+                       (:volumes, :particle_orders, :particle_count))
+same_result(a, b) = a !== nothing && b !== nothing && isequal(a.x, b.x) && isequal(a.u, b.u) && isequal(a.t, b.t) && same_stats(a, b)
 stat(sim, name) = sim.stats[name][1]
 
 @testset "Checkpoints" begin
@@ -60,6 +63,7 @@ stat(sim, name) = sim.stats[name][1]
                       Dict{Symbol, Any}(:Grid_mover => :lagrangian, :Adapt_enabled => true, :snapshots => 3))
             straight, resumed, _ = killed_and_resumed(p, dir; kills = (40,))
             @test same_result(straight, resumed)
+            @test haskey(resumed.stats, :volumes) && length(resumed.stats[:volumes][end]) == length(resumed.x[end])
             @test stat(resumed, :final_particle_count) == stat(straight, :final_particle_count)
             @test straight.x[end] != straight.x[1]
         end

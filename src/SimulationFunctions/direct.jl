@@ -76,24 +76,21 @@ function run_direct_simulation(params::ParamDict)::Union{AbstractSimData, Nothin
         
         # 8. Execution
         ck = run_checkpoint(params)                       # set_checkpointing!: resume, save every `every` s
-        xs_svector, us_svector, ts_full, k_step, elapsed_time = solve_equation(
+        xs_svector, us_svector, ts_full, stats = solve_equation(
             method, eq, pg, tmax, dt; 
             is_cfl = is_cfl, snapshots = params[:snapshots], 
             remove_ghosts = get(params, :remove_ghosts, true), 
             show_progress = _PROGRESS_BAR[], progress_interval = _PROGRESS_INTERVAL[],
-            adaptivity = adaptivity, checkpoint = ck
+            adaptivity = adaptivity, checkpoint = ck, snapshot_fields = _snapshot_fields(params)
         )
         
-        @info "Direct Simulation (D=$D) finished in$(round(elapsed_time, digits=2)) seconds."
+        @info "Direct Simulation (D=$D) finished in $(round(stats[:Runtime], digits=2)) seconds."
 
         # 9. Data Packaging
-        valid_indices = findall(i -> isassigned(us_svector, i), 1:length(us_svector))
-        sim_data = create_sim_data(xs_svector[valid_indices], us_svector[valid_indices], ts_full[valid_indices], params; xmins=Tuple(geom.mins), xmaxs=Tuple(geom.maxs), tmin=zero(T), tmax=tmax,
-                                   metadata = run_metadata(context, k_step, ts_full[last(valid_indices)], tmax;
-                                                           final_state = us_svector[last(valid_indices)], checkpoint = ck))
-        add_stat!(sim_data, :Runtime, elapsed_time, :none)
-        add_stat!(sim_data, :k_step, Float64(k_step), :none)
-        add_stat!(sim_data, :final_particle_count, Float64(pg.meta.N), :none)
+        sim_data = create_sim_data(xs_svector, us_svector, ts_full, params; xmins=Tuple(geom.mins), xmaxs=Tuple(geom.maxs), tmin=zero(T), tmax=tmax,
+                                   metadata = run_metadata(context, stats[:k_step], last(ts_full), tmax;
+                                                           final_state = last(us_svector), checkpoint = ck))
+        add_stats!(sim_data, stats)                       # the run's statistics (the time, the steps, the snapshot fields)
         record_memory!(sim_data, context)
         
         remove_checkpoint(ck)                              # the run is done        
