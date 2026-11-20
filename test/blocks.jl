@@ -102,6 +102,17 @@ end
             end
         end
         @test closure_calls(BlockOf(bk, 2)) == (0, 0, 0)
+        # the node speeds as the blocks' constants (`block_data`, tabulated by the stepper for the flux pass): the same flux
+        # and dissipation as from the node tables
+        for b in 1:4
+            v = HyperCloudCore.block_data(bk, b)
+            @test v isa SVector{1, State{8, Float64}} && v[1] == State{8, Float64}(ntuple(j -> velocity_node(eq, (b - 1) * 8 + j)[1][1], 8))
+            w_t, w_b = BlockOf(bk, b, v), BlockOf(bk, b)
+            @test HC.flux(w_t, fL[1]) == HC.flux(w_b, fL[1])
+            FL = Flux{1, 8, Float64}((HC.flux(w_b, fL[1])[1],)); FR = Flux{1, 8, Float64}((HC.flux(w_b, fR[1])[1],))
+            @test RusanovFlux()(fL, fR, FL, FR, w_t) == RusanovFlux()(fL, fR, FL, FR, w_b)
+        end
+        @test HyperCloudCore._block_table(bk, Array) == [HyperCloudCore.block_data(bk, b) for b in 1:4]
         # one component per block: UpwindFlux is the per-velocity flux too (it took the scalar Murman–Roe path, which
         # needs the velocity, and failed), and the transport matrix is the node speed
         bk1 = BGKBlocks(eq, Val(1))
@@ -287,6 +298,8 @@ end
         slice(b) = State{8, Float64}(f[(8b - 7):(8b)])
         for b in 1:7
             @test HyperCloudCore.block_flux(mb, slice(b), b)[1] == State{8, Float64}(HC.flux(mix, f)[1][(8b - 7):(8b)])
+            v = HyperCloudCore.block_data(mb, b)                                                 # (the tabulated node speeds)
+            @test HC.flux(BlockOf(mb, b, v), slice(b)) == HyperCloudCore.block_flux(mb, slice(b), b)
         end
         # the block state of f and its moments
         pg = bgk_block_grid(4, 8)
