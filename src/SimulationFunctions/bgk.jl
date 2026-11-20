@@ -160,7 +160,7 @@ function _run_bgk_blocks(params::ParamDict, context::Dict, eq, W::Int)
     flux_conf   = extract_namespace(params, :Flux)
     lim_conf    = extract_namespace(params, :Limiter)
     mood_conf   = extract_namespace(params, :MOOD)
-    scheme_conf = extract_namespace(params, :Scheme)
+    scheme_conf = _block_scheme_conf(params)
     ic_conf     = extract_namespace(params, :IC)
     time_conf   = extract_namespace(params, :Time)
     adapt_conf  = extract_namespace(params, :Adapt)
@@ -262,7 +262,7 @@ function _run_bgk_devices(params::ParamDict, context::Dict, eq, bk, IC, pg, geom
     ranges  = _device_ranges(nb, length(devices))
     pg_host = pg                                                   # (built on the host, see `_run_bgk_blocks`)
     bpl     = _blocks_per_launch(pde_conf)
-    scheme_conf = extract_namespace(params, :Scheme)
+    scheme_conf = _block_scheme_conf(params)
     parts = map(zip(devices, ranges)) do (dev, r)
         activate = _device_activator(dev, storage)
         activate === nothing || activate()
@@ -311,6 +311,17 @@ end
 
 _block_form(eq::BGKEquation, W::Int) = BGKBlocks(eq, Val(W))
 _block_form(eq::BGKMixture, W::Int) = MixtureBlocks(eq, Val(W))
+
+# The scheme namespace of the block form: MUSCL streams its divergence (`:Scheme_streamed`, HyperCloudCore's `streamed`)
+# unless the configuration says otherwise. The buffered divergence keeps a flux difference per neighbour slot for every
+# block of a launch, which dominated the memory of a block state (the 2-D orifice: 4.6 GB against 2.8 GB streamed, a
+# periodic wave 3.1 GB against 0.6 GB), and the streamed pass was 16–23 % faster on V100 and A30 GPUs. The same scheme
+# up to round-off; the default is applied here, not written into the parameters (the run's hash is unchanged).
+function _block_scheme_conf(params::ParamDict)
+    conf = extract_namespace(params, :Scheme)
+    haskey(conf, :streamed) || (conf[:streamed] = true)
+    return conf
+end
 
 # `:PDE_block_width`: absent or 0 is the standard form, a positive integer the block form
 function _block_width(pde_conf::Dict)

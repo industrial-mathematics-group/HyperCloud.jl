@@ -95,6 +95,7 @@ variables ``(\rho, \rho\vec u, E)``.
 | `:order` | — | Consistency order (expected convergence rate; MUSCL reconstructs with degree `order - 1`). `:Upwind` only supports `1`, `:WENO` needs at least `2`. |
 | `:MLS_order` | `0` | Fixed order of the MLS divergence operator; `0` follows each particle's current order. |
 | `:moment_correction` | `false` | `:MUSCL` with `:order => 1` only: adds a non-negative dissipation that cancels the first moment of the Rusanov dissipation, so the first-order scheme is consistent on irregular clouds (no wave lag). Ignored for higher orders. See HyperCloudCore's [moment-corrected first-order dissipation](@extref HyperCloudCore Moment-corrected-first-order-dissipation). |
+| `:streamed` | `false`; `true` for the block form | `:MUSCL` only: the divergence is accumulated in the flux pass with cached per-slot weights instead of buffering the flux differences per neighbour slot and fitting them afterwards: the same scheme up to round-off, no per-slot buffer. The default of the block form of the BGK models (`:PDE_block_width`), where the buffer dominated the memory and the streamed pass is faster on GPUs; `false` gives the buffered divergence there. See HyperCloudCore's [streamed divergence](@extref HyperCloudCore Streamed-divergence). |
 | `:upwind_alg_nd` | — | `:Upwind` only: `:Classic` (any system), `:Tiwari` (scalar) or `:Praveen` (scalar, 2D). |
 
 The schemes are described in HyperCloudCore: [MUSCL](@extref HyperCloudCore MUSCL-Reconstruction-and-Limiting),
