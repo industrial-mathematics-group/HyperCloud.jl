@@ -76,21 +76,16 @@ function run_direct_simulation(params::ParamDict)::Union{AbstractSimData, Nothin
         
         # 8. Execution
         ck = run_checkpoint(params)                       # set_checkpointing!: resume, save every `every` s
-        xs_svector, us_svector, ts_full, stats = solve_equation(
+        # (the run as a dataset: the snapshots, the metadata and the statistics of the run, see `solve_equation`)
+        sim_data = solve_equation(
             method, eq, pg, tmax, dt; 
             is_cfl = is_cfl, snapshots = params[:snapshots], 
             remove_ghosts = get(params, :remove_ghosts, true), 
             show_progress = _PROGRESS_BAR[], progress_interval = _PROGRESS_INTERVAL[],
-            adaptivity = adaptivity, checkpoint = ck, snapshot_fields = _snapshot_fields(params)
+            adaptivity = adaptivity, checkpoint = ck, snapshot_fields = _snapshot_fields(params),
+            params = params, xmins = geom.mins, xmaxs = geom.maxs
         )
-        
-        @info "Direct Simulation (D=$D) finished in $(round(stats[:Runtime], digits=2)) seconds."
-
-        # 9. Data Packaging
-        sim_data = create_sim_data(xs_svector, us_svector, ts_full, params; xmins=Tuple(geom.mins), xmaxs=Tuple(geom.maxs), tmin=zero(T), tmax=tmax,
-                                   metadata = run_metadata(context, stats[:k_step], last(ts_full), tmax;
-                                                           final_state = last(us_svector), checkpoint = ck))
-        add_stats!(sim_data, stats)                       # the run's statistics (the time, the steps, the snapshot fields)
+        @info "Direct Simulation (D=$D) finished in $(round(sim_data.stats[:Runtime][1], digits=2)) seconds."
         record_memory!(sim_data, context)
         
         remove_checkpoint(ck)                              # the run is done        

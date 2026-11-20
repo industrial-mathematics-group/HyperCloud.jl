@@ -2,7 +2,7 @@
 # backend helpers, the memory limit, spherical WENO, the run_all_simulations driver.
 
 @testset "Simulations" begin
-    @testset "Run statistics: the registry, the snapshot fields (:snapshot_fields), solve_equation's statistics" begin
+    @testset "The run as a dataset: solve_equation's statistics and metadata, the snapshot fields (:snapshot_fields)" begin
         params = merge(linear_2d_base(true), Dict{Symbol, Any}(:IC_name => :gauss, :IC_a => (1.0,), :IC_b => (0.5, 0.5), :IC_width => 0.1),
                        UPWIND1)
         sim = run_direct_simulation(params)
@@ -32,13 +32,14 @@
         @eval HC.snapshot_field(::Val{:x1_test}, pg::ParticleGrid) = [p[1] for p in HC.host_view(pg.core.positions, pg.meta.N)]
         sim5 = run_direct_simulation(merge(params, Dict{Symbol, Any}(:snapshot_fields => (:x1_test,))))
         @test sim5 !== nothing && all(k -> [v[1] for v in sim5.stats[:x1_test][k]] == [x[1] for x in sim5.x[k]], eachindex(sim5.t))
-        # the statistics object itself: values and registry, attached with `add_stats!`
-        st = RunStatistics()
-        add_stat!(st, :answer, 42, Symbol[])
-        add_stat!(st, :per_snapshot, [1.0, 2.0, 3.0], :time)
-        @test st[:answer] == 42 && st.registry[:per_snapshot] == :time && haskey(st, :answer) && length(st) == 2
-        add_stats!(sim, RunStatistics(Dict{Symbol, Any}(:answer => 42), HC.PDEStudioCore.StatRegistry(:answer => Symbol[])))
-        @test sim.stats[:answer][1] == 42 && sim.domain.stat_registry[:answer] == Symbol[]
+        # the dataset is solve_equation's: the run's parameters, its metadata, the extent of the grid's domain
+        @test sim isa LSimData && sim.params == params
+        @test sim.metadata[:steps] == sim.stats[:k_step][1] && sim.metadata[:finite] && !sim.metadata[:stopped_early]
+        @test sim.domain.mins[1:2] == [0.0, 0.0] && sim.domain.maxs[1:2] == [1.0, 1.0]           # (then the time axis)
+        # what a snapshot stores of a state (`snapshot_state`: the kinetic and BGK runners store the moments)
+        st = [State{2, Float64}(1.0, 2.0), State{2, Float64}(3.0, 4.0)]
+        @test HC._stored_states(identity, view(st, 1:2)) == st
+        @test HC._stored_states(u -> SVector(sum(u)), view(st, 1:2)) == [SVector(3.0), SVector(7.0)]
     end
 
     @testset "Initial conditions (2D linear advection)" begin

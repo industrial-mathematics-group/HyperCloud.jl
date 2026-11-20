@@ -22,11 +22,11 @@ Both runners follow the same steps, sharing one `context` dictionary (see
 6. **Apply the initial condition.**
 7. **Integrate** with [`solve_equation`](@ref) up to `tmax`, using either a fixed `dt` or a CFL
    number.
-8. **Package** the snapshots into an `AbstractSimData` and add the statistics of the run that
-   `solve_equation` returns ([`RunStatistics`](@ref), with [`add_stats!`](@ref)): `Runtime`
-   (wall-clock seconds), `k_step` (number of steps), `final_particle_count`, `particle_count` per snapshot and the
-   per-particle fields of `:snapshot_fields` (default volumes and consistency orders, one value per particle and
-   snapshot), plus `reserved_particles` and `reserved_bytes` with a [memory limit](@ref "Memory limit").
+8. **Package**: `solve_equation` returns the run as an `AbstractSimData` (a PDEStudioCore `LSimData`, see
+   [Return value](@ref)). It holds the snapshots and the statistics `Runtime` (wall-clock seconds), `k_step` (number
+   of steps), `final_particle_count` and `particle_count` per snapshot. It also holds the per-particle fields of
+   `:snapshot_fields` (default volumes and consistency orders, one value per particle and snapshot). With a
+   [memory limit](@ref "Memory limit") the runner adds `reserved_particles` and `reserved_bytes`.
    The dataset's `metadata` (PDEStudioCore ≥ 0.5: information about the run that is not data and is never
    plotted) holds `:hypercloudcore` (the HyperCloudCore version), `:backend`, `:float_type`, `:steps`,
    `:t_final` (the time reached), `:stopped_early` (`true` if the run stopped before `tmax`, e.g. after a

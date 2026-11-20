@@ -55,10 +55,19 @@ The loop also logs the execution backend of the parallel loops (see
 
 ## Return value
 
-`solve_equation` returns `(xs, us, ts, stats)`: the positions, states and times of the stored
-snapshots (those the run reached: a run that stopped early returns fewer than `snapshots + 1`) and a
-[`RunStatistics`](@ref), the statistics of the run in the form of PDEStudioCore's statistics, each with
-the dimensions it keeps (its statistics registry):
+`solve_equation` returns the run as a PDEStudioCore `LSimData` (`create_sim_data`), ready to be saved or plotted:
+
+- `sim.x[k]`, `sim.u[k]`, `sim.t[k]`: the stored snapshots. These are the snapshots the run reached, so a run that stopped
+  early has fewer than `snapshots + 1`.
+- `sim.u[k]` holds `snapshot_state(u)` of every particle's state: the state itself by default, the macroscopic moments
+  for the kinetic and BGK runners.
+- `sim.params`: the keyword `params`, the run's parameters. They name the dataset's file in PDEStudioCore's pipeline.
+- `sim.metadata`: the run's metadata (`run_metadata`):
+  - the HyperCloudCore version, the backend and the float type;
+  - the steps and the time reached;
+  - `:stopped_early`, `:finite`;
+  - `:restarts` with a checkpoint.
+- `sim.stats`: the statistics of the run, each registered with the dimensions it keeps:
 
 | statistic | kept | value |
 |:----------|:-----|:------|
@@ -66,27 +75,26 @@ the dimensions it keeps (its statistics registry):
 | `:k_step` | `Symbol[]` | time steps taken (all attempts) |
 | `:final_particle_count` | `Symbol[]` | particles of the grid at the end, ghosts included |
 | `:particle_count` | `:time` | particles stored in each snapshot |
-| each of `snapshot_fields` | `:all` | that per-particle array of the grid at each snapshot, aligned with the stored positions |
+| each of `snapshot_fields` | `:all` | that per-particle array of the grid at each snapshot, aligned with `sim.x[k]` |
 
-`snapshot_fields` (keyword, default [`DEFAULT_SNAPSHOT_FIELDS`](@ref) `= (:volumes, :particle_orders)`)
-names the per-particle arrays of the grid stored with every snapshot: `:volumes`, `:particle_orders`,
-`:neighbor_counts`, `:is_boundary`, `:tags`, `:wall_distances` ([`snapshot_field`](@ref); a method of it for
-another name adds a field). They are copied with the positions (on a device: host copies) and, with
-`remove_ghosts`, for the same particles; a checkpoint stores them with the snapshots, so a resumed run
-returns them complete. [`add_stats!`](@ref)`(sim_data, stats)` attaches all statistics to a dataset with
-PDEStudioCore's `add_stat!`; `add_stat!(stats, name, value, kept_dims)` adds one more before that.
+`snapshot_fields` (keyword, default [`DEFAULT_SNAPSHOT_FIELDS`](@ref) `= (:volumes, :particle_orders)`) names the
+per-particle arrays of the grid stored with every snapshot: `:volumes`, `:particle_orders`, `:neighbor_counts`,
+`:is_boundary`, `:tags`, `:wall_distances`. A method of [`snapshot_field`](@ref) for another name adds a field.
 
-PDEStudioCore stores a statistic with the dataset's component count and float type (a per-particle field
-holds `M` copies of each value), so the runners store no fields for the full kinetic states
-(`:save_relax`) unless `:snapshot_fields` is given.
+- The fields are copied with the positions (on a device: host copies). With `remove_ghosts` they are copied for the same
+  particles.
+- A checkpoint stores them with the snapshots, so a resumed run returns them complete.
+- More statistics can be added to the returned dataset with PDEStudioCore's `add_stat!`.
+
+PDEStudioCore stores a statistic with the dataset's component count and float type: a per-particle field holds `M` copies
+of each value. The runners therefore store no fields for the full kinetic states (`:save_relax`) unless
+`:snapshot_fields` is given.
 
 ## API
 
 ```@docs
 solve_equation
 saveData!
-RunStatistics
-add_stats!
 snapshot_field
 DEFAULT_SNAPSHOT_FIELDS
 ```

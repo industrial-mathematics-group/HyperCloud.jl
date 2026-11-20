@@ -83,32 +83,20 @@ function run_kinetic_simulation(params::ParamDict)::Union{AbstractSimData, Nothi
         # 9. Execution
         ck = run_checkpoint(params)                       # set_checkpointing!: resume, save every `every` s
         save_relax = get(params, :save_relax, false) || get(kin_conf, :save_relax, false)
-        xs_svector, us_svector, ts_full, stats = solve_equation(
+        # (the run as a dataset, see `solve_equation`; a snapshot stores the macroscopic state `km(u)` of every particle
+        # unless the kinetic states are asked for)
+        sim_data = solve_equation(
             method, eq_kin, pg, tmax, dt; 
             is_cfl = is_cfl, snapshots = params[:snapshots], 
             remove_ghosts = get(params, :remove_ghosts, true), 
             show_progress = _PROGRESS_BAR[], progress_interval = _PROGRESS_INTERVAL[],
             adaptivity = adaptivity, checkpoint = ck,
+            snapshot_state = save_relax ? identity : source_term.km,
             # (a per-particle statistic is stored with the dataset's component count: none by default for the kinetic states)
-            snapshot_fields = _snapshot_fields(params, save_relax ? () : DEFAULT_SNAPSHOT_FIELDS)
+            snapshot_fields = _snapshot_fields(params, save_relax ? () : DEFAULT_SNAPSHOT_FIELDS),
+            params = params, xmins = geom.mins, xmaxs = geom.maxs
         )
-        
-        @info "Kinetic Simulation (D=$D) finished in $(round(stats[:Runtime], digits=2)) seconds."
-
-        # 10. Data Packaging & Macroscopic Collapse
-        
-        if save_relax
-            us_final = us_svector
-        else
-            # Extract km directly from the returned source_term
-            km = source_term.km
-            us_final = [[km(u) for u in snap] for snap in us_svector]
-        end
-        
-        sim_data = create_sim_data(xs_svector, us_final, ts_full, params; xmins=Tuple(geom.mins), xmaxs=Tuple(geom.maxs), tmin=zero(T), tmax=tmax,
-                                   metadata = run_metadata(context, stats[:k_step], last(ts_full), tmax;
-                                                           final_state = last(us_final), checkpoint = ck))
-        add_stats!(sim_data, stats)                       # the run's statistics (the time, the steps, the snapshot fields)
+        @info "Kinetic Simulation (D=$D) finished in $(round(sim_data.stats[:Runtime][1], digits=2)) seconds."
         record_memory!(sim_data, context)
         
         remove_checkpoint(ck)                              # the run is done
