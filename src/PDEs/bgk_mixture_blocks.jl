@@ -65,12 +65,17 @@ end
 @inline HyperCloudCore.block_flux(mb::MixtureBlocks{D, W, T}, U::State{W, T}, b::Int) where {D, W, T} =
     Flux{D, W, T}(ntuple(@inline(d -> _block_speeds(mb, b, d) .* U), Val(D)))
 @inline HyperCloudCore.block_max_eigenvalue(mb::MixtureBlocks, U::State, d::Int, b::Int) = @inbounds mb.mix.max_speed[d]
+# (the node speeds as the block's constants, see the BGK blocks)
+HyperCloudCore.block_data(mb::MixtureBlocks{D, W, T}, b::Int) where {D, W, T} =
+    SVector{D, State{W, T}}(ntuple(d -> _block_speeds(mb, b, d), Val(D)))
+@inline HyperCloudCore.block_flux(mb::MixtureBlocks{D, W, T}, U::State{W, T}, b::Int, v::SVector{D, State{W, T}}) where {D, W, T} =
+    Flux{D, W, T}(ntuple(@inline(d -> (@inbounds v[d]) .* U), Val(D)))
 
 @inline function (::RusanovFlux)(f_L::Flux{D, W, T}, f_R::Flux{D, W, T}, F_L::Flux{D, W, T}, F_R::Flux{D, W, T},
                                  w::BlockOf{D, W, T, <:MixtureBlocks}) where {D, W, T}
     return Flux{D, W, T}(ntuple(Val(D)) do d
         @inline
-        v = _block_speeds(w.eq, w.b, d)
+        v = _speeds(w.data, w.eq, w.b, d)
         T(0.5) * (F_L[d] + F_R[d] - abs.(v) .* (f_R[d] - f_L[d]))
     end)
 end
@@ -194,7 +199,7 @@ end
                                  a::ALEFrame{D, W, T, <:BlockOf{D, W, T, <:MixtureBlocks}}) where {D, W, T}
     return Flux{D, W, T}(ntuple(Val(D)) do d
         @inline
-        v = _block_speeds(a.eq.eq, a.eq.b, d)
+        v = _speeds(a.eq.data, a.eq.eq, a.eq.b, d)
         T(0.5) * (F_L[d] + F_R[d] - abs.(v .- a.w[d]) .* (f_R[d] - f_L[d]))
     end)
 end

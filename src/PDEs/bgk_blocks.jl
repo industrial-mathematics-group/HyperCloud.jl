@@ -44,12 +44,23 @@ end
     Flux{D, W, T}(ntuple(@inline(d -> _block_speeds(bk, b, d) .* U), Val(D)))
 @inline HyperCloudCore.block_max_eigenvalue(bk::BGKBlocks, U::State, d::Int, b::Int) = @inbounds bk.eq.max_speed[d]
 
+# The node speeds of a block are its constants (HyperCloudCore's `block_data`): the stepper tabulates them once and the flux
+# pass reads them from that table; computed in the kernel, the run-time index into the node tables copied the whole
+# equation to local memory in every GPU thread. `_speeds` takes the tabulated ones, or computes them (`nothing`: the other
+# passes)
+HyperCloudCore.block_data(bk::BGKBlocks{D, W, T}, b::Int) where {D, W, T} =
+    SVector{D, State{W, T}}(ntuple(d -> _block_speeds(bk, b, d), Val(D)))
+@inline HyperCloudCore.block_flux(bk::BGKBlocks{D, W, T}, U::State{W, T}, b::Int, v::SVector{D, State{W, T}}) where {D, W, T} =
+    Flux{D, W, T}(ntuple(@inline(d -> (@inbounds v[d]) .* U), Val(D)))
+@inline _speeds(::Nothing, eq, b::Int, d::Int) = _block_speeds(eq, b, d)
+@inline _speeds(v::SVector, eq, b::Int, d::Int) = @inbounds v[d]
+
 # The per-velocity upwind flux of a block (UpwindFlux and AlignedRusanovFlux fall back to RusanovFlux)
 @inline function (::RusanovFlux)(f_L::Flux{D, W, T}, f_R::Flux{D, W, T}, F_L::Flux{D, W, T}, F_R::Flux{D, W, T},
                                  w::BlockOf{D, W, T, <:BGKBlocks}) where {D, W, T}
     return Flux{D, W, T}(ntuple(Val(D)) do d
         @inline
-        v = _block_speeds(w.eq, w.b, d)
+        v = _speeds(w.data, w.eq, w.b, d)
         T(0.5) * (F_L[d] + F_R[d] - abs.(v) .* (f_R[d] - f_L[d]))
     end)
 end
@@ -135,7 +146,7 @@ end
                                  a::ALEFrame{D, W, T, <:BlockOf{D, W, T, <:BGKBlocks}}) where {D, W, T}
     return Flux{D, W, T}(ntuple(Val(D)) do d
         @inline
-        v = _block_speeds(a.eq.eq, a.eq.b, d)
+        v = _speeds(a.eq.data, a.eq.eq, a.eq.b, d)
         T(0.5) * (F_L[d] + F_R[d] - abs.(v .- a.w[d]) .* (f_R[d] - f_L[d]))
     end)
 end
