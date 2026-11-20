@@ -150,7 +150,8 @@ U = block_moments(bk, bs, i)                                                   #
 From a configuration, `:PDE_block_width => W` runs the block form through `run_bgk_simulation` (also for a
 mixture, [`MixtureBlocks`](@ref) with [`MixtureBlockRelaxation`](@ref): `W` must divide every species' state
 length; `:PDE_blocks_per_launch` sets how many blocks one launch of the scheme's pre-pass and flux pass covers,
-HyperCloudCore's `blocks_per_launch`, the scratch of those passes being replicated that many times); the snapshots
+HyperCloudCore's `blocks_per_launch`, the scratch of those passes being replicated that many times; MUSCL streams its
+divergence there unless `:Scheme_streamed => false`, see [Configuration](../configuration.md)); the snapshots
 hold the macroscopic moments; `:PDE_devices` splits the blocks over the GPUs of one node, every device holding the
 whole cloud and a range of blocks and the devices exchanging the moments of their blocks per stage (the collision's
 parameters, the frame velocity, the admissibility; the kinetic walls' ghost rows), see HyperCloudCore's `BlockDevices`; `:save_relax` is refused, MOOD works with every criterion (the

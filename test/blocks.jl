@@ -172,6 +172,21 @@ end
         @test tot ≈ tot0 rtol = 1e-12
     end
 
+    @testset "The block form streams MUSCL's divergence by default (:Scheme_streamed)" begin
+        p = merge(bgk_sod_params(120), Dict{Symbol, Any}(:PDE_block_width => 8))
+        @test HC._block_scheme_conf(p)[:streamed] === true
+        @test HC._block_scheme_conf(merge(p, Dict{Symbol, Any}(:Scheme_streamed => false)))[:streamed] === false
+        sim_d = run_bgk_simulation(p)
+        sim_s = run_bgk_simulation(merge(p, Dict{Symbol, Any}(:Scheme_streamed => true)))
+        sim_b = run_bgk_simulation(merge(p, Dict{Symbol, Any}(:Scheme_streamed => false)))
+        @test sim_d !== nothing && sim_s !== nothing && sim_b !== nothing
+        if sim_d !== nothing && sim_s !== nothing && sim_b !== nothing
+            @test sim_d.u[end] == sim_s.u[end]                           # the default is the streamed scheme
+            @test sim_d.u[end] != sim_b.u[end]                           # (the buffered one sums in another order)
+            @test maximum(maximum(abs.(a - b)) for (a, b) in zip(sim_d.u[end], sim_b.u[end])) < 1e-12
+        end
+    end
+
     @testset "Configuration pipeline: :PDE_block_width runs the block form, the moments agree with the standard run" begin
         p = bgk_sod_params(120)                                            # ARS222, VK, τ = 1e-5, Dirichlet / outflow
         sim_s = run_bgk_simulation(p)
