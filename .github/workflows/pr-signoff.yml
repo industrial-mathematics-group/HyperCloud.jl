@@ -14,3 +14,5 @@ permissions:
 jobs:
   pr-signoff:
     uses: industrial-mathematics-group/.github/.github/workflows/pr-signoff.yml@main
+    with:
+      aisignoff-version: "0.20.1"   # keep at File-signoff's

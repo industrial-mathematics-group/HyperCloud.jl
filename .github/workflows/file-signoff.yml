@@ -17,4 +17,4 @@ jobs:
     uses: industrial-mathematics-group/.github/.github/workflows/file-signoff.yml@main
     with:
       weight: lines                   # weight the badges by lines instead of files
-    #   aisignoff-version: "1.0.0rc8" # another release of aisignoff than the organisation's default
+      aisignoff-version: "0.20.1"     # the organisation's default is older; keep PR-signoff and CI.yml at the same release
