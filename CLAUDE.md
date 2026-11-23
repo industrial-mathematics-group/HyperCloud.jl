@@ -14,7 +14,7 @@ julia -t 8 --project=test test/runtests.jl                          # same suite
 HYPERCLOUD_GUI_TESTS=false julia -t 8 --project=test test/runtests.jl   # skip PDEStudio/GLMakie tests
 HYPERCLOUD_BACKEND=ka_cpu julia -t 8 --project=test test/runtests.jl    # KernelAbstractions CPU backend (checks kernel rules)
 julia --project=docs docs/make.jl                                   # docs (instantiate docs env first)
-pipx run --spec aisignoff==1.0.0rc8 aisignoff report --html docs/src/assets/aisignoff.html --with-source  # optional, before make.jl: the AI Signoff Report page (CI does it)
+pipx run --spec aisignoff==0.20.1 aisignoff report --html docs/src/assets/aisignoff.html --with-source  # optional, before make.jl: the AI Signoff Report page (CI does it)
 julia -t auto --project=test/gpu test/gpu/runtests.jl                # device checks, AMD GPU only (CASE=<regex>)
 julia -t auto --project=test/gpu benchmark/runners.jl                # CPU vs GPU runner benchmark
 ```
@@ -78,3 +78,11 @@ with `ka_cpu` too when a change touches anything that ends up in a kernel.
 - New examples go into `src/Examples/` (exported function + `_main.jl` include) and
   `docs/src/examples.md`; keep their default run time short.
 - Commit subjects follow the repo style: `Area: what changed`.
+
+<!-- aisignoff:begin -->
+## AI signoff
+
+This repository declares AI use with [aisignoff](https://industrial-mathematics-group.github.io/aisignoff/).
+Before you commit or open a pull request, run `aisignoff guide --role dev` and follow it.
+If you are reviewing a change instead, run `aisignoff guide --role review`: a reviewer only reviews and changes nothing.
+<!-- aisignoff:end -->

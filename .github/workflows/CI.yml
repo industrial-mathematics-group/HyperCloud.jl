@@ -82,12 +82,19 @@ jobs:
       - name: Install Xvfb
         run: sudo apt-get update && sudo apt-get install -y xvfb
 
+      # aisignoff's blame cache (.git/aisignoff): the report only blames the commits since the cached one.
+      - uses: actions/cache@v4
+        with:
+          path: .git/aisignoff
+          key: aisignoff-${{ github.sha }}
+          restore-keys: aisignoff-
+
       # The interactive AI signoff report, published with the docs (page "AI Signoff Report", docs/src/aisignoff.md).
       # In a pull request it marks what the pull request changes. A failure here doesn't stop the docs.
       - name: AI signoff report
         continue-on-error: true
         env:
-          AISIGNOFF_VERSION: "1.0.0rc8"   # keep at the aisignoff release File-signoff uses
+          AISIGNOFF_VERSION: "0.20.1"   # keep at the aisignoff release File-signoff uses
           SINCE: ${{ github.event_name == 'pull_request' && 'origin/main' || '' }}
         run: |
           pipx run --spec "aisignoff==${AISIGNOFF_VERSION}" aisignoff report \
