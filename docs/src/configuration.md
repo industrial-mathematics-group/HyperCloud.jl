@@ -64,6 +64,18 @@ The equation representation is read from the same namespace by `parse_representa
     Boundary conditions are read from `:Grid_bc`; `:Grid_bc_map` is accepted as an alias when `:Grid_bc`
     is absent (HyperCloudCore's `build_domain`). Other spellings are silently ignored.
 
+!!! note "Objects in the parameters (PDEStudioCore 0.9)"
+    The parameters name the cache file of a run, so PDEStudioCore 0.9 stores and hashes an object in them
+    (a boundary condition, a shape, a pre-built `GeometricDomain`) by what its `param_identity` declares, and
+    refuses objects of types that declare nothing, and functions. HyperCloud declares it for the boundary
+    conditions (`FixedDirichlet`, `OutflowBC`, `ExtrapolationBC`, `MirrorBC` with `SlipWall`/`DiffuseWall`), the
+    shapes (boxes, balls, half spaces, their combinations, `Translated`, `Rotated`, `Tagged`, `Moving`) and
+    `GeometricDomain` (its label, bounds, periodicity, boundary conditions and shape; not its `is_interior`,
+    `get_tag` or derived fields, so a domain built from functions needs a label of its own per region). A
+    `Moving` piece whose motion is a function, or a `Tagged` piece with a tag function, can't be compared: give
+    such a shape as a string in `:Grid_shape`. A boundary condition or wall operator of your own declares its
+    identity with `PDEStudioCore.@param_struct MyBC` when its fields are data (or `param_identity`).
+
 ## `Weight_` — MLS weight function
 
 | Key | Meaning |

@@ -211,7 +211,7 @@ const KNOWN_BROKEN_METHODS = Dict{String, String}()
 #                              this process, one after the other.
 #   HYPERCLOUD_TEST_GROUP=name runs one group in this process (what the parallel runner starts).
 const TEST_GROUPS = [
-    "units"    => ["units.jl"],
+    "units"    => ["units.jl", "param_identity.jl"],
     "sims-bgk" => ["sims_bgk.jl", "blocks.jl"],
     "sweep-a"  => ["sims_sweep.jl"],
     "sweep-b"  => ["sims_sweep.jl"],
