@@ -160,7 +160,8 @@ Optional; mainly for Lagrangian grids. See
 | `:clearance` | `0.7` | Free radius required around an insertion point. |
 | `:samples_per_dx` | `2` | Lattice resolution of the conservative remap. |
 | `:exclude_reduced_order` | `true` | No events near particles whose MOOD order was lowered. |
-| `:max_events` | unlimited | At most this many insertions/merges per call (HyperCloudCore ≥ 0.7.5). |
+| `:max_events` | unlimited | At most this many insertions/merges per round (HyperCloudCore ≥ 0.7.5). |
+| `:max_rounds` | `8` | A call repeats detection, remaps and neighbour search until no pair violates the rules, at most this many times (HyperCloudCore ≥ 0.9.10; `1`: one round per step, as before). |
 
 Every adaptation call is exactly conservative with respect to `Σ V_i U_i`, also with several events per call
 and, on a moving grid, across the volume re-estimation that follows (HyperCloudCore ≥ 0.7.5; with 0.7.4 and
