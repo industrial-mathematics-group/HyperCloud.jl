@@ -156,8 +156,8 @@ Optional; mainly for Lagrangian grids. See
 | Key | Default | Meaning |
 |:----|:--------|:--------|
 | `:enabled` | `false` | Insert and merge particles between time steps. |
-| `:max_gap`, `:min_gap` | `1.6`, `0.5` | Pair distances (in units of the spacing) above which a particle is inserted and below which a pair is merged. |
-| `:clearance` | `0.7` | Free radius required around an insertion point. |
+| `:max_gap`, `:min_gap` | by the dimension, `0.5` | Pair distances (in units of the spacing) above which a particle is inserted and below which a pair is merged. `:max_gap` is `1.6` in 1-D and 2-D and `1.6 √(D/2)` above (1.96 in 3-D; HyperCloudCore ≥ 0.9.10): the longest diagonal of a lattice cell must not count as a gap. |
+| `:clearance` | by the dimension | Free radius required around an insertion point: `0.7` in 1-D and 2-D, `0.7 √(D/2)` above (0.86 in 3-D). |
 | `:samples_per_dx` | `2` | Lattice resolution of the conservative remap. |
 | `:exclude_reduced_order` | `true` | No events near particles whose MOOD order was lowered. |
 | `:max_events` | unlimited | At most this many insertions/merges per round (HyperCloudCore ≥ 0.7.5). |
