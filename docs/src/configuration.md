@@ -167,6 +167,12 @@ and, on a moving grid, across the volume re-estimation that follows (HyperCloudC
 earlier, calls with several events in 2-D/3-D and the next re-estimation were not, see
 [Particle insertion and merging](@extref HyperCloudCore Particle-insertion-and-merging)).
 
+On a moving cloud with open boundaries the same call keeps the cloud inside the region (HyperCloudCore ≥ 0.9.10):
+an interior particle that has left the region is removed with its content (the outflow), unless it crossed a wall
+(`MirrorBC`), where it is put back onto the wall, and the gaps between the cloud and a boundary it receded from
+(an inflow) are refilled with seeds between the first interior particles and the ghosts. What leaves and what the
+seeds bring is not part of the conserved balance of the call.
+
 The number of particles at the end is stored in the statistic `final_particle_count`.
 
 ## `Kinetic_` — relaxation system

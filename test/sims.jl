@@ -150,6 +150,12 @@
         delete!(pinf, :Time_CFL)
         siminf = @test_logs (:warn, r"time step is not finite") match_mode = :any run_direct_simulation(pinf)
         @test siminf !== nothing && siminf.t == [0.0, 0.0]
+        # A step below the resolution of the time itself (Float32: 4 eps tmax) is a collapse and is
+        # reported: such a run used to end through the end-of-run test, without a message and before tmax
+        p32 = merge(linear_1d_gauss(50), UPWIND1, Dict{Symbol, Any}(:T => Float32, :Time_dt => 2.0f-8))    # (tmax = 0.1: between 1e-12 tmax and 4 eps tmax = 4.8e-8)
+        delete!(p32, :Time_CFL)
+        sim32 = @test_logs (:warn, r"time step is collapsed") match_mode = :any run_direct_simulation(p32)
+        @test sim32 !== nothing && sim32.t[end] == 0 && sim32.metadata[:stopped_early]
 
         # No fixed time scale: tmax = 1e-13 is integrated (the absolute round-off end 1e-12 returned the IC at t = 0)
         ptiny = merge(linear_1d_gauss(50; tmax = 1e-13), UPWIND1)
