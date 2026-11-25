@@ -50,6 +50,24 @@
             @test_throws ArgumentError macroexpand(Main, :(HyperCloud.@sim my_local_sim dry_run = true dry_run = false))
         end
 
+        @testset "@sim: the configuration's file is the last source" begin
+            # the file lists itself before its helper; the run includes the helper first, the configuration's file last
+            write(joinpath(mock_configs_dir, "order_helper.jl"), "push!(Main.SIM_INCLUDE_ORDER, :helper)\n")
+            write(joinpath(mock_configs_dir, "order_plugin.jl"), """
+                push!(Main.SIM_INCLUDE_ORDER, :config)
+                function order_plugin()
+                    shared = Dict{Symbol, Any}(:Time_tmax => 0.0, :Time_snapshots => 0, :sim_func_name => :dummy_func)
+                    return SimulationConfig(shared, Dict(), Symbol[]; sources = [@__FILE__, joinpath(@__DIR__, "order_helper.jl")])
+                end
+                """)
+            @eval Main SIM_INCLUDE_ORDER = Symbol[]
+            @eval Main @sim order_plugin
+            @test Main.SIM_INCLUDE_ORDER == [:config, :helper, :config]   # (loading it, then the run's sources)
+            cfg = SimulationConfig(Dict{Symbol, Any}(:sim_func_name => :dummy_func), Dict(), Symbol[]; sources = ["a.jl", "b.jl"])
+            @test HyperCloud._config_file_last!(cfg, "a.jl").sources == ["b.jl", abspath("a.jl")]
+            @test HyperCloud._config_file_last!(cfg, "c.jl").sources == ["b.jl", abspath("a.jl"), abspath("c.jl")]
+        end
+
         @testset "@backup" begin
             @eval Main @backup test_plugin
             backup_dir = joinpath(mock_configs_dir, "backups")

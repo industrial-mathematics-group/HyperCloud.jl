@@ -132,12 +132,23 @@ end
 # Helper to normalize macro inputs (bare words, strings, or symbols) into a pure Symbol
 _normalize_macro_name(name) = name isa QuoteNode ? name.value : Symbol(name)
 
+# `config.sources` with `file` as the last entry (moved there if listed, appended otherwise): the file that builds a
+# configuration is included after its helper files, so it may use and override what they define (PDEStudioCore's
+# sources contract). A configuration that doesn't list its file gets it added, and so its digest recorded.
+function _config_file_last!(config::SimulationConfig, file::AbstractString)
+    same(src) = normpath(abspath(src)) == normpath(abspath(file)) || (isfile(src) && isfile(file) && samefile(src, file))
+    config.sources = String[String[src for src in config.sources if !same(src)]; abspath(file)]
+    return config
+end
+
 """
     @sim name [key = value ...]
 
 Evaluates the configuration and runs the simulation. Checks the local module scope first; 
 if not found, dynamically loads the configuration from the user's configured search paths.
-Accepts strings (`"name"`), bare words (`name`), or symbols (`:name`).
+Accepts strings (`"name"`), bare words (`name`), or symbols (`:name`). A configuration loaded from a file gets that
+file as the last of its `sources` (moved there if it lists the file elsewhere): the run includes it after the helper
+files, so it may use and override what they define.
 
 Returns PDEStudioCore's `RunSummary` (what ran, was cached, failed or was made with other code), which the REPL
 shows as a short report. Options after the name are passed to `run_all_simulations` and override the defaults
@@ -171,6 +182,8 @@ macro sim(name, opts...)
             if config isa Function
                 config = Base.invokelatest(config)
             end
+            # The configuration's own file is the last of its sources (PDEStudioCore includes it after the helpers)
+            config isa SimulationConfig && HyperCloud._config_file_last!(config, path)
         end
         
         opts = merge((force_overwrite = false, calculate_stats = true), $kw)

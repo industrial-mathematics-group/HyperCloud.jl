@@ -29,6 +29,9 @@ Runs the configuration returned by `name()`:
    function of the same name.
 3. The call goes through `Base.invokelatest`, so functions defined by a freshly included file
    work in the same session.
+4. A configuration loaded from a file gets that file as the last of its `sources` (moved there if it lists the
+   file elsewhere, added otherwise): the run includes it after the helper files, so it may use and override what
+   they define, and records its digest (PDEStudioCore's sources contract).
 
 If neither exists, `@sim` throws an `ErrorException`.
 
