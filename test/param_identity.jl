@@ -27,6 +27,10 @@
         @test hash_of(domain(shape)) == hash_of(domain(HCC.Cuboid((0.0, 0.0), (1.0, 1.0))))   # (built again)
         @test hash_of(domain(shape)) != hash_of(domain(HCC.Cuboid((0.0, 0.0), (1.0, 2.0))))
         @test !occursin("volume", text(domain(shape))) && !occursin("is_interior", text(domain(shape)))
+        # unset fields keep their stored form (`Nothing`), also a domain without a shape
+        box = HCC.GeometricDomain(:box, HCC.SVector(0.0), HCC.SVector(1.0), HCC.SVector(false), x -> true, x -> 1, walls)
+        @test occursin("shape=Nothing", text(box)) && calculate_hash(Dict(:Grid_domain => box)) isa String
+        @test text(diffuse_wall(300.0; velocity = (0.1,))) == "MirrorBC(op=DiffuseWall(temperature=300.0, velocity=Float64[0.1], accommodation=1.0))"
 
         # A moving piece whose motion is a function can't be compared: refused; the string form is data
         moving = HCC.Moving(HCC.Tagged(HCC.HalfSpace((1.0,), (1.0,)), 2), HCC.translating((-0.5,)))
