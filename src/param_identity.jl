@@ -11,12 +11,18 @@ if isdefined(PDEStudioCore, :param_identity)
     # Plain data: every field (stored as `TypeName(field=value, …)`, a type without fields by its type with its
     # parameters, e.g. `ExtrapolationBC{1}`). A `Tagged` tag or a `Moving` motion that is a function is refused by
     # PDEStudioCore's check: give such a shape as a string (`:Grid_shape`), which is data.
-    for T in (SlipWall, DiffuseWall,
+    for T in (SlipWall,
               (getfield(HyperCloudCore, n) for n in (:FixedDirichlet, :OutflowBC, :ExtrapolationBC, :Cuboid, :Ball, :HalfSpace,
                                                      :UnionShape, :IntersectionShape, :ComplementShape, :Translated, :Rotated,
                                                      :RigidMotion, :Tagged, :Moving))...)
         @eval PDEStudioCore.@param_struct $T
     end
+
+    # An unset field (`nothing`) is listed as the type `Nothing`: PDEStudioCore refuses `nothing` inside an identity
+    # (it is written as the type there, so the two would be one value), and the stored form stays `velocity=Nothing`
+    _unset(x) = x === nothing ? Nothing : x
+    PDEStudioCore.param_identity(w::DiffuseWall) =
+        (; temperature = w.temperature, velocity = _unset(w.velocity), accommodation = w.accommodation)
 
     # The degree and boundedness of a `MirrorBC` are type parameters: listed when they differ from the defaults
     # (degree 1, bounded), so the stored form of a default condition stays `MirrorBC(op=…)`, as before 0.9
@@ -27,5 +33,6 @@ if isdefined(PDEStudioCore, :param_identity)
     # domain without one from its label) nor by what is derived (`volume`, `pieces`, `piece_of_tag`). A domain built
     # from functions needs a label of its own for every region.
     PDEStudioCore.param_identity(d::HyperCloudCore.GeometricDomain) =
-        (; label = d.label, mins = d.mins, maxs = d.maxs, is_periodic = d.is_periodic, bc_map = d.bc_map, shape = d.shape)
+        (; label = _unset(d.label), mins = d.mins, maxs = d.maxs, is_periodic = d.is_periodic, bc_map = d.bc_map,
+           shape = _unset(d.shape))   # (a domain without a shape: `shape=Nothing`)
 end
