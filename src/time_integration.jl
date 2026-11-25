@@ -250,7 +250,11 @@ function solve_equation(
     fields = _field_storage(snapshot_fields, pg, snapshots + 1)
     div_interp = hasproperty(timestepper, :divergence_interpolator) ? timestepper.divergence_interpolator : NoFallbackGrad()
 
-    step!(t, d) = (timestepper(eq, pg, t, d); adaptivity === nothing || adapt_particles!(pg, adaptivity, _extract_order(div_interp)); nothing)
+    # (the content form of the Lagrangian movers keeps the scheme's volumes between the steps: the management must not
+    # replace them all with the estimator's)
+    own_volumes = adaptivity !== nothing && keeps_own_volumes(timestepper, pg)
+    step!(t, d) = (timestepper(eq, pg, t, d);
+                   adaptivity === nothing || adapt_particles!(pg, adaptivity, _extract_order(div_interp); own_volumes = own_volumes); nothing)
     save!(k, t) = (saveData!(xs, us, ts, k, pg, t, remove_ghosts; fields, snapshot_state); us[k])
     resume = _resume!(ck -> restore_checkpoint!(pg, ck), checkpoint, xs, us, ts, fields)
     k_step, elapsed_time = _time_loop(step!, () -> get_time_step(pg, eq, div_interp), save!,
@@ -427,7 +431,9 @@ function _time_loop(step!, cfl_step, save!, state_finite, tmax_val::T, dt_inp::T
                 stopped = true
                 break
             end
-        elseif !(isfinite(dt_step) && dt_step > T(1e-12) * tmax_val)      # relative: no fixed time scale
+        # (relative: no fixed time scale; and not below the resolution of the time itself, 4 eps(T) tmax: a Float32 run
+        # whose CFL step fell into (1e-12, 4 eps] tmax used to leave through the end-of-run test below, without a message)
+        elseif !(isfinite(dt_step) && dt_step > max(T(1e-12), 4 * eps(T)) * tmax_val)
             @warn "solve_equation stopped at t = $t before tmax = $tmax_val after $k_step steps: the time step " *
                   "is $(isfinite(dt_step) ? "collapsed" : "not finite") (dt = $dt_step" *
                   (isfinite(dt_inp) && dt_inp > zero(T) ? "); the state has probably blown up." :
@@ -436,8 +442,8 @@ function _time_loop(step!, cfl_step, save!, state_finite, tmax_val::T, dt_inp::T
             stopped = true
             break
         end
+        if tmax_val - t <= max(T(1e-12), 4 * eps(T)) * tmax_val; break; end   # tmax reached up to round-off (relative)
         dt_val = min(dt_step, tmax_val - t)
-        if dt_val <= max(T(1e-12), 4 * eps(T)) * tmax_val; break; end      # tmax reached up to round-off (relative)
 
         step!(t, dt_val)
 

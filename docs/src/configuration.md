@@ -156,16 +156,23 @@ Optional; mainly for Lagrangian grids. See
 | Key | Default | Meaning |
 |:----|:--------|:--------|
 | `:enabled` | `false` | Insert and merge particles between time steps. |
-| `:max_gap`, `:min_gap` | `1.6`, `0.5` | Pair distances (in units of the spacing) above which a particle is inserted and below which a pair is merged. |
-| `:clearance` | `0.7` | Free radius required around an insertion point. |
+| `:max_gap`, `:min_gap` | by the dimension, `0.5` | Pair distances (in units of the spacing) above which a particle is inserted and below which a pair is merged. `:max_gap` is `1.6` in 1-D and 2-D and `1.6 √(D/2)` above (1.96 in 3-D; HyperCloudCore ≥ 0.9.10): the longest diagonal of a lattice cell must not count as a gap. |
+| `:clearance` | by the dimension | Free radius required around an insertion point: `0.7` in 1-D and 2-D, `0.7 √(D/2)` above (0.86 in 3-D). |
 | `:samples_per_dx` | `2` | Lattice resolution of the conservative remap. |
 | `:exclude_reduced_order` | `true` | No events near particles whose MOOD order was lowered. |
-| `:max_events` | unlimited | At most this many insertions/merges per call (HyperCloudCore ≥ 0.7.5). |
+| `:max_events` | unlimited | At most this many insertions/merges per round (HyperCloudCore ≥ 0.7.5). |
+| `:max_rounds` | `8` | A call repeats detection, remaps and neighbour search until no pair violates the rules, at most this many times (HyperCloudCore ≥ 0.9.10; `1`: one round per step, as before). |
 
 Every adaptation call is exactly conservative with respect to `Σ V_i U_i`, also with several events per call
 and, on a moving grid, across the volume re-estimation that follows (HyperCloudCore ≥ 0.7.5; with 0.7.4 and
 earlier, calls with several events in 2-D/3-D and the next re-estimation were not, see
 [Particle insertion and merging](@extref HyperCloudCore Particle-insertion-and-merging)).
+
+On a moving cloud with open boundaries the same call keeps the cloud inside the region (HyperCloudCore ≥ 0.9.10):
+an interior particle that has left the region is removed with its content (the outflow), unless it crossed a wall
+(`MirrorBC`), where it is put back onto the wall, and the gaps between the cloud and a boundary it receded from
+(an inflow) are refilled with seeds between the first interior particles and the ghosts. What leaves and what the
+seeds bring is not part of the conserved balance of the call.
 
 The number of particles at the end is stored in the statistic `final_particle_count`.
 
