@@ -39,7 +39,7 @@ module MockPDEStudio
     launch_plotter() = "mock_figure"
     set_sim_config!(conf) = nothing
     force_simulation() = nothing
-    dummy_config() = "mock_config"
+    dummy_config() = SimulationConfig(Dict{Symbol, Any}(:sim_func_name => :dummy_func), Dict(), Symbol[])   # (`@plot` checks it)
 end
 
 module MockGLMakie
