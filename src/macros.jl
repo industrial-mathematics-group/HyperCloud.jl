@@ -141,13 +141,35 @@ function _config_file_last!(config::SimulationConfig, file::AbstractString)
     return config
 end
 
+# The configuration a configuration file ends with (`result`, its last value): a `SimulationConfig`, or a function
+# without arguments (no positional, optional or keyword ones) that returns one, which is called. Anything else is an
+# `ArgumentError` (as PDEStudio's `load_config_file!`).
+function _config_value(result, file::AbstractString)
+    if result isa Function
+        ms = methods(result)
+        (isempty(ms) || any(m -> m.nargs != 1 || m.isva || !isempty(Base.kwarg_decl(m)), ms)) &&
+            throw(ArgumentError("$(basename(file)) ends with the function $(nameof(result)), which takes arguments: a " *
+                                "configuration file ends with a SimulationConfig, or a function without arguments " *
+                                "that returns one"))
+        f, result = result, Base.invokelatest(result)
+        result isa SimulationConfig ||
+            throw(ArgumentError("the function $(nameof(f)) that $(basename(file)) ends with returned " *
+                                "$(result === nothing ? "nothing" : "a $(typeof(result))"), not a SimulationConfig"))
+    end
+    result isa SimulationConfig ||
+        throw(ArgumentError("$(basename(file)) must end with a SimulationConfig (or a function without arguments " *
+                            "that returns one); it returned $(result === nothing ? "nothing" : "a $(typeof(result))")"))
+    return result
+end
+
 """
     @sim name [key = value ...]
 
 Evaluates the configuration and runs the simulation. Checks the local module scope first; 
 if not found, dynamically loads the configuration from the user's configured search paths.
-Accepts strings (`"name"`), bare words (`name`), or symbols (`:name`). A configuration loaded from a file gets that
-file as the last of its `sources` (moved there if it lists the file elsewhere): the run includes it after the helper
+Accepts strings (`"name"`), bare words (`name`), or symbols (`:name`). A configuration file ends with the
+`SimulationConfig` or a function without arguments that returns it (a function with arguments, also optional or
+keyword ones, is an error). A configuration loaded from a file gets that file as the last of its `sources` (moved there if it lists the file elsewhere): the run includes it after the helper
 files, so it may use and override what they define.
 
 Returns PDEStudioCore's `RunSummary` (what ran, was cached, failed or was made with other code), which the REPL
@@ -176,14 +198,10 @@ macro sim(name, opts...)
         else
             # 2. Plugin Fallback: Include the file directly into the user's module.
             path = HyperCloud.resolve_config_path($mod,$name_str)
-            config = Base.include($mod, path)
-            
-            # If the file defines and returns a function instead of a raw config, evaluate it.
-            if config isa Function
-                config = Base.invokelatest(config)
-            end
+            # (the file ends with the configuration, or a function without arguments that returns it)
+            config = HyperCloud._config_value(Base.include($mod, path), path)
             # The configuration's own file is the last of its sources (PDEStudioCore includes it after the helpers)
-            config isa SimulationConfig && HyperCloud._config_file_last!(config, path)
+            HyperCloud._config_file_last!(config, path)
         end
         
         opts = merge((force_overwrite = false, calculate_stats = true), $kw)
@@ -230,6 +248,7 @@ end
     @plot name
 
 Launches the PDEStudio plotter, loads the configuration from the function or plugin `name`, and forces a plot update.
+A configuration file ends with the `SimulationConfig` or a function without arguments that returns it (see `@sim`).
 """
 macro plot(name)
     mod = __module__
@@ -250,10 +269,7 @@ macro plot(name)
                 config = $(esc(raw_sym))()
             else
                 path = HyperCloud.resolve_config_path($mod,$name_str)
-                config = Base.include($mod, path)
-                if config isa Function
-                    config = Base.invokelatest(config)
-                end
+                config = HyperCloud._config_value(Base.include($mod, path), path)
             end
 
             $mod.set_sim_config!(config)

@@ -68,6 +68,24 @@
             @test HyperCloud._config_file_last!(cfg, "c.jl").sources == ["b.jl", abspath("a.jl"), abspath("c.jl")]
         end
 
+        @testset "@sim: a configuration file ends with a configuration or a function without arguments" begin
+            body = "SimulationConfig(Dict{Symbol, Any}(:Time_tmax => 0.0, :Time_snapshots => 0, :sim_func_name => :dummy_func), Dict(), Symbol[])"
+            write(joinpath(mock_configs_dir, "value_plugin.jl"), body * "\n")
+            write(joinpath(mock_configs_dir, "anon_plugin.jl"), "() -> " * body * "\n")
+            @test (@eval Main @sim value_plugin dry_run = true) isa RunSummary
+            @test (@eval Main @sim anon_plugin dry_run = true) isa RunSummary
+            # a function with arguments (also optional or keyword ones) is refused instead of called with its defaults
+            for (name, code) in (("optional_plugin", "optional_plugin(N = 12) = $body"),
+                                 ("keyword_plugin", "keyword_plugin(; N = 12) = $body"),
+                                 ("nothing_plugin", "nothing_plugin() = nothing"), ("int_plugin", "1 + 1"))
+                write(joinpath(mock_configs_dir, "$name.jl"), code * "\n")
+                err = try @eval(Main, @sim $(Symbol(name))); nothing catch e; e end
+                err isa LoadError && (err = err.error)
+                @test err isa ArgumentError
+                name in ("optional_plugin", "keyword_plugin") && @test occursin("takes arguments", err.msg)
+            end
+        end
+
         @testset "@backup" begin
             @eval Main @backup test_plugin
             backup_dir = joinpath(mock_configs_dir, "backups")
