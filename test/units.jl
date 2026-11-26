@@ -79,10 +79,13 @@
                                  ("keyword_plugin", "keyword_plugin(; N = 12) = $body"),
                                  ("nothing_plugin", "nothing_plugin() = nothing"), ("int_plugin", "1 + 1"))
                 write(joinpath(mock_configs_dir, "$name.jl"), code * "\n")
-                err = try @eval(Main, @sim $(Symbol(name))); nothing catch e; e end
-                err isa LoadError && (err = err.error)
-                @test err isa ArgumentError
-                name in ("optional_plugin", "keyword_plugin") && @test occursin("takes arguments", err.msg)
+                # (twice: the first call defines the function, the second takes it from the module, by the same rule)
+                for _ in 1:2
+                    err = try @eval(Main, @sim $(Symbol(name))); nothing catch e; e end
+                    err isa LoadError && (err = err.error)
+                    @test err isa ArgumentError
+                    name in ("optional_plugin", "keyword_plugin") && @test occursin("takes arguments", err.msg)
+                end
             end
         end
 
