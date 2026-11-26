@@ -24,7 +24,8 @@ All of them are `Ref`s, e.g. `HyperCloud.CONFIG_SEARCH_PATHS[] = ["my_cases"]`.
 
 Runs the configuration returned by `name()`:
 
-1. If a function `name` exists in the calling module, it is used.
+1. If a function `name` exists in the calling module, it is used (by the same rule as a file, below: it takes no
+   arguments).
 2. Otherwise the macro searches `CONFIG_SEARCH_PATHS` for `name.jl` and includes it. The file ends with the
    `SimulationConfig`, or with a function without arguments that returns it (e.g. `function name() … end`), which is
    called. A function with arguments, also optional (`name(N = 12)`) or keyword ones, and any other last value are

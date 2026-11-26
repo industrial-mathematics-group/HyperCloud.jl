@@ -141,16 +141,17 @@ function _config_file_last!(config::SimulationConfig, file::AbstractString)
     return config
 end
 
-# The configuration a configuration file ends with (`result`, its last value): a `SimulationConfig`, or a function
-# without arguments (no positional, optional or keyword ones) that returns one, which is called. Anything else is an
-# `ArgumentError` (as PDEStudio's `load_config_file!`).
+# The configuration a configuration file ends with (`result`, its last value; `file` names it, or the local function)
+# : a `SimulationConfig`, or a function without arguments (no positional, optional or keyword ones) that returns one,
+# which is called. Anything else is an `ArgumentError` (as PDEStudio's `load_config_file!`).
 function _config_value(result, file::AbstractString)
     if result isa Function
         ms = methods(result)
         (isempty(ms) || any(m -> m.nargs != 1 || m.isva || !isempty(Base.kwarg_decl(m)), ms)) &&
-            throw(ArgumentError("$(basename(file)) ends with the function $(nameof(result)), which takes arguments: a " *
-                                "configuration file ends with a SimulationConfig, or a function without arguments " *
-                                "that returns one"))
+            throw(ArgumentError("$(basename(file)): the function $(nameof(result)) takes arguments (or has no " *
+                                "methods); a configuration is a SimulationConfig, or a function without arguments " *
+                                "that returns one. (Methods defined before, e.g. by an earlier version of the file, " *
+                                "stay until Julia restarts: rename the function, or end the file with `() -> …`.)"))
         f, result = result, Base.invokelatest(result)
         result isa SimulationConfig ||
             throw(ArgumentError("the function $(nameof(f)) that $(basename(file)) ends with returned " *
@@ -193,8 +194,9 @@ macro sim(name, opts...)
         local is_local = isdefined($mod,$name_sym)
         
         if is_local
-            # 1. Execute the function defined in the user's local scope
-            config = $(esc(raw_sym))()
+            # 1. The function defined in the user's local scope (by the same rule as a file: a refused file that
+            #    defined it is refused again)
+            config = HyperCloud._config_value($(esc(raw_sym)), $name_str)
         else
             # 2. Plugin Fallback: Include the file directly into the user's module.
             path = HyperCloud.resolve_config_path($mod,$name_str)
@@ -266,7 +268,7 @@ macro plot(name)
             local is_local = isdefined($mod,$name_sym)
             
             if is_local
-                config = $(esc(raw_sym))()
+                config = HyperCloud._config_value($(esc(raw_sym)), $name_str)
             else
                 path = HyperCloud.resolve_config_path($mod,$name_str)
                 config = HyperCloud._config_value(Base.include($mod, path), path)
