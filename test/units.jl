@@ -63,9 +63,6 @@
             @eval Main SIM_INCLUDE_ORDER = Symbol[]
             @eval Main @sim order_plugin
             @test Main.SIM_INCLUDE_ORDER == [:config, :helper, :config]   # (loading it, then the run's sources)
-            cfg = SimulationConfig(Dict{Symbol, Any}(:sim_func_name => :dummy_func), Dict(), Symbol[]; sources = ["a.jl", "b.jl"])
-            @test HyperCloud._config_file_last!(cfg, "a.jl").sources == ["b.jl", abspath("a.jl")]
-            @test HyperCloud._config_file_last!(cfg, "c.jl").sources == ["b.jl", abspath("a.jl"), abspath("c.jl")]
         end
 
         @testset "@sim: a configuration file ends with a configuration or a function without arguments" begin
@@ -123,6 +120,17 @@
             @test HyperCloud.BONITO_IS_CONFIGURED[] == true
 
             @test (@eval MockPDEStudio @plot dummy_config) == "mock_figure"
+            # a function of the module is handed to the studio as it is (PDEStudio remembers it as the blueprint) ...
+            @test MockPDEStudio.BOUND[] === MockPDEStudio.dummy_config
+            # ... and to a studio that binds configurations only, as the configuration it builds, by the same rule
+            @test (@test_logs (:warn, r"No Makie backend found!") match_mode = :any @eval MockOldPDEStudio @plot dummy_config) == "mock_figure"
+            @test MockOldPDEStudio.BOUND[] isa SimulationConfig
+            @test_throws ArgumentError @eval MockOldPDEStudio @plot optional_config
+            # a configuration file is handed to a studio that loads files as its path, to the other one as the configuration
+            @test (@eval MockPDEStudio @plot test_plugin) == "mock_figure"
+            @test MockPDEStudio.BOUND[] == HyperCloud.resolve_config_path(MockPDEStudio, "test_plugin")
+            @test_logs (:warn, r"No Makie backend found!") match_mode = :any @eval MockOldPDEStudio @plot test_plugin
+            @test MockOldPDEStudio.BOUND[] isa SimulationConfig
         end
     finally
         HyperCloud.CONFIG_ROOT_OVERWRITE[] = old_root

@@ -29,7 +29,7 @@ Runs the configuration returned by `name()`:
 2. Otherwise the macro searches `CONFIG_SEARCH_PATHS` for `name.jl` and includes it. The file ends with the
    `SimulationConfig`, or with a function without arguments that returns it (e.g. `function name() … end`), which is
    called. A function with arguments, also optional (`name(N = 12)`) or keyword ones, and any other last value are
-   refused with an `ArgumentError` (the same rule as PDEStudio's `load_config_file!`).
+   refused with an `ArgumentError` (PDEStudioCore's `load_config_file`, which PDEStudio uses too).
 3. The call goes through `Base.invokelatest`, so functions defined by a freshly included file
    work in the same session.
 4. A configuration loaded from a file gets that file as the last of its `sources` (moved there if it lists the
@@ -63,6 +63,16 @@ after the name override the defaults `force_overwrite = false`, `calculate_stats
 
 Opens the PDEStudio viewer. With `name`, the configuration is resolved like in `@sim`, passed
 to the viewer with `set_sim_config!`, and computed (or loaded from cache).
+
+A function of the module (`@plot euler_1d_sod`) is handed to the viewer as it is. PDEStudio remembers it as the
+configuration's *blueprint*: a CSV exported from the viewer names the function (`blueprint_function`), and loading
+that CSV calls the function again and applies the file's values, so the configuration gets its objects (boundary
+conditions and other structs) back. Only functions that the target module defines (HyperCloud's, such as its
+examples) can be blueprints: a function you define in `Main` is bound without one, and its exports hold values only.
+
+A configuration file is handed to the viewer as its path: PDEStudio loads it (in HyperCloud, the target module),
+records the files it includes, and its exports get a blueprint folder with that code (see PDEStudio's *File
+Operations*).
 
 The backend is chosen from what is loaded in the calling module:
 

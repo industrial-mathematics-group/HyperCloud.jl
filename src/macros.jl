@@ -132,37 +132,6 @@ end
 # Helper to normalize macro inputs (bare words, strings, or symbols) into a pure Symbol
 _normalize_macro_name(name) = name isa QuoteNode ? name.value : Symbol(name)
 
-# `config.sources` with `file` as the last entry (moved there if listed, appended otherwise): the file that builds a
-# configuration is included after its helper files, so it may use and override what they define (PDEStudioCore's
-# sources contract). A configuration that doesn't list its file gets it added, and so its digest recorded.
-function _config_file_last!(config::SimulationConfig, file::AbstractString)
-    same(src) = normpath(abspath(src)) == normpath(abspath(file)) || (isfile(src) && isfile(file) && samefile(src, file))
-    config.sources = String[String[src for src in config.sources if !same(src)]; abspath(file)]
-    return config
-end
-
-# The configuration a configuration file ends with (`result`, its last value; `file` names it, or the local function)
-# : a `SimulationConfig`, or a function without arguments (no positional, optional or keyword ones) that returns one,
-# which is called. Anything else is an `ArgumentError` (as PDEStudio's `load_config_file!`).
-function _config_value(result, file::AbstractString)
-    if result isa Function
-        ms = methods(result)
-        (isempty(ms) || any(m -> m.nargs != 1 || m.isva || !isempty(Base.kwarg_decl(m)), ms)) &&
-            throw(ArgumentError("$(basename(file)): the function $(nameof(result)) takes arguments (or has no " *
-                                "methods); a configuration is a SimulationConfig, or a function without arguments " *
-                                "that returns one. (Methods defined before, e.g. by an earlier version of the file, " *
-                                "stay until Julia restarts: rename the function, or end the file with `() -> …`.)"))
-        f, result = result, Base.invokelatest(result)
-        result isa SimulationConfig ||
-            throw(ArgumentError("the function $(nameof(f)) that $(basename(file)) ends with returned " *
-                                "$(result === nothing ? "nothing" : "a $(typeof(result))"), not a SimulationConfig"))
-    end
-    result isa SimulationConfig ||
-        throw(ArgumentError("$(basename(file)) must end with a SimulationConfig (or a function without arguments " *
-                            "that returns one); it returned $(result === nothing ? "nothing" : "a $(typeof(result))")"))
-    return result
-end
-
 """
     @sim name [key = value ...]
 
@@ -195,15 +164,14 @@ macro sim(name, opts...)
         
         if is_local
             # 1. The function defined in the user's local scope (by the same rule as a file: a refused file that
-            #    defined it is refused again)
-            config = HyperCloud._config_value($(esc(raw_sym)), $name_str)
+            #    defined it is refused again; PDEStudioCore's `to_simulation_config`)
+            config = HyperCloud.to_simulation_config($(esc(raw_sym)), $name_str)
         else
             # 2. Plugin Fallback: Include the file directly into the user's module.
             path = HyperCloud.resolve_config_path($mod,$name_str)
-            # (the file ends with the configuration, or a function without arguments that returns it)
-            config = HyperCloud._config_value(Base.include($mod, path), path)
-            # The configuration's own file is the last of its sources (PDEStudioCore includes it after the helpers)
-            HyperCloud._config_file_last!(config, path)
+            # (PDEStudioCore's `load_config_file`: the file ends with the configuration, or a function without
+            # arguments that returns it, and is the last of its sources, included after the helpers by the run)
+            config = HyperCloud.load_config_file(path; mod = $mod)
         end
         
         opts = merge((force_overwrite = false, calculate_stats = true), $kw)
@@ -251,6 +219,11 @@ end
 
 Launches the PDEStudio plotter, loads the configuration from the function or plugin `name`, and forces a plot update.
 A configuration file ends with the `SimulationConfig` or a function without arguments that returns it (see `@sim`).
+A function of the module (`@plot euler_1d_sod`) is handed to the studio as it is, and a configuration file as its
+path: PDEStudio remembers the function (or the file, with the files it includes) as the configuration's blueprint,
+so exported CSV files name it and get the configuration's objects back. Only a function that the target module
+defines (HyperCloud's own, e.g. its examples) can be a blueprint: a function defined elsewhere, e.g. in `Main`, is
+bound without one.
 """
 macro plot(name)
     mod = __module__
@@ -268,10 +241,20 @@ macro plot(name)
             local is_local = isdefined($mod,$name_sym)
             
             if is_local
-                config = HyperCloud._config_value($(esc(raw_sym)), $name_str)
+                config = $(esc(raw_sym))
+                # A function is bound as it is where the studio takes one (PDEStudio's `set_sim_config!(f)`): it
+                # remembers the function as the configuration's blueprint, so exports name it and get the
+                # configuration's objects (e.g. boundary conditions) back by calling it again.
+                if !(config isa Function && hasmethod($mod.set_sim_config!, Tuple{typeof(config)}))
+                    config = HyperCloud.to_simulation_config(config, $name_str)
+                end
             else
                 path = HyperCloud.resolve_config_path($mod,$name_str)
-                config = HyperCloud._config_value(Base.include($mod, path), path)
+                # A file is handed to the studio as its path where it takes one (PDEStudio's `set_sim_config!(file)`):
+                # it loads the file itself (in its target module), records the files it includes and remembers the
+                # file as the configuration's blueprint, so exports copy the code and get the objects back.
+                config = hasmethod($mod.set_sim_config!, Tuple{String}) ? String(path) :
+                         HyperCloud.load_config_file(path; mod = $mod)
             end
 
             $mod.set_sim_config!(config)
