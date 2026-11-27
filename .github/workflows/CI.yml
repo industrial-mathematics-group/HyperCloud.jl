@@ -83,7 +83,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y xvfb
 
       # aisignoff's blame cache (.git/aisignoff): the report only blames the commits since the cached one.
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: .git/aisignoff
           key: aisignoff-${{ github.sha }}
