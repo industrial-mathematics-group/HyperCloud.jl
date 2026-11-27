@@ -120,6 +120,12 @@
             @test HyperCloud.BONITO_IS_CONFIGURED[] == true
 
             @test (@eval MockPDEStudio @plot dummy_config) == "mock_figure"
+            # a function of the module is handed to the studio as it is (PDEStudio remembers it as the blueprint) ...
+            @test MockPDEStudio.BOUND[] === MockPDEStudio.dummy_config
+            # ... and to a studio that binds configurations only, as the configuration it builds, by the same rule
+            @test (@test_logs (:warn, r"No Makie backend found!") match_mode = :any @eval MockOldPDEStudio @plot dummy_config) == "mock_figure"
+            @test MockOldPDEStudio.BOUND[] isa SimulationConfig
+            @test_throws ArgumentError @eval MockOldPDEStudio @plot optional_config
         end
     finally
         HyperCloud.CONFIG_ROOT_OVERWRITE[] = old_root

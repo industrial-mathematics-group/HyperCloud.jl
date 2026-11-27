@@ -37,9 +37,23 @@ module MockPDEStudio
     using Base
 
     launch_plotter() = "mock_figure"
-    set_sim_config!(conf) = nothing
+    const BOUND = Ref{Any}(nothing)
+    set_sim_config!(conf) = (BOUND[] = conf; nothing)   # (takes a function too, as PDEStudio's `set_sim_config!(f)`)
     force_simulation() = nothing
     dummy_config() = SimulationConfig(Dict{Symbol, Any}(:sim_func_name => :dummy_func), Dict(), Symbol[])   # (`@plot` checks it)
+end
+
+# A studio that binds configurations only (PDEStudio before `set_sim_config!(f)`)
+module MockOldPDEStudio
+    using HyperCloud
+    using Base
+
+    launch_plotter() = "mock_figure"
+    const BOUND = Ref{Any}(nothing)
+    set_sim_config!(conf::SimulationConfig) = (BOUND[] = conf; nothing)
+    force_simulation() = nothing
+    dummy_config() = SimulationConfig(Dict{Symbol, Any}(:sim_func_name => :dummy_func), Dict(), Symbol[])
+    optional_config(N = 1) = dummy_config()
 end
 
 module MockGLMakie

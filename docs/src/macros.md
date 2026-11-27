@@ -64,6 +64,12 @@ after the name override the defaults `force_overwrite = false`, `calculate_stats
 Opens the PDEStudio viewer. With `name`, the configuration is resolved like in `@sim`, passed
 to the viewer with `set_sim_config!`, and computed (or loaded from cache).
 
+A function of the module (`@plot euler_1d_sod`) is handed to the viewer as it is. PDEStudio remembers it as the
+configuration's *blueprint*: a CSV exported from the viewer names the function (`blueprint_function`), and loading
+that CSV calls the function again and applies the file's values, so the configuration gets its objects (boundary
+conditions and other structs) back. A configuration from a file gets a blueprint folder with its code instead (see
+PDEStudio's *File Operations*).
+
 The backend is chosen from what is loaded in the calling module:
 
 - `GLMakie`: a local window.

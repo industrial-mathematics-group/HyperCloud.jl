@@ -219,6 +219,8 @@ end
 
 Launches the PDEStudio plotter, loads the configuration from the function or plugin `name`, and forces a plot update.
 A configuration file ends with the `SimulationConfig` or a function without arguments that returns it (see `@sim`).
+A function of the module (`@plot euler_1d_sod`) is handed to the studio as it is: PDEStudio remembers it as the
+configuration's blueprint, so exported CSV files name the function and get the configuration's objects back.
 """
 macro plot(name)
     mod = __module__
@@ -236,7 +238,13 @@ macro plot(name)
             local is_local = isdefined($mod,$name_sym)
             
             if is_local
-                config = HyperCloud.to_simulation_config($(esc(raw_sym)), $name_str)
+                config = $(esc(raw_sym))
+                # A function is bound as it is where the studio takes one (PDEStudio's `set_sim_config!(f)`): it
+                # remembers the function as the configuration's blueprint, so exports name it and get the
+                # configuration's objects (e.g. boundary conditions) back by calling it again.
+                if !(config isa Function && hasmethod($mod.set_sim_config!, Tuple{typeof(config)}))
+                    config = HyperCloud.to_simulation_config(config, $name_str)
+                end
             else
                 path = HyperCloud.resolve_config_path($mod,$name_str)
                 config = HyperCloud.load_config_file(path; mod = $mod)
