@@ -29,7 +29,7 @@ Runs the configuration returned by `name()`:
 2. Otherwise the macro searches `CONFIG_SEARCH_PATHS` for `name.jl` and includes it. The file ends with the
    `SimulationConfig`, or with a function without arguments that returns it (e.g. `function name() … end`), which is
    called. A function with arguments, also optional (`name(N = 12)`) or keyword ones, and any other last value are
-   refused with an `ArgumentError` (the same rule as PDEStudio's `load_config_file!`).
+   refused with an `ArgumentError` (PDEStudioCore's `load_config_file`, which PDEStudio uses too).
 3. The call goes through `Base.invokelatest`, so functions defined by a freshly included file
    work in the same session.
 4. A configuration loaded from a file gets that file as the last of its `sources` (moved there if it lists the

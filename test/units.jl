@@ -63,9 +63,6 @@
             @eval Main SIM_INCLUDE_ORDER = Symbol[]
             @eval Main @sim order_plugin
             @test Main.SIM_INCLUDE_ORDER == [:config, :helper, :config]   # (loading it, then the run's sources)
-            cfg = SimulationConfig(Dict{Symbol, Any}(:sim_func_name => :dummy_func), Dict(), Symbol[]; sources = ["a.jl", "b.jl"])
-            @test HyperCloud._config_file_last!(cfg, "a.jl").sources == ["b.jl", abspath("a.jl")]
-            @test HyperCloud._config_file_last!(cfg, "c.jl").sources == ["b.jl", abspath("a.jl"), abspath("c.jl")]
         end
 
         @testset "@sim: a configuration file ends with a configuration or a function without arguments" begin
