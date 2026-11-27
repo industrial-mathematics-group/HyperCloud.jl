@@ -126,6 +126,11 @@
             @test (@test_logs (:warn, r"No Makie backend found!") match_mode = :any @eval MockOldPDEStudio @plot dummy_config) == "mock_figure"
             @test MockOldPDEStudio.BOUND[] isa SimulationConfig
             @test_throws ArgumentError @eval MockOldPDEStudio @plot optional_config
+            # a configuration file is handed to a studio that loads files as its path, to the other one as the configuration
+            @test (@eval MockPDEStudio @plot test_plugin) == "mock_figure"
+            @test MockPDEStudio.BOUND[] == HyperCloud.resolve_config_path(MockPDEStudio, "test_plugin")
+            @test_logs (:warn, r"No Makie backend found!") match_mode = :any @eval MockOldPDEStudio @plot test_plugin
+            @test MockOldPDEStudio.BOUND[] isa SimulationConfig
         end
     finally
         HyperCloud.CONFIG_ROOT_OVERWRITE[] = old_root
